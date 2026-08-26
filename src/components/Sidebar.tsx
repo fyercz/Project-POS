@@ -1,12 +1,12 @@
 import React from 'react';
-import { Fuel, Truck, Gauge, TrendingUp, Settings, FileText, X, Receipt } from 'lucide-react';
+import { Fuel, Truck, Gauge, TrendingUp, Settings, FileText, X, Receipt, CalendarDays } from 'lucide-react';
 import { PertashopProfile, TankConfig } from '../types';
 
 interface SidebarProps {
   profile: PertashopProfile;
   tank: TankConfig;
-  activeTab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'analytics';
-  setActiveTab: (tab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'analytics') => void;
+  activeTab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics';
+  setActiveTab: (tab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics') => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   onOpenProfileModal: () => void;
@@ -54,9 +54,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Receipt,
     },
     {
+      id: 'summary' as const,
+      label: 'Rekap Bulanan & Tahunan',
+      subtitle: 'Summary Eksekutif & P&L',
+      icon: CalendarDays,
+      badge: 'NEW',
+      badgeColor: 'bg-emerald-500',
+    },
+    {
       id: 'analytics' as const,
       label: 'Analisis & Margin',
-      subtitle: 'Tren & Laba Bersih',
+      subtitle: 'Tren & Kalkulator Laba',
       icon: TrendingUp,
     },
   ];

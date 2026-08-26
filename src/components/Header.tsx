@@ -7,7 +7,7 @@ interface HeaderProps {
   profile: PertashopProfile;
   products: Product[];
   tank: TankConfig;
-  activeTab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'analytics';
+  activeTab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics';
   onOpenMobileSidebar: () => void;
   onOpenPriceModal: () => void;
   onOpenSalesModal: () => void;
@@ -40,6 +40,8 @@ export const Header: React.FC<HeaderProps> = ({
       ? 'Log Sounding Stick Celup Tangki'
       : activeTab === 'expenses'
       ? 'Beban & Pengeluaran Operasional'
+      : activeTab === 'summary'
+      ? 'Rekap Eksekutif Bulanan & Tahunan'
       : 'Analisis Margin & Performa Dealer';
 
 

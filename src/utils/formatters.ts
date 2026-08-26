@@ -71,6 +71,53 @@ export function formatShortDate(dateStr: string): string {
   }
 }
 
+export const MONTH_NAMES_INDO = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+];
+
+export const MONTH_NAMES_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+];
+
+export function getMonthNameIndo(monthIndex: number): string {
+  return MONTH_NAMES_INDO[monthIndex] || '';
+}
+
+export function formatMonthYear(yearMonth: string): string {
+  if (!yearMonth) return '-';
+  const parts = yearMonth.split('-');
+  if (parts.length >= 2) {
+    const year = parseInt(parts[0], 10);
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    if (!isNaN(monthIdx) && monthIdx >= 0 && monthIdx < 12) {
+      return `${MONTH_NAMES_INDO[monthIdx]} ${year}`;
+    }
+  }
+  return yearMonth;
+}
+
 export function getTodayDateString(): string {
   const now = new Date();
   const year = now.getFullYear();

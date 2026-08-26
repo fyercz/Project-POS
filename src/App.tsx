@@ -8,12 +8,14 @@ import { SalesTable } from './components/SalesTable';
 import { PurchaseHistoryTable } from './components/PurchaseHistoryTable';
 import { AnalyticsView } from './components/AnalyticsView';
 import { ExpensesView } from './components/ExpensesView';
+import { SummaryReportView } from './components/SummaryReportView';
 import { SalesEntryModal } from './components/SalesEntryModal';
 import { PriceManagementModal } from './components/PriceManagementModal';
 import { PurchaseOrderModal } from './components/PurchaseOrderModal';
 import { ReceiveFuelModal } from './components/ReceiveFuelModal';
 import { SoundingLogModal } from './components/SoundingLogModal';
 import { PrintDailyReportModal } from './components/PrintDailyReportModal';
+import { PrintSummaryReportModal } from './components/PrintSummaryReportModal';
 import { PertashopProfileModal } from './components/PertashopProfileModal';
 import { ExpenseEntryModal } from './components/ExpenseEntryModal';
 import { StorageService } from './utils/storage';
@@ -44,7 +46,7 @@ export default function App() {
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(StorageService.getExpenses());
 
   // Navigation Tab & Mobile Drawer State
-  const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'soundings' | 'expenses' | 'analytics'>('sales');
+  const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics'>('sales');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Modals
@@ -57,6 +59,12 @@ export default function App() {
   const [isSoundingModalOpen, setIsSoundingModalOpen] = useState<boolean>(false);
   const [isPrintReportModalOpen, setIsPrintReportModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+
+  // Summary Report Modal State
+  const [isPrintSummaryModalOpen, setIsPrintSummaryModalOpen] = useState<boolean>(false);
+  const [summaryPrintMode, setSummaryPrintMode] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+  const [summaryPrintMonth, setSummaryPrintMonth] = useState<string>('2026-08');
+  const [summaryPrintYear, setSummaryPrintYear] = useState<number>(2026);
 
   // Expense Modals
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState<boolean>(false);
@@ -307,6 +315,13 @@ export default function App() {
     setExpenses(expenses.filter((e) => e.id !== expenseId));
   };
 
+  const handleOpenPrintSummaryModal = (mode: 'MONTHLY' | 'YEARLY', month: string, year: number) => {
+    setSummaryPrintMode(mode);
+    setSummaryPrintMonth(month);
+    setSummaryPrintYear(year);
+    setIsPrintSummaryModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex font-sans antialiased selection:bg-blue-600 selection:text-white">
       {/* Sidebar Navigation */}
@@ -472,6 +487,17 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'summary' && (
+            <SummaryReportView
+              sales={sales}
+              purchases={purchases}
+              expenses={expenses}
+              products={products}
+              profile={profile}
+              onOpenPrintModal={handleOpenPrintSummaryModal}
+            />
+          )}
+
           {activeTab === 'analytics' && (
             <AnalyticsView sales={sales} products={products} tank={tank} expenses={expenses} />
           )}
@@ -547,6 +573,19 @@ export default function App() {
         purchases={purchases}
         tank={tank}
         expenses={expenses}
+      />
+
+      <PrintSummaryReportModal
+        isOpen={isPrintSummaryModalOpen}
+        onClose={() => setIsPrintSummaryModalOpen(false)}
+        profile={profile}
+        sales={sales}
+        purchases={purchases}
+        expenses={expenses}
+        products={products}
+        initialMode={summaryPrintMode}
+        initialMonth={summaryPrintMonth}
+        initialYear={summaryPrintYear}
       />
 
       <PertashopProfileModal

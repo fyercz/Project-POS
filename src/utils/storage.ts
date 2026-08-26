@@ -11,14 +11,14 @@ import {
 } from '../data/initialData';
 
 const KEYS = {
-  PROFILE: 'pertashop_profile_v1',
-  PRODUCTS: 'pertashop_products_v1',
-  TANK: 'pertashop_tank_v1',
-  PRICE_HISTORY: 'pertashop_price_hist_v1',
-  SALES: 'pertashop_sales_v1',
-  PURCHASES: 'pertashop_purchases_v1',
-  SOUNDINGS: 'pertashop_soundings_v1',
-  EXPENSES: 'pertashop_expenses_v1',
+  PROFILE: 'pertashop_profile_v4_krajan',
+  PRODUCTS: 'pertashop_products_v4_krajan',
+  TANK: 'pertashop_tank_v4_krajan',
+  PRICE_HISTORY: 'pertashop_price_hist_v4_krajan',
+  SALES: 'pertashop_sales_v4_krajan',
+  PURCHASES: 'pertashop_purchases_v4_krajan',
+  SOUNDINGS: 'pertashop_soundings_v4_krajan',
+  EXPENSES: 'pertashop_expenses_v4_krajan',
 };
 
 function getStorageItem<T>(key: string, defaultValue: T): T {
@@ -74,14 +74,14 @@ export const StorageService = {
   setExpenses: (expenses: ExpenseRecord[]) => setStorageItem(KEYS.EXPENSES, expenses),
 
   resetToDefault: () => {
-    localStorage.removeItem(KEYS.PROFILE);
-    localStorage.removeItem(KEYS.PRODUCTS);
-    localStorage.removeItem(KEYS.TANK);
-    localStorage.removeItem(KEYS.PRICE_HISTORY);
-    localStorage.removeItem(KEYS.SALES);
-    localStorage.removeItem(KEYS.PURCHASES);
-    localStorage.removeItem(KEYS.SOUNDINGS);
-    localStorage.removeItem(KEYS.EXPENSES);
+    // Clear all versions
+    const allKeys = Object.values(KEYS);
+    allKeys.forEach((k) => localStorage.removeItem(k));
+    localStorage.removeItem('pertashop_sales_v2');
+    localStorage.removeItem('pertashop_purchases_v2');
+    localStorage.removeItem('pertashop_expenses_v2');
+    localStorage.removeItem('pertashop_profile_v1');
+    localStorage.removeItem('pertashop_products_v1');
+    localStorage.removeItem('pertashop_tank_v1');
   },
 };
-

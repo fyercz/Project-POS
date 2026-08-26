@@ -21,7 +21,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
   const [date, setDate] = useState<string>(getTodayDateString());
   const [time, setTime] = useState<string>(getCurrentTimeString());
-  const [operatorName, setOperatorName] = useState<string>('Ahmad Fauzi');
+  const [operatorName, setOperatorName] = useState<string>('Daslam');
   
   // Standard modular calibration approximation: 1 cm height ≈ 20 Liters (for 3000L tank height ~150cm)
   const initialStickCm = Math.round((tank.currentStockLiters / 20) * 10) / 10;
@@ -144,7 +144,25 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Operator</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between">
+                  <span>Operator</span>
+                  <span className="flex gap-1">
+                    {['Daslam', 'Angga'].map((op) => (
+                      <button
+                        key={op}
+                        type="button"
+                        onClick={() => setOperatorName(op)}
+                        className={`text-[9px] px-1 py-0.5 rounded font-bold ${
+                          operatorName === op
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {op}
+                      </button>
+                    ))}
+                  </span>
+                </label>
                 <input
                   type="text"
                   required

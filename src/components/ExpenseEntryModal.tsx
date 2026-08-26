@@ -41,7 +41,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
   const [amount, setAmount] = useState<number>(EXPENSE_RATES.GAJI_OPERATOR_PER_HARI);
   const [quantity, setQuantity] = useState<number>(1);
   const [unitRate, setUnitRate] = useState<number>(EXPENSE_RATES.GAJI_OPERATOR_PER_HARI);
-  const [personOrVendor, setPersonOrVendor] = useState<string>('Ahmad Fauzi');
+  const [personOrVendor, setPersonOrVendor] = useState<string>('Daslam');
   const [shift, setShift] = useState<string>('Shift 1 (05.30 - 13.30)');
   const [paymentSource, setPaymentSource] = useState<'KAS_HARIAN' | 'REKENING_BANK'>('KAS_HARIAN');
   const [notes, setNotes] = useState<string>('');
@@ -55,14 +55,14 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
       setUnitRate(rate);
       setQuantity(1);
       setAmount(rate);
-      setTitle(`Gaji Harian Operator (${personOrVendor || 'Ahmad Fauzi'})`);
+      setTitle(`Gaji Harian Operator (${personOrVendor || 'Daslam'})`);
       setPaymentSource('KAS_HARIAN');
     } else if (cat === 'LEMBURAN') {
       const rate = EXPENSE_RATES.LEMBURAN_PER_SHIFT; // 30.000
       setUnitRate(rate);
       setQuantity(1);
       setAmount(rate);
-      setTitle(`Uang Lemburan Shift (${personOrVendor || 'Ahmad Fauzi'})`);
+      setTitle(`Uang Lemburan Shift (${personOrVendor || 'Daslam'})`);
       setPaymentSource('KAS_HARIAN');
     } else if (cat === 'TOKEN_LISTRIK') {
       setUnitRate(100000);
@@ -515,7 +515,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="e.g. Ahmad Fauzi / No. ID PLN"
+                  placeholder="e.g. Daslam / Angga / No. ID PLN"
                   value={personOrVendor}
                   onChange={(e) => setPersonOrVendor(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
@@ -524,7 +524,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
 
               {(category === 'GAJI_OPERATOR' || category === 'LEMBURAN') && (
                 <div className="flex gap-1.5 mt-1.5">
-                  {['Ahmad Fauzi', 'Rian Pratama'].map((op) => (
+                  {['Daslam', 'Angga'].map((op) => (
                     <button
                       key={op}
                       type="button"

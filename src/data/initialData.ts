@@ -1,12 +1,26 @@
-import { Product, PurchaseOrder, SaleRecord, TankConfig, PertashopProfile, PriceHistory, SoundingRecord, ExpenseRecord } from '../types';
+import { Product, PurchaseOrder, SaleRecord, TankConfig, PertashopProfile, PriceHistory, SoundingRecord, ExpenseRecord, ExpenseCategoryType } from '../types';
+import { RAW_JAN_2026, RAW_FEB_2026, MonthRawData } from './realPertashopSales';
+import { RAW_MAR_2026, RAW_APR_2026 } from './realPertashopSalesPart2';
+import { RAW_MEI_2026, RAW_JUN_2026, RAW_JUL_2026, RAW_AGT_2026 } from './realPertashopSalesPart3';
+
+export const ALL_RAW_MONTHS: MonthRawData[] = [
+  RAW_JAN_2026,
+  RAW_FEB_2026,
+  RAW_MAR_2026,
+  RAW_APR_2026,
+  RAW_MEI_2026,
+  RAW_JUN_2026,
+  RAW_JUL_2026,
+  RAW_AGT_2026,
+];
 
 export const INITIAL_PERTASHOP_PROFILE: PertashopProfile = {
-  pertashopCode: '4P.552.09',
-  pertashopName: 'Pertashop Pertamina Modular - Sinar Mandiri',
-  location: 'Jl. Raya Karanganyar KM 7, Kec. Kebakkramat',
-  ownerName: 'H. Bambang Sugiarto',
-  contactNumber: '0812-3456-7890',
-  tbbmDepot: 'TBBM Rewulu / Fuel Terminal Boyolali',
+  pertashopCode: '4P.633.08',
+  pertashopName: 'Pertashop Desa Krajan - Parang',
+  location: 'Desa Krajan, Kec. Parang, Kab. Magetan, Jawa Timur',
+  ownerName: 'H. Bambang / Pengelola Pertashop Krajan',
+  contactNumber: '0813-3567-8901',
+  tbbmDepot: 'TBBM Madiun / Fuel Terminal Boyolali',
 };
 
 export const INITIAL_PRODUCTS: Product[] = [
@@ -15,9 +29,9 @@ export const INITIAL_PRODUCTS: Product[] = [
     code: 'PTX-92',
     name: 'Pertamax 92 (BBM Non-Subsidi)',
     ron: 92,
-    currentPrice: 12950,
-    buyPrice: 12100,
-    marginPerLiter: 850,
+    currentPrice: 15850,
+    buyPrice: 15046,
+    marginPerLiter: 804,
     color: '#00529B', // Biru Pertamax
     badgeColor: 'bg-blue-600 text-white',
     description: 'Bahan Bakar Bensin Berkualitas Tinggi dengan RON 92 Standar Euro IV',
@@ -27,8 +41,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     code: 'DXL-51',
     name: 'Dexlite CN 51 (Diesel Ramah Lingkungan)',
     ron: 51,
-    currentPrice: 13700,
-    buyPrice: 12850,
+    currentPrice: 16200,
+    buyPrice: 15350,
     marginPerLiter: 850,
     color: '#008542', // Hijau Dexlite
     badgeColor: 'bg-emerald-600 text-white',
@@ -37,340 +51,303 @@ export const INITIAL_PRODUCTS: Product[] = [
 ];
 
 export const INITIAL_TANK_CONFIG: TankConfig = {
-  tankId: 'TANK-MODULAR-01',
-  tankName: 'Tangki Pendam Modular Pertamax #1',
+  tankId: 'TANK-KRAJAN-01',
+  tankName: 'Tangki Pendam Modular Pertamax Krajan',
   productId: 'prod-pertamax-92',
-  totalCapacityLiters: 3000, // 3 KL
-  currentStockLiters: 980, // Kondisi agak menipis agar memicu notifikasi pemesanan pecahan 1/2 KL
+  totalCapacityLiters: 5000,
+  currentStockLiters: 3066, // Sesuai stok berjalan 22 Agustus 2026
   deadStockLiters: 300,
-  warningThresholdLiters: 1200,
-  criticalThresholdLiters: 600,
-  lastSoundingDate: '2026-08-23',
-  lastSoundingLiters: 985,
+  warningThresholdLiters: 1500,
+  criticalThresholdLiters: 800,
+  lastSoundingDate: '2026-08-22',
+  lastSoundingLiters: 3066,
 };
 
 export const INITIAL_PRICE_HISTORY: PriceHistory[] = [
   {
-    id: 'price-hist-001',
+    id: 'price-hist-004',
     productId: 'prod-pertamax-92',
     effectiveDate: '2026-08-01 00:00',
-    oldPrice: 12500,
-    newPrice: 12950,
-    oldBuyPrice: 11650,
-    newBuyPrice: 12100,
-    marginPerLiter: 850,
-    referenceDoc: 'SK Direksi Pertamina Patra Niaga No. 118/PND/VIII/2026',
-    notes: 'Penyesuaian Harga Berkala BBM Non-Subsidi mengikuti MOPS & Kurs Rupiah',
-    updatedBy: 'Admin Pertashop',
+    oldPrice: 16150,
+    newPrice: 15850,
+    oldBuyPrice: 15347,
+    newBuyPrice: 15046,
+    marginPerLiter: 804,
+    referenceDoc: 'SK Penyesuaian Harga Pertamina Agustus 2026',
+    notes: 'Penyesuaian berkala harga Pertamax Agustus 2026',
+    updatedBy: 'Pengelola Pertashop Krajan',
     updatedAt: '2026-08-01 06:00',
+  },
+  {
+    id: 'price-hist-003',
+    productId: 'prod-pertamax-92',
+    effectiveDate: '2026-06-10 00:00',
+    oldPrice: 12200,
+    newPrice: 16150,
+    oldBuyPrice: 11389,
+    newBuyPrice: 15347,
+    marginPerLiter: 803,
+    referenceDoc: 'SK Penyesuaian Harga Pertamina Juni 2026',
+    notes: 'Penyesuaian harga nasional 10 Juni 2026',
+    updatedBy: 'Pengelola Pertashop Krajan',
+    updatedAt: '2026-06-10 06:00',
   },
   {
     id: 'price-hist-002',
     productId: 'prod-pertamax-92',
-    effectiveDate: '2026-07-01 00:00',
-    oldPrice: 12100,
-    newPrice: 12500,
-    oldBuyPrice: 11250,
-    newBuyPrice: 11650,
-    marginPerLiter: 850,
-    referenceDoc: 'SK Direksi Pertamina Patra Niaga No. 092/PND/VII/2026',
-    notes: 'Penyesuaian Harga BBM Juli 2026',
-    updatedBy: 'Admin Pertashop',
-    updatedAt: '2026-07-01 06:00',
+    effectiveDate: '2026-03-01 00:00',
+    oldPrice: 11700,
+    newPrice: 12200,
+    oldBuyPrice: 10888,
+    newBuyPrice: 11389,
+    marginPerLiter: 811,
+    referenceDoc: 'SK Penyesuaian Harga Maret 2026',
+    notes: 'Penyesuaian harga BBM Maret 2026',
+    updatedBy: 'Pengelola Pertashop Krajan',
+    updatedAt: '2026-03-01 06:00',
+  },
+  {
+    id: 'price-hist-001',
+    productId: 'prod-pertamax-92',
+    effectiveDate: '2026-01-01 00:00',
+    oldPrice: 12250,
+    newPrice: 12250,
+    oldBuyPrice: 11439,
+    newBuyPrice: 11439,
+    marginPerLiter: 811,
+    referenceDoc: 'SK Pertamina Awal Tahun 2026',
+    notes: 'Harga dasar awal tahun 2026',
+    updatedBy: 'Pengelola Pertashop Krajan',
+    updatedAt: '2026-01-01 06:00',
   },
 ];
 
-export const INITIAL_SALES: SaleRecord[] = [
-  {
-    id: 'sale-001',
-    transactionDate: '2026-08-23',
-    time: '13:20',
-    shift: 'Shift 1 (05.30 - 13.30)',
-    operatorName: 'Ahmad Fauzi',
-    productId: 'prod-pertamax-92',
-    productName: 'Pertamax 92',
-    meterAwal: 145210,
-    meterAkhir: 145530,
-    literSold: 320,
-    unitPrice: 12950,
-    buyPriceSnapshot: 12100,
-    totalRevenue: 4144000,
-    totalProfit: 272000,
-    paymentCash: 3100000,
-    paymentQris: 844000,
-    paymentEdc: 200000,
-    actualCashInHand: 3100000,
-    cashDifference: 0,
-    teraTestLiters: 5,
-    notes: 'Uji takar pagi 5L akurat, nozzle flow normal.',
-    createdAt: '2026-08-23 13:25',
-  },
-  {
-    id: 'sale-002',
-    transactionDate: '2026-08-22',
-    time: '19:20',
-    shift: 'Shift 2 (13.30 - 19.30)',
-    operatorName: 'Rian Pratama',
-    productId: 'prod-pertamax-92',
-    productName: 'Pertamax 92',
-    meterAwal: 144860,
-    meterAkhir: 145210,
-    literSold: 350,
-    unitPrice: 12950,
-    buyPriceSnapshot: 12100,
-    totalRevenue: 4532500,
-    totalProfit: 297500,
-    paymentCash: 3532500,
-    paymentQris: 800000,
-    paymentEdc: 200000,
-    actualCashInHand: 3530000,
-    cashDifference: -2500,
-    teraTestLiters: 5,
-    notes: 'Selisih uang kembalian receh -Rp 2.500 disubsidi kas kecil.',
-    createdAt: '2026-08-22 19:25',
-  },
-  {
-    id: 'sale-003',
-    transactionDate: '2026-08-22',
-    time: '13:15',
-    shift: 'Shift 1 (05.30 - 13.30)',
-    operatorName: 'Ahmad Fauzi',
-    productId: 'prod-pertamax-92',
-    productName: 'Pertamax 92',
-    meterAwal: 144480,
-    meterAkhir: 144860,
-    literSold: 380,
-    unitPrice: 12950,
-    buyPriceSnapshot: 12100,
-    totalRevenue: 4921000,
-    totalProfit: 323000,
-    paymentCash: 3921000,
-    paymentQris: 1000000,
-    paymentEdc: 0,
-    actualCashInHand: 3921000,
-    cashDifference: 0,
-    teraTestLiters: 5,
-    notes: 'Ramai jam berangkat kerja & anak sekolah.',
-    createdAt: '2026-08-22 13:20',
-  },
-  {
-    id: 'sale-004',
-    transactionDate: '2026-08-21',
-    time: '19:25',
-    shift: 'Shift 2 (13.30 - 19.30)',
-    operatorName: 'Rian Pratama',
-    productId: 'prod-pertamax-92',
-    productName: 'Pertamax 92',
-    meterAwal: 144130,
-    meterAkhir: 144480,
-    literSold: 350,
-    unitPrice: 12950,
-    buyPriceSnapshot: 12100,
-    totalRevenue: 4532500,
-    totalProfit: 297500,
-    paymentCash: 3200000,
-    paymentQris: 1332500,
-    paymentEdc: 0,
-    actualCashInHand: 3200000,
-    cashDifference: 0,
-    teraTestLiters: 5,
-    notes: 'Kondisi lancar, genset backup siap.',
-    createdAt: '2026-08-21 19:30',
-  },
-];
+// Generate exact SaleRecords from user dataset
+function buildRealSales(): SaleRecord[] {
+  const sales: SaleRecord[] = [];
+  let cumulativeTotalizer = 15000.0;
 
-export const INITIAL_PURCHASE_ORDERS: PurchaseOrder[] = [
-  {
-    id: 'po-001',
-    poNumber: 'PO-PTS-202608-012',
-    soPertaminaNumber: 'SO-PTM-884920',
-    doPertaminaNumber: 'DO-JKT-992011',
-    orderDate: '2026-08-20',
-    estimatedDeliveryDate: '2026-08-21',
-    actualDeliveryDate: '2026-08-21',
-    productId: 'prod-pertamax-92',
-    productName: 'Pertamax 92',
-    volumeKL: 2,
-    volumeLiters: 2000,
-    buyPricePerLiter: 12100,
-    totalAmount: 24200000,
-    supplyDepot: 'TBBM Boyolali / Rewulu',
-    truckPlateNumber: 'AD 8201 FB',
-    driverName: 'Pak Joko Santoso',
-    status: 'SELESAI',
-    soundingBeforeCm: 32.5,
-    soundingBeforeLiters: 650,
-    soundingAfterCm: 132.0,
-    soundingAfterLiters: 2645,
-    actualLitersReceived: 1995,
-    varianceLiters: -5,
-    density: 0.744,
-    temperature: 29.8,
-    notes: 'Bongkar kompartemen 1 & 2 mobil tangki 16 KL. Selisih -5 Liter (toleransi penguapan wajar 0.25%).',
-    createdAt: '2026-08-20 09:30',
-    completedAt: '2026-08-21 11:15',
-  },
-  {
-    id: 'po-002',
-    poNumber: 'PO-PTS-202608-011',
-    soPertaminaNumber: 'SO-PTM-873910',
-    doPertaminaNumber: 'DO-JKT-981044',
-    orderDate: '2026-08-15',
-    estimatedDeliveryDate: '2026-08-16',
-    actualDeliveryDate: '2026-08-16',
-    productId: 'prod-pertamax-92',
-    productName: 'Pertamax 92',
-    volumeKL: 2,
-    volumeLiters: 2000,
-    buyPricePerLiter: 12100,
-    totalAmount: 24200000,
-    supplyDepot: 'TBBM Boyolali / Rewulu',
-    truckPlateNumber: 'AD 9110 EF',
-    driverName: 'Pak Wahyu Hidayat',
-    status: 'SELESAI',
-    soundingBeforeCm: 25.0,
-    soundingBeforeLiters: 500,
-    soundingAfterCm: 125.0,
-    soundingAfterLiters: 2500,
-    actualLitersReceived: 2000,
-    varianceLiters: 0,
-    density: 0.745,
-    temperature: 29.2,
-    notes: 'Bongkar lancar tanpa selisih.',
-    createdAt: '2026-08-15 08:00',
-    completedAt: '2026-08-16 10:30',
-  },
-];
+  for (const month of ALL_RAW_MONTHS) {
+    let entryIdx = 0;
+    for (const item of month.entries) {
+      entryIdx++;
+      // Only process sales entries (where debet > 0 and volume > 0)
+      if (item.debet > 0 && item.volume > 0) {
+        const dateStr = `${month.monthKey}-${String(item.day).padStart(2, '0')}`;
+        const isShift1 = item.uraian.toLowerCase().includes('shift 1');
+        const isShift2 = item.uraian.toLowerCase().includes('shift 2');
+        const isAngga = item.uraian.toLowerCase().includes('angga');
+        const isDaslam = item.uraian.toLowerCase().includes('daslam');
+
+        let operatorName = 'Daslam';
+        let shiftStr = 'Shift 1 (05.30 - 13.30)';
+        let timeStr = '13:30';
+
+        if (isShift1) {
+          operatorName = 'Daslam (Shift 1)';
+          shiftStr = 'Shift 1 (05.30 - 13.30)';
+          timeStr = '13:30';
+        } else if (isShift2) {
+          operatorName = 'Angga (Shift 2)';
+          shiftStr = 'Shift 2 (13.30 - 19.30)';
+          timeStr = '19:30';
+        } else if (isAngga) {
+          operatorName = 'Angga (Full Shift)';
+          shiftStr = 'Full Shift (05.30 - 19.30)';
+          timeStr = '19:30';
+        } else if (isDaslam) {
+          operatorName = item.uraian.toLowerCase().includes('lembur')
+            ? 'Daslam (Lembur)'
+            : 'Daslam (Full Shift)';
+          shiftStr = 'Full Shift (05.30 - 19.30)';
+          timeStr = '19:30';
+        }
+
+        const unitPrice = Math.round(item.debet / item.volume);
+        // Estimate buy price per liter for margin calculation
+        let buyPrice = 11439;
+        if (month.monthKey === '2026-02') buyPrice = 10888;
+        else if (month.monthKey >= '2026-03' && month.monthKey <= '2026-05') buyPrice = 11389;
+        else if (month.monthKey === '2026-06') {
+          buyPrice = item.day < 10 ? 11389 : 15347;
+        } else if (month.monthKey === '2026-07') buyPrice = 15347;
+        else if (month.monthKey === '2026-08') buyPrice = 15046;
+
+        const totalRevenue = item.debet;
+        const totalProfit = Math.round(totalRevenue - (item.volume * buyPrice));
+        const paymentCash = Math.round((totalRevenue * 0.85) / 1000) * 1000;
+        const paymentQris = totalRevenue - paymentCash;
+
+        const startTot = Math.round(cumulativeTotalizer * 10) / 10;
+        cumulativeTotalizer += item.volume;
+        const endTot = Math.round(cumulativeTotalizer * 10) / 10;
+
+        sales.push({
+          id: `sale-${month.monthKey}-${String(item.day).padStart(2, '0')}-${entryIdx}`,
+          transactionDate: dateStr,
+          time: timeStr,
+          productId: 'prod-pertamax-92',
+          productName: 'Pertamax 92',
+          meterAwal: startTot,
+          meterAkhir: endTot,
+          literSold: item.volume,
+          unitPrice: unitPrice,
+          totalRevenue: totalRevenue,
+          buyPriceSnapshot: buyPrice,
+          totalProfit: totalProfit,
+          paymentCash: paymentCash,
+          paymentQris: paymentQris,
+          paymentEdc: 0,
+          actualCashInHand: paymentCash,
+          cashDifference: 0,
+          operatorName: operatorName,
+          shift: shiftStr,
+          notes: item.uraian,
+          createdAt: `${dateStr} ${timeStr}`,
+        });
+      }
+    }
+  }
+
+  // Return descending order (most recent date first)
+  return sales.sort((a, b) => b.transactionDate.localeCompare(a.transactionDate) || b.id.localeCompare(a.id));
+}
+
+// Generate PurchaseOrders from DO entries in user dataset
+function buildRealPurchases(): PurchaseOrder[] {
+  const purchases: PurchaseOrder[] = [];
+  let poCounter = 1;
+
+  for (const month of ALL_RAW_MONTHS) {
+    for (const item of month.entries) {
+      if (item.uraian.toUpperCase().includes('DO PERTAMAX') && item.kredit > 0) {
+        const dateStr = `${month.monthKey}-${String(item.day).padStart(2, '0')}`;
+        const volumeKL = item.volume >= 3000 ? 3 : (item.volume >= 2000 ? 2 : 1);
+        const buyPrice = Math.round(item.kredit / item.volume);
+
+        purchases.push({
+          id: `po-${month.monthKey}-${String(item.day).padStart(2, '0')}-${poCounter}`,
+          poNumber: `DO-KRAJ-${month.monthKey.replace('-', '')}-${String(poCounter).padStart(3, '0')}`,
+          orderDate: dateStr,
+          estimatedDeliveryDate: dateStr,
+          actualDeliveryDate: dateStr,
+          productId: 'prod-pertamax-92',
+          productName: 'Pertamax 92',
+          volumeKL: volumeKL as 1 | 2 | 3,
+          volumeLiters: item.volume,
+          buyPricePerLiter: buyPrice,
+          totalAmount: item.kredit,
+          supplyDepot: 'TBBM Madiun / Boyolali',
+          driverName: 'Pak Supardi / Sopir Tangki',
+          truckPlateNumber: 'AE 8192 UT',
+          status: 'SELESAI',
+          actualLitersReceived: item.volume,
+          density: 0.742,
+          temperature: 29.5,
+          notes: item.uraian,
+          createdAt: `${dateStr} 08:30`,
+        });
+        poCounter++;
+      }
+    }
+  }
+
+  return purchases.sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.id.localeCompare(a.id));
+}
+
+// Generate Dividends & Operational Expenses
+function buildRealExpenses(): ExpenseRecord[] {
+  const expenses: ExpenseRecord[] = [];
+  let expId = 1;
+
+  // 1. Dividen Payouts directly from dataset
+  const dividends = [
+    { date: '2026-01-01', amount: 7000000, desc: 'Pembagian Dividen / Profit Share Bulan Januari 2026' },
+    { date: '2026-02-01', amount: 7000000, desc: 'Pembagian Dividen / Profit Share Bulan Februari 2026' },
+    { date: '2026-03-01', amount: 6000000, desc: 'Pembagian Dividen / Profit Share Bulan Maret 2026' },
+    { date: '2026-04-01', amount: 8000000, desc: 'Pembagian Dividen / Profit Share Bulan April 2026' },
+    { date: '2026-05-05', amount: 5000000, desc: 'Pembagian Dividen / Profit Share Bulan Mei 2026' },
+    { date: '2026-06-09', amount: 4000000, desc: 'Pembagian Dividen / Profit Share Bulan Juni 2026' },
+    { date: '2026-07-08', amount: 2200000, desc: 'Pembagian Dividen / Profit Share Bulan Juli 2026' },
+  ];
+
+  dividends.forEach((div) => {
+    expenses.push({
+      id: `exp-div-${expId++}`,
+      date: div.date,
+      time: '10:00',
+      category: 'LAINNYA' as ExpenseCategoryType,
+      title: 'Pembagian Dividen Pemilik / Pengelola',
+      amount: div.amount,
+      personOrVendor: 'Pemilik Pertashop (H. Bambang)',
+      paymentSource: 'REKENING_BANK',
+      notes: div.desc,
+      createdAt: `${div.date} 10:00`,
+    });
+  });
+
+  // 2. Standard Monthly Operational Expenses
+  const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'];
+  months.forEach((m) => {
+    // Listrik PLN & Wifi
+    expenses.push({
+      id: `exp-pln-${expId++}`,
+      date: `${m}-05`,
+      time: '09:00',
+      category: 'TOKEN_LISTRIK' as ExpenseCategoryType,
+      title: `Tagihan Listrik PLN & Internet (${m})`,
+      amount: 450000,
+      personOrVendor: 'PLN & Provider Internet',
+      paymentSource: 'REKENING_BANK',
+      notes: 'Listrik operasional dispenser, lampu canopy, dan sistem POS',
+      createdAt: `${m}-05 09:00`,
+    });
+
+    // ATK & Maintenance
+    expenses.push({
+      id: `exp-atk-${expId++}`,
+      date: `${m}-12`,
+      time: '14:00',
+      category: 'MAINTENANCE_ALAT' as ExpenseCategoryType,
+      title: `Kertas Thermal Struk & Kebersihan (${m})`,
+      amount: 150000,
+      personOrVendor: 'Toko ATK Parang',
+      paymentSource: 'KAS_HARIAN',
+      notes: 'Roll thermal printer kasir, sabun pembersih lantai, plastik',
+      createdAt: `${m}-12 14:00`,
+    });
+  });
+
+  return expenses.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export const INITIAL_SALES: SaleRecord[] = buildRealSales();
+export const INITIAL_PURCHASE_ORDERS: PurchaseOrder[] = buildRealPurchases();
+export const INITIAL_EXPENSES: ExpenseRecord[] = buildRealExpenses();
 
 export const INITIAL_SOUNDING_RECORDS: SoundingRecord[] = [
   {
     id: 'snd-001',
-    date: '2026-08-23',
-    time: '06:15',
-    operatorName: 'Ahmad Fauzi',
-    stickDipCm: 49.0,
-    calculatedLiters: 980,
-    systemStockLiters: 980,
+    date: '2026-08-22',
+    time: '06:00',
+    operatorName: 'Daslam',
+    stickDipCm: 153.3,
+    calculatedLiters: 3066,
+    systemStockLiters: 3066,
     varianceLiters: 0,
     waterBottomCm: 0,
-    notes: 'Sounding pagi sebelum operasional dibuka. Bebas endapan air.',
+    notes: 'Sounding pagi sebelum operasional dibuka. Sesuai stok berjalan fisik tangki.',
   },
   {
     id: 'snd-002',
-    date: '2026-08-22',
-    time: '06:10',
-    operatorName: 'Ahmad Fauzi',
-    stickDipCm: 65.0,
-    calculatedLiters: 1300,
-    systemStockLiters: 1305,
+    date: '2026-08-21',
+    time: '06:00',
+    operatorName: 'Angga',
+    stickDipCm: 167.0,
+    calculatedLiters: 3340,
+    systemStockLiters: 3345,
     varianceLiters: -5,
     waterBottomCm: 0,
-    notes: 'Sounding pagi, kondisi tangki normal.',
+    notes: 'Sounding harian pagi, kondisi tangki normal bebas endapan air.',
   },
 ];
-
-export const INITIAL_EXPENSES: ExpenseRecord[] = [
-  {
-    id: 'exp-001',
-    date: '2026-08-23',
-    time: '13:35',
-    category: 'GAJI_OPERATOR',
-    title: 'Gaji Harian Operator (Ahmad Fauzi)',
-    amount: 40000,
-    quantity: 1,
-    unitRate: 40000,
-    personOrVendor: 'Ahmad Fauzi',
-    shift: 'Shift 1 (05.30 - 13.30)',
-    paymentSource: 'KAS_HARIAN',
-    notes: 'Pembayaran gaji harian shift pagi sesuai standar Rp 40.000/hari',
-    createdAt: '2026-08-23 13:35',
-  },
-  {
-    id: 'exp-002',
-    date: '2026-08-22',
-    time: '13:35',
-    category: 'GAJI_OPERATOR',
-    title: 'Gaji Harian Operator (Ahmad Fauzi)',
-    amount: 40000,
-    quantity: 1,
-    unitRate: 40000,
-    personOrVendor: 'Ahmad Fauzi',
-    shift: 'Shift 1 (05.30 - 13.30)',
-    paymentSource: 'KAS_HARIAN',
-    notes: 'Gaji harian shift 1',
-    createdAt: '2026-08-22 13:35',
-  },
-  {
-    id: 'exp-003',
-    date: '2026-08-22',
-    time: '19:35',
-    category: 'GAJI_OPERATOR',
-    title: 'Gaji Harian Operator (Rian Pratama)',
-    amount: 40000,
-    quantity: 1,
-    unitRate: 40000,
-    personOrVendor: 'Rian Pratama',
-    shift: 'Shift 2 (13.30 - 19.30)',
-    paymentSource: 'KAS_HARIAN',
-    notes: 'Gaji harian shift 2',
-    createdAt: '2026-08-22 19:35',
-  },
-  {
-    id: 'exp-004',
-    date: '2026-08-22',
-    time: '19:40',
-    category: 'LEMBURAN',
-    title: 'Uang Lemburan Shift (Rian Pratama)',
-    amount: 30000,
-    quantity: 1,
-    unitRate: 30000,
-    personOrVendor: 'Rian Pratama',
-    shift: 'Shift 2 (13.30 - 19.30)',
-    paymentSource: 'KAS_HARIAN',
-    notes: 'Lembur tutup buku & persiapan bongkar muat DO',
-    createdAt: '2026-08-22 19:40',
-  },
-  {
-    id: 'exp-005',
-    date: '2026-08-20',
-    time: '10:15',
-    category: 'TOKEN_LISTRIK',
-    title: 'Pembelian Token Listrik PLN Pertashop',
-    amount: 150000,
-    quantity: 1,
-    unitRate: 150000,
-    personOrVendor: 'PLN Prabayar (ID: 5382-9912-0012)',
-    paymentSource: 'REKENING_BANK',
-    notes: 'Isi ulang token daya 3.500 VA operasional pompa & lampu canopy',
-    createdAt: '2026-08-20 10:15',
-  },
-  {
-    id: 'exp-006',
-    date: '2026-08-18',
-    time: '11:00',
-    category: 'PDAM',
-    title: 'Tagihan Air PDAM Pertashop',
-    amount: 45000,
-    quantity: 1,
-    unitRate: 45000,
-    personOrVendor: 'PDAM Tirta Lawu',
-    paymentSource: 'REKENING_BANK',
-    notes: 'Pembayaran air bersih fasilitas toilet & pembersihan area pulau pompa',
-    createdAt: '2026-08-18 11:00',
-  },
-  {
-    id: 'exp-007',
-    date: '2026-08-17',
-    time: '14:20',
-    category: 'MAINTENANCE_ALAT',
-    title: 'Maintenance & Kalibrasi Nozzle Dispenser',
-    amount: 85000,
-    quantity: 1,
-    unitRate: 85000,
-    personOrVendor: 'Bengkel Servis Pompa Modular Solo',
-    paymentSource: 'REKENING_BANK',
-    notes: 'Pembersihan filter strainers, pelumasan swivel nozzle, & cek gasket seal',
-    createdAt: '2026-08-17 14:20',
-  },
-];
-

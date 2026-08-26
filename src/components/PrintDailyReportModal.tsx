@@ -392,7 +392,7 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
                 <div className="text-slate-600 font-medium">Operator Shift 1 (05.30 - 13.30)</div>
                 <div className="h-16 border-b border-slate-400 mx-4" />
                 <div className="mt-1 font-bold text-slate-800">
-                  ( {daySales.find((s) => s.shift.includes('Shift 1'))?.operatorName || 'Ahmad Fauzi'} )
+                  ( {daySales.find((s) => s.shift.includes('Shift 1'))?.operatorName || 'Daslam'} )
                 </div>
               </div>
 
@@ -400,7 +400,7 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
                 <div className="text-slate-600 font-medium">Operator Shift 2 (13.30 - 19.30)</div>
                 <div className="h-16 border-b border-slate-400 mx-4" />
                 <div className="mt-1 font-bold text-slate-800">
-                  ( {daySales.find((s) => s.shift.includes('Shift 2'))?.operatorName || 'Rian Pratama'} )
+                  ( {daySales.find((s) => s.shift.includes('Shift 2'))?.operatorName || 'Angga'} )
                 </div>
               </div>
 

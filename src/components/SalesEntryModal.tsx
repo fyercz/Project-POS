@@ -27,7 +27,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   const [transactionDate, setTransactionDate] = useState<string>(getTodayDateString());
   const [time, setTime] = useState<string>(getCurrentTimeString());
   const [shift, setShift] = useState<'Shift 1 (05.30 - 13.30)' | 'Shift 2 (13.30 - 19.30)' | 'Full Day'>('Shift 1 (05.30 - 13.30)');
-  const [operatorName, setOperatorName] = useState<string>('Ahmad Fauzi');
+  const [operatorName, setOperatorName] = useState<string>('Daslam');
   const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || 'prod-pertamax-92');
   
   // Metering mode: Totalisator Stand Meter vs Direct Liters
@@ -195,14 +195,32 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-slate-500" />
-                Nama Operator / Kasir
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-slate-500" />
+                  Nama Operator
+                </span>
+                <span className="flex items-center gap-1">
+                  {['Daslam', 'Angga'].map((op) => (
+                    <button
+                      key={op}
+                      type="button"
+                      onClick={() => setOperatorName(op)}
+                      className={`text-[10px] px-1.5 py-0.5 rounded font-bold transition-colors ${
+                        operatorName === op
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                      }`}
+                    >
+                      {op}
+                    </button>
+                  ))}
+                </span>
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. Ahmad Fauzi"
+                placeholder="e.g. Daslam / Angga"
                 value={operatorName}
                 onChange={(e) => setOperatorName(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
