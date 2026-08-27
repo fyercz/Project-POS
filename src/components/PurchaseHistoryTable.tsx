@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Truck, CheckCircle2, Clock, ShoppingCart, Eye, Plus } from 'lucide-react';
+import { Truck, CheckCircle2, Clock, ShoppingCart, Eye, Plus, Pencil, Trash2 } from 'lucide-react';
 import { PurchaseOrder, POStatus } from '../types';
 import { formatRupiah, formatNumber, formatShortDate } from '../utils/formatters';
 
@@ -7,6 +7,7 @@ interface PurchaseHistoryTableProps {
   orders: PurchaseOrder[];
   onOpenNewOrderModal: () => void;
   onOpenReceiveModal: (order: PurchaseOrder) => void;
+  onEditOrder: (order: PurchaseOrder) => void;
   onDeleteOrder: (id: string) => void;
 }
 
@@ -14,6 +15,8 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
   orders,
   onOpenNewOrderModal,
   onOpenReceiveModal,
+  onEditOrder,
+  onDeleteOrder,
 }) => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<PurchaseOrder | null>(null);
@@ -170,26 +173,49 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
                   </td>
 
                   <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                    <div className="flex items-center justify-center gap-1.5">
-                      {order.status !== 'SELESAI' ? (
+                    <div className="flex items-center justify-center gap-1">
+                      {order.status !== 'SELESAI' && (
                         <button
                           type="button"
                           onClick={() => onOpenReceiveModal(order)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-colors"
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-colors"
+                          title="Bongkar / Penerimaan BBM"
                         >
                           <Truck className="w-3.5 h-3.5" />
-                          <span>Bongkar BBM</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDetailOrder(order)}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Lihat Berita Acara Sounding"
-                        >
-                          <Eye className="w-4 h-4" />
+                          <span>Bongkar</span>
                         </button>
                       )}
+                      
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDetailOrder(order)}
+                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Lihat Rincian / Berita Acara"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onEditOrder(order)}
+                        className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Edit Data Pemesanan DO"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Hapus data pemesanan PO ${order.poNumber} (${order.volumeKL} KL)?`)) {
+                            onDeleteOrder(order.id);
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        title="Hapus Pemesanan"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>

@@ -37,19 +37,55 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
 
   const [actualDeliveryDate, setActualDeliveryDate] = useState<string>(getTodayDateString());
   
+  const LITERS_PER_CM = 21;
+
   // Sounding before unloading
-  const [soundingBeforeCm, setSoundingBeforeCm] = useState<number>(Math.round((tank.currentStockLiters / 20) * 10) / 10);
+  const [soundingBeforeCm, setSoundingBeforeCm] = useState<number>(
+    Math.round((tank.currentStockLiters / LITERS_PER_CM) * 10) / 10
+  );
   const [soundingBeforeLiters, setSoundingBeforeLiters] = useState<number>(tank.currentStockLiters);
 
   // Sounding after unloading
   const expectedAfterLiters = tank.currentStockLiters + order.volumeLiters;
-  const [soundingAfterCm, setSoundingAfterCm] = useState<number>(Math.round((expectedAfterLiters / 20) * 10) / 10);
+  const [soundingAfterCm, setSoundingAfterCm] = useState<number>(
+    Math.round((expectedAfterLiters / LITERS_PER_CM) * 10) / 10
+  );
   const [soundingAfterLiters, setSoundingAfterLiters] = useState<number>(expectedAfterLiters);
   
   const [actualLitersReceived, setActualLitersReceived] = useState<number>(order.volumeLiters);
   const [density, setDensity] = useState<number>(0.745);
   const [temperature, setTemperature] = useState<number>(29.5);
   const [notes, setNotes] = useState<string>('Penerimaan BBM dan bongkar tangki modular lancar.');
+
+  const handleSoundingBeforeCmChange = (cm: number) => {
+    setSoundingBeforeCm(cm);
+    const ltr = Math.round(cm * LITERS_PER_CM);
+    setSoundingBeforeLiters(ltr);
+    const recv = Math.max(0, soundingAfterLiters - ltr);
+    if (recv > 0) setActualLitersReceived(recv);
+  };
+
+  const handleSoundingBeforeLitersChange = (ltr: number) => {
+    setSoundingBeforeLiters(ltr);
+    setSoundingBeforeCm(Math.round((ltr / LITERS_PER_CM) * 10) / 10);
+    const recv = Math.max(0, soundingAfterLiters - ltr);
+    if (recv > 0) setActualLitersReceived(recv);
+  };
+
+  const handleSoundingAfterCmChange = (cm: number) => {
+    setSoundingAfterCm(cm);
+    const ltr = Math.round(cm * LITERS_PER_CM);
+    setSoundingAfterLiters(ltr);
+    const recv = Math.max(0, ltr - soundingBeforeLiters);
+    if (recv > 0) setActualLitersReceived(recv);
+  };
+
+  const handleSoundingAfterLitersChange = (ltr: number) => {
+    setSoundingAfterLiters(ltr);
+    setSoundingAfterCm(Math.round((ltr / LITERS_PER_CM) * 10) / 10);
+    const recv = Math.max(0, ltr - soundingBeforeLiters);
+    if (recv > 0) setActualLitersReceived(recv);
+  };
 
   const varianceLiters = actualLitersReceived - order.volumeLiters;
 
@@ -141,10 +177,15 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
 
           {/* Sounding Tangki: Sebelum vs Sesudah Bongkar */}
           <div className="space-y-3">
-            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Gauge className="w-4 h-4 text-emerald-600" />
-              Tera Sounding Tangki Modular (Sebelum & Sesudah Bongkar)
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Gauge className="w-4 h-4 text-emerald-600" />
+                Tera Sounding Tangki Modular (Sebelum & Sesudah Bongkar)
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+                1 cm = 21 Liter
+              </span>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Sebelum Bongkar */}
@@ -158,7 +199,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
                     type="number"
                     step="any"
                     value={soundingBeforeCm}
-                    onChange={(e) => setSoundingBeforeCm(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleSoundingBeforeCmChange(parseFloat(e.target.value) || 0)}
                     className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-mono font-bold text-slate-900"
                   />
                 </div>
@@ -169,7 +210,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
                   <input
                     type="number"
                     value={soundingBeforeLiters}
-                    onChange={(e) => setSoundingBeforeLiters(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleSoundingBeforeLitersChange(parseFloat(e.target.value) || 0)}
                     className="w-full px-2.5 py-1.5 bg-white border border-blue-200 rounded-lg text-xs font-mono font-bold text-slate-900"
                   />
                 </div>
@@ -186,7 +227,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
                     type="number"
                     step="any"
                     value={soundingAfterCm}
-                    onChange={(e) => setSoundingAfterCm(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleSoundingAfterCmChange(parseFloat(e.target.value) || 0)}
                     className="w-full px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-xs font-mono font-bold text-slate-900"
                   />
                 </div>
@@ -197,7 +238,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
                   <input
                     type="number"
                     value={soundingAfterLiters}
-                    onChange={(e) => setSoundingAfterLiters(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleSoundingAfterLitersChange(parseFloat(e.target.value) || 0)}
                     className="w-full px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-xs font-mono font-bold text-slate-900"
                   />
                 </div>

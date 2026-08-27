@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Gauge, Check, AlertCircle, Droplet, History } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Gauge, Check, AlertCircle, Droplet, History, Pencil, Trash2 } from 'lucide-react';
 import { TankConfig, SoundingRecord } from '../types';
 import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString } from '../utils/formatters';
 
@@ -8,7 +8,9 @@ interface SoundingLogModalProps {
   onClose: () => void;
   tank: TankConfig;
   soundings: SoundingRecord[];
-  onSaveSounding: (record: Omit<SoundingRecord, 'id'>, newStockLiters: number) => void;
+  editingSounding?: SoundingRecord | null;
+  onSaveSounding: (record: Omit<SoundingRecord, 'id'>, newStockLiters: number, editingId?: string) => void;
+  onDeleteSounding?: (id: string) => void;
 }
 
 export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
@@ -16,31 +18,74 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
   onClose,
   tank,
   soundings,
+  editingSounding,
   onSaveSounding,
+  onDeleteSounding,
 }) => {
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
+  const [currentEditId, setCurrentEditId] = useState<string | null>(null);
   const [date, setDate] = useState<string>(getTodayDateString());
   const [time, setTime] = useState<string>(getCurrentTimeString());
   const [operatorName, setOperatorName] = useState<string>('Daslam');
   
-  // Standard modular calibration approximation: 1 cm height ≈ 20 Liters (for 3000L tank height ~150cm)
-  const initialStickCm = Math.round((tank.currentStockLiters / 20) * 10) / 10;
+  // Tera sounding calibration: 1 cm height = 21 Liters
+  const LITERS_PER_CM = 21;
+  const initialStickCm = Math.round((tank.currentStockLiters / LITERS_PER_CM) * 10) / 10;
   const [stickDipCm, setStickDipCm] = useState<number>(initialStickCm);
   const [calculatedLiters, setCalculatedLiters] = useState<number>(tank.currentStockLiters);
   const [waterBottomCm, setWaterBottomCm] = useState<number>(0);
   const [syncToTankStock, setSyncToTankStock] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('Sounding stick ukur harian.');
 
+  useEffect(() => {
+    if (editingSounding) {
+      setCurrentEditId(editingSounding.id);
+      setDate(editingSounding.date);
+      setTime(editingSounding.time);
+      setOperatorName(editingSounding.operatorName || 'Daslam');
+      setStickDipCm(editingSounding.stickDipCm);
+      setCalculatedLiters(editingSounding.calculatedLiters);
+      setWaterBottomCm(editingSounding.waterBottomCm || 0);
+      setNotes(editingSounding.notes || '');
+      setSyncToTankStock(false);
+      setActiveTab('form');
+    } else if (isOpen) {
+      setCurrentEditId(null);
+      setDate(getTodayDateString());
+      setTime(getCurrentTimeString());
+      setOperatorName('Daslam');
+      const scm = Math.round((tank.currentStockLiters / LITERS_PER_CM) * 10) / 10;
+      setStickDipCm(scm);
+      setCalculatedLiters(tank.currentStockLiters);
+      setWaterBottomCm(0);
+      setSyncToTankStock(true);
+      setNotes('Sounding stick ukur harian.');
+    }
+  }, [editingSounding, isOpen, tank.currentStockLiters]);
+
   if (!isOpen) return null;
 
   const handleStickChange = (cm: number) => {
     setStickDipCm(cm);
-    // Auto-calculate liters from stick cm
-    const liters = Math.min(tank.totalCapacityLiters, Math.round(cm * 20));
+    // Auto-calculate liters from stick cm (1 cm = 21 L)
+    const liters = Math.min(tank.totalCapacityLiters, Math.round(cm * LITERS_PER_CM));
     setCalculatedLiters(liters);
   };
 
   const variance = calculatedLiters - tank.currentStockLiters;
+
+  const handleStartEditFromHistory = (s: SoundingRecord) => {
+    setCurrentEditId(s.id);
+    setDate(s.date);
+    setTime(s.time);
+    setOperatorName(s.operatorName || 'Daslam');
+    setStickDipCm(s.stickDipCm);
+    setCalculatedLiters(s.calculatedLiters);
+    setWaterBottomCm(s.waterBottomCm || 0);
+    setNotes(s.notes || '');
+    setSyncToTankStock(false);
+    setActiveTab('form');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +102,8 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
         waterBottomCm,
         notes: notes.trim(),
       },
-      syncToTankStock ? calculatedLiters : tank.currentStockLiters
+      syncToTankStock ? calculatedLiters : tank.currentStockLiters,
+      currentEditId || undefined
     );
 
     onClose();
@@ -192,8 +238,8 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">cm</span>
                 </div>
-                <span className="text-[10px] text-slate-500 mt-1 block">
-                  Tabel tera: 1 cm ≈ 20 L
+                <span className="text-[10px] text-blue-600 font-semibold mt-1 block">
+                  Tabel tera tangki: 1 cm = 21 Liter
                 </span>
               </div>
 
@@ -208,11 +254,18 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     max={tank.totalCapacityLiters}
                     required
                     value={calculatedLiters}
-                    onChange={(e) => setCalculatedLiters(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setCalculatedLiters(val);
+                      setStickDipCm(Math.round((val / LITERS_PER_CM) * 10) / 10);
+                    }}
                     className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl text-base font-mono font-bold text-blue-700"
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">Liter</span>
                 </div>
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Volume fisik cairan Pertamax
+                </span>
               </div>
             </div>
 
@@ -290,7 +343,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                 className="px-5 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-colors flex items-center gap-2"
               >
                 <Check className="w-4 h-4" />
-                <span>Simpan Catatan Sounding</span>
+                <span>{currentEditId ? 'Simpan Perubahan Sounding' : 'Simpan Catatan Sounding'}</span>
               </button>
             </div>
           </form>
@@ -304,9 +357,9 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
               soundings.map((s) => (
                 <div
                   key={s.id}
-                  className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs flex justify-between items-center"
+                  className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs flex justify-between items-center gap-2"
                 >
-                  <div>
+                  <div className="flex-1">
                     <div className="font-bold text-slate-900">
                       {formatShortDate(s.date)} • {s.time}
                     </div>
@@ -315,11 +368,35 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     </div>
                     {s.notes && <div className="text-[11px] text-slate-400 italic mt-0.5">{s.notes}</div>}
                   </div>
-                  <div className="text-right font-mono">
+                  <div className="text-right font-mono flex-shrink-0">
                     <div className="font-bold text-blue-700 text-sm">{formatLiter(s.calculatedLiters)}</div>
                     <div className="text-[11px] text-slate-500">
                       Selisih: {s.varianceLiters > 0 ? `+${s.varianceLiters}` : s.varianceLiters} L
                     </div>
+                  </div>
+                  <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditFromHistory(s)}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors"
+                      title="Edit Sounding"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    {onDeleteSounding && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Hapus catatan sounding tanggal ${s.date}?`)) {
+                            onDeleteSounding(s.id);
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors"
+                        title="Hapus Sounding"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))

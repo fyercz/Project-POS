@@ -1,20 +1,39 @@
 import React, { useState } from 'react';
-import { Search, Download, Printer, Trash2, Fuel, Eye, Clock, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import {
+  Search,
+  Download,
+  Printer,
+  Trash2,
+  Fuel,
+  Eye,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Pencil,
+  FileSpreadsheet,
+  UploadCloud,
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { SaleRecord } from '../types';
 import { formatRupiah, formatNumber, formatShortDate, formatLiter } from '../utils/formatters';
 
 interface SalesTableProps {
   sales: SaleRecord[];
   onDeleteSale: (id: string) => void;
+  onEditSale: (sale: SaleRecord) => void;
   onOpenNewSaleModal: () => void;
   onOpenPrintReportModal: () => void;
+  onOpenImportModal: () => void;
 }
 
 export const SalesTable: React.FC<SalesTableProps> = ({
   sales,
   onDeleteSale,
+  onEditSale,
   onOpenNewSaleModal,
   onOpenPrintReportModal,
+  onOpenImportModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedShift, setSelectedShift] = useState<string>('ALL');
@@ -59,6 +78,37 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const totalLiters = filteredSales.reduce((acc, s) => acc + s.literSold, 0);
   const totalRevenue = filteredSales.reduce((acc, s) => acc + s.totalRevenue, 0);
   const totalProfit = filteredSales.reduce((acc, s) => acc + s.totalProfit, 0);
+
+  // Excel (.xlsx) Export
+  const exportToExcel = () => {
+    const excelData = filteredSales.map((s) => ({
+      'ID Transaksi': s.id,
+      'Tanggal': s.transactionDate,
+      'Waktu': s.time,
+      'Shift': s.shift,
+      'Nama Operator': s.operatorName,
+      'Produk BBM': s.productName,
+      'Stand Meter Awal': s.meterAwal ?? '-',
+      'Stand Meter Akhir': s.meterAkhir ?? '-',
+      'Volume Terjual (Liter)': s.literSold,
+      'Harga Satuan (Rp)': s.unitPrice,
+      'Harga Tebus Beli (Rp)': s.buyPriceSnapshot,
+      'Total Omzet (Rp)': s.totalRevenue,
+      'Estimasi Laba Dealer (Rp)': s.totalProfit,
+      'Kas Tunai (Rp)': s.paymentCash,
+      'QRIS Non-Tunai (Rp)': s.paymentQris,
+      'EDC Kartu (Rp)': s.paymentEdc,
+      'Uang Kasir Fisik (Rp)': s.actualCashInHand,
+      'Selisih Kas (Rp)': s.cashDifference,
+      'Uji Tera (L)': s.teraTestLiters ?? 5,
+      'Catatan': s.notes || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Penjualan_Pertashop');
+    XLSX.writeFile(wb, `Laporan_Penjualan_Pertashop_${todayStr}.xlsx`);
+  };
 
   // CSV Export
   const exportToCSV = () => {
@@ -128,6 +178,29 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Import Button */}
+          <button
+            type="button"
+            onClick={onOpenImportModal}
+            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+            title="Import data penjualan dari file Excel (.xlsx) atau CSV"
+          >
+            <UploadCloud className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Import Excel / CSV</span>
+          </button>
+
+          {/* Export Excel */}
+          <button
+            type="button"
+            onClick={exportToExcel}
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+            title="Download Format Excel (.xlsx)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Export Excel</span>
+          </button>
+
+          {/* Export CSV */}
           <button
             type="button"
             onClick={exportToCSV}
@@ -135,7 +208,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             title="Download CSV"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
+            <span>CSV</span>
           </button>
 
           <button
@@ -294,6 +367,14 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                         title="Lihat Struk / Rincian"
                       >
                         <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEditSale(sale)}
+                        className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Edit Data Penjualan"
+                      >
+                        <Pencil className="w-4 h-4" />
                       </button>
                       <button
                         type="button"

@@ -18,6 +18,7 @@ import { PrintDailyReportModal } from './components/PrintDailyReportModal';
 import { PrintSummaryReportModal } from './components/PrintSummaryReportModal';
 import { PertashopProfileModal } from './components/PertashopProfileModal';
 import { ExpenseEntryModal } from './components/ExpenseEntryModal';
+import { ImportSalesModal } from './components/ImportSalesModal';
 import { StorageService } from './utils/storage';
 import {
   Product,
@@ -32,7 +33,7 @@ import {
   ExpenseCategoryType,
 } from './types';
 import { getTodayDateString, getCurrentTimeString } from './utils/formatters';
-import { Gauge, Plus } from 'lucide-react';
+import { Gauge, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export default function App() {
   // State from Storage
@@ -49,14 +50,23 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics'>('sales');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  // Modals
+  // Modals & Editing States
   const [isSalesModalOpen, setIsSalesModalOpen] = useState<boolean>(false);
+  const [isImportSalesModalOpen, setIsImportSalesModalOpen] = useState<boolean>(false);
+  const [editingSale, setEditingSale] = useState<SaleRecord | null>(null);
+
   const [isPriceModalOpen, setIsPriceModalOpen] = useState<boolean>(false);
+
   const [isOrderModalOpen, setIsOrderModalOpen] = useState<boolean>(false);
+  const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [selectedOrderKL, setSelectedOrderKL] = useState<OrderVolumePecahan>(2);
+
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState<boolean>(false);
   const [activeReceivingOrder, setActiveReceivingOrder] = useState<PurchaseOrder | null>(null);
+
   const [isSoundingModalOpen, setIsSoundingModalOpen] = useState<boolean>(false);
+  const [editingSounding, setEditingSounding] = useState<SoundingRecord | null>(null);
+
   const [isPrintReportModalOpen, setIsPrintReportModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
@@ -122,22 +132,72 @@ export default function App() {
   const lastMeterReading = lastSaleWithMeter ? lastSaleWithMeter.meterAkhir! : 145530;
 
   // Handlers
-  const handleSaveSale = (saleData: Omit<SaleRecord, 'id' | 'createdAt'>) => {
-    const newSale: SaleRecord = {
-      ...saleData,
-      id: `sale-${Date.now()}`,
-      createdAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
-    };
+  const handleOpenAddSale = () => {
+    setEditingSale(null);
+    setIsSalesModalOpen(true);
+  };
 
-    const updatedSales = [newSale, ...sales];
+  const handleEditSale = (sale: SaleRecord) => {
+    setEditingSale(sale);
+    setIsSalesModalOpen(true);
+  };
+
+  const handleSaveSale = (saleData: Omit<SaleRecord, 'id' | 'createdAt'>) => {
+    if (editingSale) {
+      const diffLiters = saleData.literSold - editingSale.literSold;
+      const updatedSales = sales.map((s) =>
+        s.id === editingSale.id
+          ? { ...saleData, id: editingSale.id, createdAt: editingSale.createdAt }
+          : s
+      );
+      setSales(updatedSales);
+
+      // Adjust stock with difference
+      setTank((prev) => ({
+        ...prev,
+        currentStockLiters: Math.max(0, Math.min(prev.totalCapacityLiters, prev.currentStockLiters - diffLiters)),
+      }));
+      setEditingSale(null);
+    } else {
+      const newSale: SaleRecord = {
+        ...saleData,
+        id: `sale-${Date.now()}`,
+        createdAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
+      };
+
+      const updatedSales = [newSale, ...sales];
+      setSales(updatedSales);
+
+      // Auto deduct stock from tank
+      const updatedStock = Math.max(0, tank.currentStockLiters - saleData.literSold);
+      setTank((prev) => ({
+        ...prev,
+        currentStockLiters: updatedStock,
+      }));
+    }
+  };
+
+  const handleImportSales = (
+    importedSales: SaleRecord[],
+    mode: 'append' | 'replace',
+    syncStock: boolean
+  ) => {
+    let updatedSales: SaleRecord[];
+    if (mode === 'replace') {
+      updatedSales = importedSales;
+    } else {
+      // Append imported sales
+      updatedSales = [...importedSales, ...sales];
+    }
     setSales(updatedSales);
 
-    // Auto deduct stock from tank
-    const updatedStock = Math.max(0, tank.currentStockLiters - saleData.literSold);
-    setTank((prev) => ({
-      ...prev,
-      currentStockLiters: updatedStock,
-    }));
+    if (syncStock) {
+      const totalImportLiters = importedSales.reduce((acc, s) => acc + s.literSold, 0);
+      setTank((prev) => ({
+        ...prev,
+        currentStockLiters: Math.max(0, prev.currentStockLiters - totalImportLiters),
+      }));
+    }
   };
 
   const handleDeleteSale = (saleId: string) => {
@@ -200,14 +260,30 @@ export default function App() {
     setPriceHistory([newHistoryEntry, ...priceHistory]);
   };
 
-  const handleSavePurchaseOrder = (poData: Omit<PurchaseOrder, 'id' | 'createdAt'>) => {
-    const newPO: PurchaseOrder = {
-      ...poData,
-      id: `po-${Date.now()}`,
-      createdAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
-    };
+  const handleEditOrder = (order: PurchaseOrder) => {
+    setEditingOrder(order);
+    setSelectedOrderKL(order.volumeKL);
+    setIsOrderModalOpen(true);
+  };
 
-    setPurchases([newPO, ...purchases]);
+  const handleSavePurchaseOrder = (poData: Omit<PurchaseOrder, 'id' | 'createdAt'>) => {
+    if (editingOrder) {
+      const updated = purchases.map((p) =>
+        p.id === editingOrder.id
+          ? { ...poData, id: editingOrder.id, createdAt: editingOrder.createdAt, status: editingOrder.status }
+          : p
+      );
+      setPurchases(updated);
+      setEditingOrder(null);
+    } else {
+      const newPO: PurchaseOrder = {
+        ...poData,
+        id: `po-${Date.now()}`,
+        createdAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
+      };
+
+      setPurchases([newPO, ...purchases]);
+    }
   };
 
   const handleOpenReceiveModal = (order: PurchaseOrder) => {
@@ -255,22 +331,47 @@ export default function App() {
     }));
   };
 
-  const handleSaveSounding = (recordData: Omit<SoundingRecord, 'id'>, newStockLiters: number) => {
-    const newRecord: SoundingRecord = {
-      ...recordData,
-      id: `snd-${Date.now()}`,
-    };
-    setSoundings([newRecord, ...soundings]);
+  const handleEditSounding = (sounding: SoundingRecord) => {
+    setEditingSounding(sounding);
+    setIsSoundingModalOpen(true);
+  };
 
-    setTank((prev) => ({
-      ...prev,
-      currentStockLiters: newStockLiters,
-      lastSoundingDate: recordData.date,
-      lastSoundingLiters: recordData.calculatedLiters,
-    }));
+  const handleSaveSounding = (recordData: Omit<SoundingRecord, 'id'>, newStockLiters: number, editingId?: string) => {
+    const idToUpdate = editingId || editingSounding?.id;
+    if (idToUpdate) {
+      const updated = soundings.map((s) =>
+        s.id === idToUpdate ? { ...recordData, id: idToUpdate } : s
+      );
+      setSoundings(updated);
+      setTank((prev) => ({
+        ...prev,
+        currentStockLiters: newStockLiters,
+        lastSoundingDate: recordData.date,
+        lastSoundingLiters: recordData.calculatedLiters,
+      }));
+      setEditingSounding(null);
+    } else {
+      const newRecord: SoundingRecord = {
+        ...recordData,
+        id: `snd-${Date.now()}`,
+      };
+      setSoundings([newRecord, ...soundings]);
+
+      setTank((prev) => ({
+        ...prev,
+        currentStockLiters: newStockLiters,
+        lastSoundingDate: recordData.date,
+        lastSoundingLiters: recordData.calculatedLiters,
+      }));
+    }
+  };
+
+  const handleDeleteSounding = (soundingId: string) => {
+    setSoundings(soundings.filter((s) => s.id !== soundingId));
   };
 
   const handleQuickOrder = (kl: OrderVolumePecahan = 2) => {
+    setEditingOrder(null);
     setSelectedOrderKL(kl);
     setIsOrderModalOpen(true);
   };
@@ -346,7 +447,7 @@ export default function App() {
           activeTab={activeTab}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenPriceModal={() => setIsPriceModalOpen(true)}
-          onOpenSalesModal={() => setIsSalesModalOpen(true)}
+          onOpenSalesModal={handleOpenAddSale}
           onOpenOrderModal={() => handleQuickOrder(2)}
           onOpenPrintReportModal={() => setIsPrintReportModalOpen(true)}
           onOpenExpenseModal={() => handleOpenAddExpense()}
@@ -367,7 +468,10 @@ export default function App() {
               <StockTankGauge
                 tank={tank}
                 productName={primaryProduct.name}
-                onOpenSoundingModal={() => setIsSoundingModalOpen(true)}
+                onOpenSoundingModal={() => {
+                  setEditingSounding(null);
+                  setIsSoundingModalOpen(true);
+                }}
                 onOpenOrderModal={(kl) => handleQuickOrder(kl || 2)}
               />
             </div>
@@ -388,8 +492,10 @@ export default function App() {
             <SalesTable
               sales={sales}
               onDeleteSale={handleDeleteSale}
-              onOpenNewSaleModal={() => setIsSalesModalOpen(true)}
+              onEditSale={handleEditSale}
+              onOpenNewSaleModal={handleOpenAddSale}
               onOpenPrintReportModal={() => setIsPrintReportModalOpen(true)}
+              onOpenImportModal={() => setIsImportSalesModalOpen(true)}
             />
           )}
 
@@ -398,6 +504,7 @@ export default function App() {
               orders={purchases}
               onOpenNewOrderModal={() => handleQuickOrder(2)}
               onOpenReceiveModal={handleOpenReceiveModal}
+              onEditOrder={handleEditOrder}
               onDeleteOrder={(id) => setPurchases(purchases.filter((p) => p.id !== id))}
             />
           )}
@@ -415,7 +522,10 @@ export default function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsSoundingModalOpen(true)}
+                  onClick={() => {
+                    setEditingSounding(null);
+                    setIsSoundingModalOpen(true);
+                  }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm shadow-blue-200 flex items-center gap-1.5 self-start sm:self-auto"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -436,6 +546,7 @@ export default function App() {
                         <th className="py-3 px-4 text-right">Selisih (Loss/Gain)</th>
                         <th className="py-3 px-4 text-center">Uji Pasta Air</th>
                         <th className="py-3 px-4">Catatan</th>
+                        <th className="py-3 px-4 text-center">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium">
@@ -469,6 +580,30 @@ export default function App() {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-slate-500 text-[11px]">{s.notes || '-'}</td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleEditSounding(s)}
+                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Edit Catatan Sounding"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`Hapus catatan sounding tanggal ${s.date}?`)) {
+                                    handleDeleteSounding(s.id);
+                                  }
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                title="Hapus Catatan"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -505,14 +640,27 @@ export default function App() {
       </div>
 
       {/* Modals */}
+      <ImportSalesModal
+        isOpen={isImportSalesModalOpen}
+        onClose={() => setIsImportSalesModalOpen(false)}
+        products={products}
+        currentPrice={primaryProduct.currentPrice}
+        currentBuyPrice={primaryProduct.buyPrice}
+        onImportSales={handleImportSales}
+      />
+
       <SalesEntryModal
         isOpen={isSalesModalOpen}
-        onClose={() => setIsSalesModalOpen(false)}
+        onClose={() => {
+          setIsSalesModalOpen(false);
+          setEditingSale(null);
+        }}
         products={products}
         currentPrice={primaryProduct.currentPrice}
         currentBuyPrice={primaryProduct.buyPrice}
         currentStockLiters={tank.currentStockLiters}
         lastMeterReading={lastMeterReading}
+        editingSale={editingSale}
         onSaveSale={handleSaveSale}
       />
 
@@ -526,11 +674,15 @@ export default function App() {
 
       <PurchaseOrderModal
         isOpen={isOrderModalOpen}
-        onClose={() => setIsOrderModalOpen(false)}
+        onClose={() => {
+          setIsOrderModalOpen(false);
+          setEditingOrder(null);
+        }}
         products={products}
         tank={tank}
         defaultKL={selectedOrderKL}
         tbbmDepot={profile.tbbmDepot}
+        editingOrder={editingOrder}
         onSaveOrder={handleSavePurchaseOrder}
       />
 
@@ -547,10 +699,15 @@ export default function App() {
 
       <SoundingLogModal
         isOpen={isSoundingModalOpen}
-        onClose={() => setIsSoundingModalOpen(false)}
+        onClose={() => {
+          setIsSoundingModalOpen(false);
+          setEditingSounding(null);
+        }}
         tank={tank}
         soundings={soundings}
+        editingSounding={editingSounding}
         onSaveSounding={handleSaveSounding}
+        onDeleteSounding={handleDeleteSounding}
       />
 
       <ExpenseEntryModal

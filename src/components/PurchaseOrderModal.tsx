@@ -10,6 +10,7 @@ interface PurchaseOrderModalProps {
   tank: TankConfig;
   defaultKL?: OrderVolumePecahan;
   tbbmDepot: string;
+  editingOrder?: PurchaseOrder | null;
   onSaveOrder: (poData: Omit<PurchaseOrder, 'id' | 'createdAt'>) => void;
 }
 
@@ -20,6 +21,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   tank,
   defaultKL = 2,
   tbbmDepot,
+  editingOrder,
   onSaveOrder,
 }) => {
   const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || 'prod-pertamax-92');
@@ -40,9 +42,8 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   const [buyPricePerLiter, setBuyPricePerLiter] = useState<number>(selectedProduct?.buyPrice || 12100);
   
   // Pertamina DO / SO reference details
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const [soPertaminaNumber, setSoPertaminaNumber] = useState<string>(`SO-PTM-${randomSuffix}`);
-  const [doPertaminaNumber, setDoPertaminaNumber] = useState<string>(`DO-PTM-${randomSuffix + 100}`);
+  const [soPertaminaNumber, setSoPertaminaNumber] = useState<string>('');
+  const [doPertaminaNumber, setDoPertaminaNumber] = useState<string>('');
   const [supplyDepot, setSupplyDepot] = useState<string>(tbbmDepot || 'TBBM Rewulu / Boyolali');
   const [truckPlateNumber, setTruckPlateNumber] = useState<string>('AD 8492 FB');
   const [driverName, setDriverName] = useState<string>('Pak Joko Santoso');
@@ -50,23 +51,46 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
-    if (defaultKL) {
-      setVolumeKL(defaultKL);
+    if (editingOrder) {
+      setSelectedProductId(editingOrder.productId);
+      setVolumeKL(editingOrder.volumeKL);
+      setOrderDate(editingOrder.orderDate);
+      setEstimatedDeliveryDate(editingOrder.estimatedDeliveryDate);
+      setBuyPricePerLiter(editingOrder.buyPricePerLiter);
+      setSoPertaminaNumber(editingOrder.soPertaminaNumber || '');
+      setDoPertaminaNumber(editingOrder.doPertaminaNumber || '');
+      setSupplyDepot(editingOrder.supplyDepot || tbbmDepot || 'TBBM Rewulu / Boyolali');
+      setTruckPlateNumber(editingOrder.truckPlateNumber || '');
+      setDriverName(editingOrder.driverName || '');
+      setNotes(editingOrder.notes || '');
+    } else if (isOpen) {
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      setSelectedProductId(products[0]?.id || 'prod-pertamax-92');
+      setVolumeKL(defaultKL || 2);
+      setOrderDate(getTodayDateString());
+      setEstimatedDeliveryDate(getTomorrowDate());
+      setBuyPricePerLiter(products[0]?.buyPrice || 12100);
+      setSoPertaminaNumber(`SO-PTM-${randomSuffix}`);
+      setDoPertaminaNumber(`DO-PTM-${randomSuffix + 100}`);
+      setSupplyDepot(tbbmDepot || 'TBBM Rewulu / Boyolali');
+      setTruckPlateNumber('AD 8492 FB');
+      setDriverName('Pak Joko Santoso');
+      setNotes('Pemesanan kuota harian Pertashop.');
     }
-  }, [defaultKL, isOpen]);
+  }, [editingOrder, isOpen, defaultKL, tbbmDepot]);
 
   useEffect(() => {
-    if (selectedProduct) {
+    if (!editingOrder && selectedProduct) {
       setBuyPricePerLiter(selectedProduct.buyPrice);
     }
-  }, [selectedProductId, selectedProduct]);
+  }, [selectedProductId, selectedProduct, editingOrder]);
 
   if (!isOpen) return null;
 
   const volumeLiters = volumeKL * 1000;
   const totalAmount = volumeLiters * buyPricePerLiter;
   const ullageLiters = tank.totalCapacityLiters - tank.currentStockLiters;
-  const willOverflow = volumeLiters > ullageLiters;
+  const willOverflow = !editingOrder && volumeLiters > ullageLiters;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +103,9 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
       if (!confirmOverflow) return;
     }
 
-    const generatedPoNumber = `PO-PTS-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`;
+    const generatedPoNumber = editingOrder
+      ? editingOrder.poNumber
+      : `PO-PTS-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`;
 
     onSaveOrder({
       poNumber: generatedPoNumber,
@@ -96,7 +122,17 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
       supplyDepot: supplyDepot.trim(),
       truckPlateNumber: truckPlateNumber.trim(),
       driverName: driverName.trim(),
-      status: 'DIPESAN',
+      status: editingOrder ? editingOrder.status : 'DIPESAN',
+      actualDeliveryDate: editingOrder?.actualDeliveryDate,
+      soundingBeforeCm: editingOrder?.soundingBeforeCm,
+      soundingBeforeLiters: editingOrder?.soundingBeforeLiters,
+      soundingAfterCm: editingOrder?.soundingAfterCm,
+      soundingAfterLiters: editingOrder?.soundingAfterLiters,
+      actualLitersReceived: editingOrder?.actualLitersReceived,
+      varianceLiters: editingOrder?.varianceLiters,
+      density: editingOrder?.density,
+      temperature: editingOrder?.temperature,
+      completedAt: editingOrder?.completedAt,
       notes: notes.trim(),
     });
 
@@ -117,13 +153,15 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold flex items-center gap-2">
-                Pemesanan DO Pertamax ke Pertamina
+                {editingOrder ? 'Edit Pemesanan DO Pertamina' : 'Pemesanan DO Pertamax ke Pertamina'}
                 <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">
-                  Penebusan BBM
+                  {editingOrder ? editingOrder.poNumber : 'Penebusan BBM'}
                 </span>
               </h2>
               <p className="text-xs text-red-100 mt-0.5">
-                Pemesanan resmi Delivery Order ke Fuel Terminal / TBBM Pertamina
+                {editingOrder
+                  ? 'Perbarui data nomor DO, plat armada, volume, harga tebus, atau catatan.'
+                  : 'Pemesanan resmi Delivery Order ke Fuel Terminal / TBBM Pertamina'}
               </p>
             </div>
           </div>
@@ -286,8 +324,10 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
               type="submit"
               className="px-5 py-2.5 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md transition-colors flex items-center gap-2"
             >
-              <ShoppingCart className="w-4 h-4" />
-              <span>Terbitkan Pemesanan DO ({volumeKL} KL)</span>
+              <Check className="w-4 h-4" />
+              <span>
+                {editingOrder ? 'Simpan Perubahan DO' : `Terbitkan Pemesanan DO (${volumeKL} KL)`}
+              </span>
             </button>
           </div>
         </form>

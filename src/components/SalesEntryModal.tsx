@@ -11,6 +11,7 @@ interface SalesEntryModalProps {
   currentBuyPrice: number;
   currentStockLiters: number;
   lastMeterReading?: number;
+  editingSale?: SaleRecord | null;
   onSaveSale: (sale: Omit<SaleRecord, 'id' | 'createdAt'>) => void;
 }
 
@@ -22,6 +23,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   currentBuyPrice,
   currentStockLiters,
   lastMeterReading = 145530,
+  editingSale,
   onSaveSale,
 }) => {
   const [transactionDate, setTransactionDate] = useState<string>(getTodayDateString());
@@ -50,12 +52,53 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
 
-  // Update unitPrice when selected product or currentPrice changes
+  // Initialize or populate form based on editingSale or defaults
   useEffect(() => {
-    if (selectedProduct) {
+    if (editingSale) {
+      setTransactionDate(editingSale.transactionDate);
+      setTime(editingSale.time || getCurrentTimeString());
+      setShift((editingSale.shift as any) || 'Shift 1 (05.30 - 13.30)');
+      setOperatorName(editingSale.operatorName || 'Daslam');
+      setSelectedProductId(editingSale.productId);
+      if (editingSale.meterAwal !== undefined && editingSale.meterAkhir !== undefined) {
+        setInputMode('meter');
+        setMeterAwal(editingSale.meterAwal);
+        setMeterAkhir(editingSale.meterAkhir);
+        setDirectLiters(editingSale.literSold);
+      } else {
+        setInputMode('direct');
+        setDirectLiters(editingSale.literSold);
+      }
+      setUnitPrice(editingSale.unitPrice);
+      setPaymentQris(editingSale.paymentQris || 0);
+      setPaymentEdc(editingSale.paymentEdc || 0);
+      setActualCashInHand(editingSale.actualCashInHand || editingSale.paymentCash);
+      setTeraTestLiters(editingSale.teraTestLiters || 5);
+      setNotes(editingSale.notes || '');
+    } else if (isOpen) {
+      setTransactionDate(getTodayDateString());
+      setTime(getCurrentTimeString());
+      setShift('Shift 1 (05.30 - 13.30)');
+      setOperatorName('Daslam');
+      setSelectedProductId(products[0]?.id || 'prod-pertamax-92');
+      setInputMode('meter');
+      setMeterAwal(lastMeterReading);
+      setMeterAkhir(lastMeterReading + 250);
+      setDirectLiters(250);
+      setUnitPrice(selectedProduct?.currentPrice || currentPrice);
+      setPaymentQris(0);
+      setPaymentEdc(0);
+      setTeraTestLiters(5);
+      setNotes('');
+    }
+  }, [editingSale, isOpen]);
+
+  // Update unitPrice when selected product or currentPrice changes (only if creating new)
+  useEffect(() => {
+    if (!editingSale && selectedProduct) {
       setUnitPrice(selectedProduct.currentPrice);
     }
-  }, [selectedProductId, selectedProduct, currentPrice]);
+  }, [selectedProductId, selectedProduct, currentPrice, editingSale]);
 
   // Computed liters sold
   const calculatedLiters = inputMode === 'meter' 
@@ -138,9 +181,13 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               <Fuel className="w-6 h-6 text-cyan-300" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Input Laporan Penjualan Harian</h2>
+              <h2 className="text-lg font-bold">
+                {editingSale ? 'Edit Laporan Penjualan Shift' : 'Input Laporan Penjualan Harian'}
+              </h2>
               <p className="text-xs text-blue-100 mt-0.5">
-                Pencatatan Penjualan Nozzle & Rekonsiliasi Kas Pertashop
+                {editingSale
+                  ? `Mengubah data transaksi ID #${editingSale.id}`
+                  : 'Pencatatan Penjualan Nozzle & Rekonsiliasi Kas Pertashop'}
               </p>
             </div>
           </div>
@@ -514,7 +561,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               className="px-5 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-colors flex items-center gap-2"
             >
               <Check className="w-4 h-4" />
-              <span>Simpan Laporan Penjualan</span>
+              <span>{editingSale ? 'Simpan Perubahan Penjualan' : 'Simpan Laporan Penjualan'}</span>
             </button>
           </div>
         </form>
