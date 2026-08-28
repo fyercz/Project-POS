@@ -13,6 +13,7 @@ import {
   Pencil,
   FileSpreadsheet,
   UploadCloud,
+  Gauge,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { SaleRecord } from '../types';
@@ -100,6 +101,10 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       'EDC Kartu (Rp)': s.paymentEdc,
       'Uang Kasir Fisik (Rp)': s.actualCashInHand,
       'Selisih Kas (Rp)': s.cashDifference,
+      'Sounding Stick (cm)': s.soundingStickCm ?? '-',
+      'Volume Sounding (Liter)': s.soundingCalculatedLiters ?? '-',
+      'Selisih Fisik vs Buku (L)': s.soundingVarianceLiters ?? '-',
+      'Uji Pasta Air (cm)': s.soundingWaterCm ?? '-',
       'Uji Tera (L)': s.teraTestLiters ?? 5,
       'Catatan': s.notes || '',
     }));
@@ -128,6 +133,9 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       'Tunai (Rp)',
       'QRIS/Non-Tunai (Rp)',
       'Selisih Kas (Rp)',
+      'Sounding Stick (cm)',
+      'Volume Sounding (L)',
+      'Selisih Sounding (L)',
       'Catatan',
     ];
 
@@ -147,6 +155,9 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       s.paymentCash,
       s.paymentQris + s.paymentEdc,
       s.cashDifference,
+      s.soundingStickCm ?? '-',
+      s.soundingCalculatedLiters ?? '-',
+      s.soundingVarianceLiters ?? '-',
       `"${(s.notes || '').replace(/"/g, '""')}"`,
     ]);
 
@@ -334,11 +345,27 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 
                   <td className="py-3.5 px-4 text-right font-mono text-slate-600 whitespace-nowrap">
                     {sale.meterAwal !== undefined && sale.meterAkhir !== undefined ? (
-                      <span>
-                        {formatNumber(sale.meterAwal)} → {formatNumber(sale.meterAkhir)}
-                      </span>
+                      <div>
+                        <span>
+                          {formatNumber(sale.meterAwal)} → {formatNumber(sale.meterAkhir)}
+                        </span>
+                        {sale.soundingStickCm !== undefined && (
+                          <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-700 font-sans font-semibold mt-0.5" title={`Sounding Fisik: ${sale.soundingStickCm} cm (${sale.soundingCalculatedLiters || 0} L)`}>
+                            <Gauge className="w-3 h-3 text-emerald-600" />
+                            <span>Stik {sale.soundingStickCm} cm ({formatNumber(sale.soundingCalculatedLiters || 0)} L)</span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <span className="text-slate-400">-</span>
+                      <div>
+                        <span className="text-slate-400">-</span>
+                        {sale.soundingStickCm !== undefined && (
+                          <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-700 font-sans font-semibold mt-0.5">
+                            <Gauge className="w-3 h-3 text-emerald-600" />
+                            <span>Stik {sale.soundingStickCm} cm</span>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </td>
 
@@ -464,6 +491,37 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 <span>{formatRupiah(selectedReceipt.totalRevenue)}</span>
               </div>
             </div>
+
+            {/* Sounding Details in Receipt if present */}
+            {selectedReceipt.soundingStickCm !== undefined && (
+              <div className="py-2.5 border-b border-dashed border-slate-300 space-y-1 text-[11px] bg-slate-50 p-2.5 rounded-lg">
+                <div className="flex justify-between font-bold text-slate-800">
+                  <span className="flex items-center gap-1 text-slate-700">
+                    <Gauge className="w-3.5 h-3.5 text-emerald-600" />
+                    Sounding Tangki (Stik):
+                  </span>
+                  <span className="font-mono text-emerald-800">
+                    {selectedReceipt.soundingStickCm} cm ({formatNumber(selectedReceipt.soundingCalculatedLiters || 0)} L)
+                  </span>
+                </div>
+                {selectedReceipt.soundingVarianceLiters !== undefined && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Selisih Fisik vs Buku:</span>
+                    <span className="font-bold font-mono">
+                      {selectedReceipt.soundingVarianceLiters === 0
+                        ? '0 L (Sesuai)'
+                        : selectedReceipt.soundingVarianceLiters > 0
+                        ? `+${formatNumber(selectedReceipt.soundingVarianceLiters, 1)} L (Surplus)`
+                        : `${formatNumber(selectedReceipt.soundingVarianceLiters, 1)} L (Susut)`}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-500 text-[10px]">
+                  <span>Uji Pasta Air:</span>
+                  <span>{selectedReceipt.soundingWaterCm || 0} cm (Bebas Air)</span>
+                </div>
+              </div>
+            )}
 
             <div className="py-3 border-b border-dashed border-slate-300 space-y-1 text-[11px]">
               <div className="flex justify-between text-slate-600">

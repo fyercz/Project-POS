@@ -152,11 +152,19 @@ export default function App() {
       );
       setSales(updatedSales);
 
-      // Adjust stock with difference
-      setTank((prev) => ({
-        ...prev,
-        currentStockLiters: Math.max(0, Math.min(prev.totalCapacityLiters, prev.currentStockLiters - diffLiters)),
-      }));
+      // Adjust stock with difference or sounding
+      setTank((prev) => {
+        const nextStock = saleData.hasSounding && saleData.syncToSoundingLog && saleData.soundingCalculatedLiters !== undefined
+          ? saleData.soundingCalculatedLiters
+          : Math.max(0, Math.min(prev.totalCapacityLiters, prev.currentStockLiters - diffLiters));
+
+        return {
+          ...prev,
+          currentStockLiters: nextStock,
+          lastSoundingDate: saleData.hasSounding ? saleData.transactionDate : prev.lastSoundingDate,
+          lastSoundingLiters: saleData.hasSounding && saleData.soundingCalculatedLiters !== undefined ? saleData.soundingCalculatedLiters : prev.lastSoundingLiters,
+        };
+      });
       setEditingSale(null);
     } else {
       const newSale: SaleRecord = {
@@ -168,12 +176,35 @@ export default function App() {
       const updatedSales = [newSale, ...sales];
       setSales(updatedSales);
 
-      // Auto deduct stock from tank
-      const updatedStock = Math.max(0, tank.currentStockLiters - saleData.literSold);
+      // Auto deduct stock from tank or sync to physical sounding
+      const theoreticalStock = Math.max(0, tank.currentStockLiters - saleData.literSold);
+      const finalStock = (saleData.hasSounding && saleData.syncToSoundingLog && saleData.soundingCalculatedLiters !== undefined)
+        ? saleData.soundingCalculatedLiters
+        : theoreticalStock;
+
       setTank((prev) => ({
         ...prev,
-        currentStockLiters: updatedStock,
+        currentStockLiters: finalStock,
+        lastSoundingDate: saleData.hasSounding ? saleData.transactionDate : prev.lastSoundingDate,
+        lastSoundingLiters: saleData.hasSounding && saleData.soundingCalculatedLiters !== undefined ? saleData.soundingCalculatedLiters : prev.lastSoundingLiters,
       }));
+
+      // If sounding was recorded and syncToSoundingLog is checked, add to sounding history
+      if (saleData.hasSounding && saleData.syncToSoundingLog && saleData.soundingCalculatedLiters !== undefined) {
+        const newSoundingRecord: SoundingRecord = {
+          id: `snd-shift-${Date.now()}`,
+          date: saleData.transactionDate,
+          time: saleData.time,
+          operatorName: saleData.operatorName,
+          stickDipCm: saleData.soundingStickCm || 0,
+          calculatedLiters: saleData.soundingCalculatedLiters,
+          systemStockLiters: saleData.soundingTheoreticalLiters ?? theoreticalStock,
+          varianceLiters: saleData.soundingVarianceLiters ?? (saleData.soundingCalculatedLiters - theoreticalStock),
+          waterBottomCm: saleData.soundingWaterCm || 0,
+          notes: `Sounding otomatis saat ${saleData.shift} (${saleData.operatorName}). ${saleData.notes || ''}`.trim(),
+        };
+        setSoundings((prev) => [newSoundingRecord, ...prev]);
+      }
     }
   };
 
@@ -659,6 +690,7 @@ export default function App() {
         currentPrice={primaryProduct.currentPrice}
         currentBuyPrice={primaryProduct.buyPrice}
         currentStockLiters={tank.currentStockLiters}
+        tankCapacity={tank.totalCapacityLiters}
         lastMeterReading={lastMeterReading}
         editingSale={editingSale}
         onSaveSale={handleSaveSale}

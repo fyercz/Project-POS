@@ -57,6 +57,16 @@ export interface SaleRecord {
   
   // Uji Tera / Uji Takar
   teraTestLiters?: number; // biasanya 5L per bejana ukur untuk kalibrasi
+  
+  // Sounding Tangki Modular saat Shift
+  hasSounding?: boolean; // Indikator apakah sounding diukur pada shift ini
+  soundingStickCm?: number; // Tinggi stik celup (cm)
+  soundingCalculatedLiters?: number; // Volume tera fisik tangki (Liter)
+  soundingTheoreticalLiters?: number; // Stok buku / sistem setelah penjualan (Liter)
+  soundingVarianceLiters?: number; // Selisih Fisik vs Sistem (Loss / Gain Liter)
+  soundingWaterCm?: number; // Uji pasta air dasar tangki (cm)
+  syncToSoundingLog?: boolean; // Apakah dicatat juga ke log resmi sounding tangki
+
   notes?: string;
   createdAt: string;
 }

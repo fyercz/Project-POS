@@ -162,7 +162,15 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
                   daySales.map((sale) => (
                     <tr key={sale.id} className="border-b border-slate-200">
                       <td className="p-2 border-r border-slate-200 font-medium">
-                        {sale.shift} ({sale.operatorName})
+                        <div>{sale.shift} ({sale.operatorName})</div>
+                        {sale.soundingStickCm !== undefined && (
+                          <div className="text-[10px] text-emerald-700 font-normal">
+                            Sounding: {sale.soundingStickCm} cm ({formatNumber(sale.soundingCalculatedLiters || 0)} L)
+                            {sale.soundingVarianceLiters !== undefined && sale.soundingVarianceLiters !== 0 && (
+                              <span> • Selisih: {sale.soundingVarianceLiters > 0 ? `+${sale.soundingVarianceLiters}L` : `${sale.soundingVarianceLiters}L`}</span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="p-2 border-r border-slate-200">{sale.productName}</td>
                       <td className="p-2 text-right border-r border-slate-200 font-mono">

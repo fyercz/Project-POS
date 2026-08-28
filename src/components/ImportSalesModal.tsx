@@ -221,6 +221,25 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       const teraTestLiters =
         parseFloat(normalized['tera'] || normalized['ujitera'] || normalized['teratestliters']) || 5;
 
+      // Optional Sounding Fields
+      const soundingStickRaw =
+        normalized['soundingstick'] ||
+        normalized['soundingstickcm'] ||
+        normalized['stickcm'] ||
+        normalized['stikcm'] ||
+        normalized['tinggistick'] ||
+        normalized['sounding'];
+      const soundingStickCm =
+        soundingStickRaw !== undefined && soundingStickRaw !== '' ? parseFloat(soundingStickRaw) : undefined;
+      
+      const soundingCalculatedLiters =
+        soundingStickCm !== undefined
+          ? parseFloat(normalized['volumesounding'] || normalized['soundingcalculatedliters']) || Math.round(soundingStickCm * 21)
+          : undefined;
+
+      const soundingWaterCm =
+        parseFloat(normalized['ujipastaair'] || normalized['pastaair'] || normalized['watercm']) || 0;
+
       const notes = String(normalized['catatan'] || normalized['notes'] || normalized['keterangan'] || '').trim();
 
       const sale: SaleRecord = {
@@ -244,6 +263,10 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         actualCashInHand,
         cashDifference,
         teraTestLiters,
+        hasSounding: soundingStickCm !== undefined,
+        soundingStickCm,
+        soundingCalculatedLiters,
+        soundingWaterCm: soundingStickCm !== undefined ? soundingWaterCm : undefined,
         notes: notes || 'Diimpor dari file data existing',
         createdAt: `${transactionDate} ${time}`,
       };

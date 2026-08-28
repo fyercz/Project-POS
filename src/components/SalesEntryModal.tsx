@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { X, Fuel, Calculator, Check, AlertCircle, Sparkles, User, Clock, Calendar, Wallet } from 'lucide-react';
+import {
+  X,
+  Fuel,
+  Calculator,
+  Check,
+  AlertCircle,
+  Sparkles,
+  User,
+  Clock,
+  Calendar,
+  Wallet,
+  Gauge,
+  Droplet,
+  ArrowRight,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { Product, SaleRecord } from '../types';
-import { formatRupiah, formatNumber, getTodayDateString, getCurrentTimeString } from '../utils/formatters';
+import { formatRupiah, formatNumber, formatLiter, getTodayDateString, getCurrentTimeString } from '../utils/formatters';
 
 interface SalesEntryModalProps {
   isOpen: boolean;
@@ -10,6 +26,7 @@ interface SalesEntryModalProps {
   currentPrice: number;
   currentBuyPrice: number;
   currentStockLiters: number;
+  tankCapacity?: number;
   lastMeterReading?: number;
   editingSale?: SaleRecord | null;
   onSaveSale: (sale: Omit<SaleRecord, 'id' | 'createdAt'>) => void;
@@ -22,10 +39,13 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   currentPrice,
   currentBuyPrice,
   currentStockLiters,
+  tankCapacity = 5000,
   lastMeterReading = 145530,
   editingSale,
   onSaveSale,
 }) => {
+  const LITERS_PER_CM = 21;
+
   const [transactionDate, setTransactionDate] = useState<string>(getTodayDateString());
   const [time, setTime] = useState<string>(getCurrentTimeString());
   const [shift, setShift] = useState<'Shift 1 (05.30 - 13.30)' | 'Shift 2 (13.30 - 19.30)' | 'Full Day'>('Shift 1 (05.30 - 13.30)');
@@ -47,6 +67,14 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   const [actualCashInHand, setActualCashInHand] = useState<number>(0);
   
   const [teraTestLiters, setTeraTestLiters] = useState<number>(5);
+
+  // Sounding Tangki Modular saat Shift
+  const [hasSounding, setHasSounding] = useState<boolean>(true);
+  const [soundingStickCm, setSoundingStickCm] = useState<number>(140);
+  const [soundingCalculatedLiters, setSoundingCalculatedLiters] = useState<number>(2940);
+  const [soundingWaterCm, setSoundingWaterCm] = useState<number>(0);
+  const [syncToSoundingLog, setSyncToSoundingLog] = useState<boolean>(true);
+
   const [notes, setNotes] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -74,6 +102,18 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       setPaymentEdc(editingSale.paymentEdc || 0);
       setActualCashInHand(editingSale.actualCashInHand || editingSale.paymentCash);
       setTeraTestLiters(editingSale.teraTestLiters || 5);
+      
+      // Sounding
+      if (editingSale.hasSounding || editingSale.soundingStickCm) {
+        setHasSounding(true);
+        setSoundingStickCm(editingSale.soundingStickCm || 0);
+        setSoundingCalculatedLiters(editingSale.soundingCalculatedLiters || 0);
+        setSoundingWaterCm(editingSale.soundingWaterCm || 0);
+        setSyncToSoundingLog(editingSale.syncToSoundingLog ?? false);
+      } else {
+        setHasSounding(false);
+      }
+
       setNotes(editingSale.notes || '');
     } else if (isOpen) {
       setTransactionDate(getTodayDateString());
@@ -89,6 +129,16 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       setPaymentQris(0);
       setPaymentEdc(0);
       setTeraTestLiters(5);
+      
+      // Default sounding calculation for expected after-sale stock
+      const expectedRem = Math.max(0, currentStockLiters - 250);
+      const defaultCm = Math.round((expectedRem / LITERS_PER_CM) * 10) / 10;
+      setHasSounding(true);
+      setSoundingStickCm(defaultCm);
+      setSoundingCalculatedLiters(Math.round(defaultCm * LITERS_PER_CM));
+      setSoundingWaterCm(0);
+      setSyncToSoundingLog(true);
+
       setNotes('');
     }
   }, [editingSale, isOpen]);
@@ -104,6 +154,25 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   const calculatedLiters = inputMode === 'meter' 
     ? Math.max(0, (meterAkhir || 0) - (meterAwal || 0))
     : Math.max(0, directLiters || 0);
+
+  // Theoretical remaining stock after this shift's sale
+  const theoreticalRemainingStock = Math.max(0, currentStockLiters - calculatedLiters);
+
+  // Sounding variance (Physical Sounding Liters - Theoretical System Stock Liters)
+  const soundingVariance = soundingCalculatedLiters - theoreticalRemainingStock;
+
+  // Sounding change handlers
+  const handleSoundingStickChange = (cm: number) => {
+    setSoundingStickCm(cm);
+    const liters = Math.min(tankCapacity, Math.round(cm * LITERS_PER_CM));
+    setSoundingCalculatedLiters(liters);
+  };
+
+  const handleSoundingLitersChange = (liters: number) => {
+    const ltr = Math.min(tankCapacity, liters);
+    setSoundingCalculatedLiters(ltr);
+    setSoundingStickCm(Math.round((ltr / LITERS_PER_CM) * 10) / 10);
+  };
 
   // Computed Total Revenue
   const totalRevenue = calculatedLiters * unitPrice;
@@ -162,6 +231,14 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       actualCashInHand: actualCashInHand || expectedCash,
       cashDifference: (actualCashInHand || expectedCash) - expectedCash,
       teraTestLiters,
+      // Sounding Data
+      hasSounding,
+      soundingStickCm: hasSounding ? soundingStickCm : undefined,
+      soundingCalculatedLiters: hasSounding ? soundingCalculatedLiters : undefined,
+      soundingTheoreticalLiters: hasSounding ? theoreticalRemainingStock : undefined,
+      soundingVarianceLiters: hasSounding ? soundingVariance : undefined,
+      soundingWaterCm: hasSounding ? soundingWaterCm : undefined,
+      syncToSoundingLog: hasSounding ? syncToSoundingLog : false,
       notes: notes.trim(),
     });
 
@@ -182,12 +259,12 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold">
-                {editingSale ? 'Edit Laporan Penjualan Shift' : 'Input Laporan Penjualan Harian'}
+                {editingSale ? 'Edit Laporan Penjualan Shift' : 'Input Laporan Penjualan & Sounding Shift'}
               </h2>
               <p className="text-xs text-blue-100 mt-0.5">
                 {editingSale
                   ? `Mengubah data transaksi ID #${editingSale.id}`
-                  : 'Pencatatan Penjualan Nozzle & Rekonsiliasi Kas Pertashop'}
+                  : 'Pencatatan Penjualan Nozzle, Sounding Tangki & Rekonsiliasi Kas'}
               </p>
             </div>
           </div>
@@ -201,7 +278,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[82vh] overflow-y-auto">
           {errorMessage && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -319,7 +396,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <Calculator className="w-4 h-4 text-blue-600" />
-                Perhitungan Jumlah Liter
+                Perhitungan Jumlah Liter Terjual
               </span>
 
               <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold">
@@ -420,9 +497,9 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   <span className="text-sm font-bold text-slate-300">Liter</span>
                 </div>
                 <span className="text-[11px] text-slate-400 mt-1 block">
-                  Sisa tangki sesudah transaksi:{' '}
+                  Sisa stok buku teoritis:{' '}
                   <strong className="text-white">
-                    {formatNumber(Math.max(0, currentStockLiters - calculatedLiters))} L
+                    {formatNumber(theoreticalRemainingStock)} L
                   </strong>
                 </span>
               </div>
@@ -441,6 +518,173 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* ================= SOUNDING TANGKI MODULAR SAAT SHIFT ================= */}
+          <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-emerald-600 text-white rounded-lg">
+                  <Gauge className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Sounding Tangki Modular (Stik Ukur Shift)
+                  </h3>
+                  <p className="text-[11px] text-emerald-800">
+                    Kalibrasi tera tangki: <strong>1 cm = 21 Liter</strong>
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-2xs">
+                <input
+                  type="checkbox"
+                  checked={hasSounding}
+                  onChange={(e) => setHasSounding(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                />
+                <span className="text-xs font-bold text-slate-800">
+                  Catat Sounding
+                </span>
+              </label>
+            </div>
+
+            {hasSounding && (
+              <div className="space-y-3.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Tinggi Celup Stick Sounding */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Tinggi Stick Celup (cm)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="any"
+                        min={0}
+                        max={300}
+                        required={hasSounding}
+                        value={soundingStickCm}
+                        onChange={(e) => handleSoundingStickChange(parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-hidden"
+                      />
+                      <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">cm</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-medium mt-1 block">
+                      Tera: {soundingStickCm} cm × 21 L
+                    </span>
+                  </div>
+
+                  {/* Volume Fisik Tangki */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Volume Fisik Hasil Tera (L)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="any"
+                        min={0}
+                        max={tankCapacity}
+                        required={hasSounding}
+                        value={soundingCalculatedLiters}
+                        onChange={(e) => handleSoundingLitersChange(parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-sm font-mono font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-500 outline-hidden"
+                      />
+                      <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">Liter</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Kapasitas Tangki: {formatNumber(tankCapacity)} L
+                    </span>
+                  </div>
+
+                  {/* Uji Pasta Air */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Uji Pasta Air Dasar Tangki
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="any"
+                        min={0}
+                        max={20}
+                        value={soundingWaterCm}
+                        onChange={(e) => setSoundingWaterCm(parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-hidden"
+                      />
+                      <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">cm</span>
+                    </div>
+                    <span className={`text-[10px] mt-1 block font-semibold ${
+                      soundingWaterCm === 0 ? 'text-emerald-700' : 'text-rose-600'
+                    }`}>
+                      {soundingWaterCm === 0 ? '✅ Bebas Endapan Air' : '⚠️ Ada Endapan Air Dasar'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Komparasi Fisik vs Buku (Loss / Gain Selisih) */}
+                <div className="p-3 bg-white border border-emerald-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Stok Buku Sistem</span>
+                      <span className="font-mono font-bold text-slate-800">
+                        {formatLiter(theoreticalRemainingStock)}
+                      </span>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Fisik Stik Tangki</span>
+                      <span className="font-mono font-bold text-emerald-800">
+                        {formatLiter(soundingCalculatedLiters)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Badge Variance */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-500">Selisih Fisik vs Buku:</span>
+                    <span
+                      className={`font-mono font-bold px-2.5 py-1 rounded-lg text-xs flex items-center gap-1 ${
+                        soundingVariance === 0
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : soundingVariance > 0
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {soundingVariance === 0 ? (
+                        <span>Selaras (0 L)</span>
+                      ) : soundingVariance > 0 ? (
+                        <>
+                          <TrendingUp className="w-3 h-3" />
+                          <span>+{formatNumber(soundingVariance, 1)} L (Surplus Fisik)</span>
+                        </>
+                      ) : (
+                        <>
+                          <TrendingDown className="w-3 h-3" />
+                          <span>{formatNumber(soundingVariance, 1)} L (Susut / Penguapan)</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Checkbox Sync to Sounding Log */}
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={syncToSoundingLog}
+                    onChange={(e) => setSyncToSoundingLog(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                  />
+                  <span>
+                    Simpan dan sinkronkan hasil sounding ini ke <strong>Buku Log Riwayat Sounding Tangki</strong>
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Rincian Pembayaran (Non-Tunai & Tunai) */}
@@ -538,7 +782,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="misal: Uji takar pagi 5L akurat, nozzle 1 lancar"
+                placeholder="misal: Uji takar pagi 5L akurat, sounding normal"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
@@ -561,7 +805,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               className="px-5 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-colors flex items-center gap-2"
             >
               <Check className="w-4 h-4" />
-              <span>{editingSale ? 'Simpan Perubahan Penjualan' : 'Simpan Laporan Penjualan'}</span>
+              <span>{editingSale ? 'Simpan Perubahan Penjualan' : 'Simpan Laporan & Sounding Shift'}</span>
             </button>
           </div>
         </form>
@@ -569,3 +813,4 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
     </div>
   );
 };
+
