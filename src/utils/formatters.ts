@@ -2,12 +2,26 @@
  * Helper pemformat angka, mata uang Rupiah, liter, dan tanggal
  */
 
-export function formatRupiah(value: number): string {
+export function formatRupiah(value: number, decimalDigits: number = 0): string {
+  // If decimalDigits is not explicitly requested, but value has fractions, allow up to 3 decimal places
+  const hasDecimals = value % 1 !== 0;
+  const maxDecimals = decimalDigits > 0 ? decimalDigits : hasDecimals ? 3 : 0;
+  const minDecimals = decimalDigits > 0 ? decimalDigits : 0;
+
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: minDecimals,
+    maximumFractionDigits: maxDecimals,
+  }).format(value);
+}
+
+export function formatPricePerLiter(value: number): string {
+  // Format price per liter supporting up to 3 decimal digits, e.g. Rp 15.046,375 / Liter
+  const hasDecimals = value % 1 !== 0;
+  return new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: hasDecimals ? (value.toString().split('.')[1]?.length || 2) : 0,
+    maximumFractionDigits: 3,
   }).format(value);
 }
 

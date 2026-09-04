@@ -19,7 +19,9 @@ import { PrintSummaryReportModal } from './components/PrintSummaryReportModal';
 import { PertashopProfileModal } from './components/PertashopProfileModal';
 import { ExpenseEntryModal } from './components/ExpenseEntryModal';
 import { ImportSalesModal } from './components/ImportSalesModal';
+import { AttendancePayrollView } from './components/AttendancePayrollView';
 import { StorageService } from './utils/storage';
+import { syncSalesToAttendance, recalculateMonthlyPayrolls } from './utils/attendanceSync';
 import {
   Product,
   PurchaseOrder,
@@ -31,6 +33,9 @@ import {
   OrderVolumePecahan,
   ExpenseRecord,
   ExpenseCategoryType,
+  Employee,
+  AttendanceRecord,
+  PayrollRecord,
 } from './types';
 import { getTodayDateString, getCurrentTimeString } from './utils/formatters';
 import { Gauge, Plus, Pencil, Trash2 } from 'lucide-react';
@@ -45,9 +50,12 @@ export default function App() {
   const [purchases, setPurchases] = useState<PurchaseOrder[]>(StorageService.getPurchases());
   const [soundings, setSoundings] = useState<SoundingRecord[]>(StorageService.getSoundings());
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(StorageService.getExpenses());
+  const [employees, setEmployees] = useState<Employee[]>(StorageService.getEmployees());
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>(StorageService.getAttendance());
+  const [payrolls, setPayrolls] = useState<PayrollRecord[]>(StorageService.getPayrolls());
 
   // Navigation Tab & Mobile Drawer State
-  const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics'>('sales');
+  const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'soundings' | 'expenses' | 'attendance' | 'summary' | 'analytics'>('sales');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Modals & Editing States
@@ -114,6 +122,18 @@ export default function App() {
   useEffect(() => {
     StorageService.setExpenses(expenses);
   }, [expenses]);
+
+  useEffect(() => {
+    StorageService.setEmployees(employees);
+  }, [employees]);
+
+  useEffect(() => {
+    StorageService.setAttendance(attendance);
+  }, [attendance]);
+
+  useEffect(() => {
+    StorageService.setPayrolls(payrolls);
+  }, [payrolls]);
 
   // Primary product (Pertamax 92)
   const primaryProduct = products.find((p) => p.id === 'prod-pertamax-92') || products[0];
@@ -204,6 +224,67 @@ export default function App() {
           notes: `Sounding otomatis saat ${saleData.shift} (${saleData.operatorName}). ${saleData.notes || ''}`.trim(),
         };
         setSoundings((prev) => [newSoundingRecord, ...prev]);
+      }
+    }
+
+    // SINKRONISASI OTOMATIS KE ABSENSI KARYAWAN (Baik saat Catat Baru maupun Edit)
+    if (saleData.syncToAttendance !== false) {
+      const opNameClean = saleData.operatorName.trim();
+      const matchedEmp = employees.find(
+        (e) => e.name.toLowerCase() === opNameClean.toLowerCase() ||
+               opNameClean.toLowerCase().includes(e.name.toLowerCase()) ||
+               e.name.toLowerCase().includes(opNameClean.toLowerCase())
+      );
+
+      if (matchedEmp) {
+        const existingAtt = attendance.find(
+          (a) => a.employeeId === matchedEmp.id && a.date === saleData.transactionDate
+        );
+
+        const isOvertimeOrFull =
+          saleData.shift.toLowerCase().includes('full') ||
+          saleData.shift.toLowerCase().includes('lembur') ||
+          (saleData.notes || '').toLowerCase().includes('lembur') ||
+          (existingAtt && existingAtt.shift !== saleData.shift);
+
+        let checkIn = '05:30';
+        let checkOut = '13:30';
+        if (saleData.shift.includes('Shift 2') || saleData.shift.includes('13.30')) {
+          checkIn = '13:30';
+          checkOut = '19:30';
+        } else if (saleData.shift.includes('Full')) {
+          checkIn = '05:30';
+          checkOut = '19:30';
+        }
+
+        if (existingAtt) {
+          // Update existing attendance to reflect full day / overtime if multiple shifts worked
+          const updatedAtt: AttendanceRecord = {
+            ...existingAtt,
+            status: isOvertimeOrFull ? 'LEMBUR' : existingAtt.status,
+            overtimeShifts: isOvertimeOrFull ? Math.max(1, existingAtt.overtimeShifts || 1) : existingAtt.overtimeShifts,
+            shift: isOvertimeOrFull ? 'Full Day / Multiple Shift' : existingAtt.shift,
+            checkOutTime: saleData.shift.includes('Shift 2') || saleData.shift.includes('Full') ? '19:30' : existingAtt.checkOutTime,
+            notes: `${existingAtt.notes || ''} | Catatan Penjualan: ${saleData.literSold} L (${saleData.shift})`.trim(),
+          };
+          setAttendance((prev) => prev.map((a) => (a.id === existingAtt.id ? updatedAtt : a)));
+        } else {
+          // Create new attendance record
+          const newAtt: AttendanceRecord = {
+            id: `att-sale-${Date.now()}`,
+            employeeId: matchedEmp.id,
+            employeeName: matchedEmp.name,
+            date: saleData.transactionDate,
+            shift: saleData.shift,
+            status: isOvertimeOrFull ? 'LEMBUR' : 'HADIR',
+            checkInTime: checkIn,
+            checkOutTime: checkOut,
+            overtimeShifts: isOvertimeOrFull ? 1 : 0,
+            notes: `Otomatis sinkron dari penjualan shift (${saleData.literSold} L). ${saleData.notes || ''}`.trim(),
+            createdAt: `${saleData.transactionDate} ${saleData.time || '08:00'}`,
+          };
+          setAttendance((prev) => [newAtt, ...prev]);
+        }
       }
     }
   };
@@ -447,11 +528,119 @@ export default function App() {
     setExpenses(expenses.filter((e) => e.id !== expenseId));
   };
 
+  const handleDeleteExpensesByMonth = (monthKey: string) => {
+    const remaining = expenses.filter((e) => !e.date.startsWith(monthKey));
+    setExpenses(remaining);
+  };
+
   const handleOpenPrintSummaryModal = (mode: 'MONTHLY' | 'YEARLY', month: string, year: number) => {
     setSummaryPrintMode(mode);
     setSummaryPrintMonth(month);
     setSummaryPrintYear(year);
     setIsPrintSummaryModalOpen(true);
+  };
+
+  // Employee, Attendance & Payroll Handlers
+  const handleSaveEmployee = (emp: Employee) => {
+    const exists = employees.some((e) => e.id === emp.id);
+    if (exists) {
+      setEmployees(employees.map((e) => (e.id === emp.id ? emp : e)));
+    } else {
+      setEmployees([...employees, emp]);
+    }
+  };
+
+  const handleDeleteEmployee = (empId: string) => {
+    setEmployees(employees.filter((e) => e.id !== empId));
+  };
+
+  const handleSaveAttendance = (record: AttendanceRecord) => {
+    const exists = attendance.some((a) => a.id === record.id);
+    const updatedAttendanceList = exists
+      ? attendance.map((a) => (a.id === record.id ? record : a))
+      : [record, ...attendance];
+    setAttendance(updatedAttendanceList);
+
+    const targetMonth = record.date.substring(0, 7);
+    const updatedPayrolls = recalculateMonthlyPayrolls(updatedAttendanceList, employees, payrolls, targetMonth);
+    setPayrolls(updatedPayrolls);
+  };
+
+  const handleDeleteAttendance = (recordId: string) => {
+    const targetRec = attendance.find((a) => a.id === recordId);
+    const updatedAttendanceList = attendance.filter((a) => a.id !== recordId);
+    setAttendance(updatedAttendanceList);
+
+    if (targetRec) {
+      const targetMonth = targetRec.date.substring(0, 7);
+      const updatedPayrolls = recalculateMonthlyPayrolls(updatedAttendanceList, employees, payrolls, targetMonth);
+      setPayrolls(updatedPayrolls);
+    }
+  };
+
+  const handleSavePayroll = (payroll: PayrollRecord) => {
+    const exists = payrolls.some((p) => p.id === payroll.id);
+    if (exists) {
+      setPayrolls(payrolls.map((p) => (p.id === payroll.id ? payroll : p)));
+    } else {
+      setPayrolls([payroll, ...payrolls]);
+    }
+  };
+
+  const handleDeletePayroll = (payrollId: string) => {
+    setPayrolls(payrolls.filter((p) => p.id !== payrollId));
+  };
+
+  const handlePaySalary = (
+    payroll: PayrollRecord,
+    paymentSource: 'KAS_HARIAN' | 'REKENING_BANK',
+    paymentDate?: string,
+    notes?: string
+  ) => {
+    // 1. Update Payroll Record Status
+    const today = paymentDate || getTodayDateString();
+    const updatedPayroll: PayrollRecord = {
+      ...payroll,
+      paymentStatus: 'DIBAYAR',
+      paymentDate: today,
+      paymentSource,
+      notes: notes || payroll.notes,
+    };
+    handleSavePayroll(updatedPayroll);
+
+    // 2. Automatically create an expense transaction in Expense Tracker (if not already existing)
+    const existingSalaryExpense = expenses.find((e) => e.id.includes(`exp-salary-${payroll.id}`));
+    if (!existingSalaryExpense) {
+      const newExpense: ExpenseRecord = {
+        id: `exp-salary-${payroll.id}-${Date.now()}`,
+        date: today,
+        time: getCurrentTimeString(),
+        category: 'GAJI_OPERATOR',
+        title: `Pembayaran Gaji Bulanan: ${payroll.employeeName} (${payroll.payrollNumber})`,
+        amount: payroll.netSalary,
+        quantity: payroll.totalHadir,
+        unitRate: payroll.dailyRate,
+        personOrVendor: payroll.employeeName,
+        paymentSource,
+        notes: `Gaji periode ${payroll.month} (${payroll.totalHadir} hari kerja, ${payroll.totalLemburShifts} shift lembur). Bersih: Rp ${payroll.netSalary.toLocaleString('id-ID')}`,
+        createdAt: `${today} ${getCurrentTimeString()}`,
+      };
+      setExpenses((prev) => [newExpense, ...prev]);
+    }
+  };
+
+  const handleUnpaySalary = (payrollId: string) => {
+    const target = payrolls.find((p) => p.id === payrollId);
+    if (!target) return;
+    const updated: PayrollRecord = {
+      ...target,
+      paymentStatus: 'DRAFT',
+      paymentDate: undefined,
+    };
+    handleSavePayroll(updated);
+
+    // Remove corresponding salary expense from expenses list
+    setExpenses((prev) => prev.filter((e) => !e.id.includes(`exp-salary-${payrollId}`)));
   };
 
   return (
@@ -644,12 +833,36 @@ export default function App() {
             </div>
           )}
 
+          {activeTab === 'attendance' && (
+            <AttendancePayrollView
+              employees={employees}
+              attendance={attendance}
+              payrolls={payrolls}
+              profile={profile}
+              sales={sales}
+              onSaveEmployee={handleSaveEmployee}
+              onDeleteEmployee={handleDeleteEmployee}
+              onSaveAttendance={handleSaveAttendance}
+              onDeleteAttendance={handleDeleteAttendance}
+              onSavePayroll={handleSavePayroll}
+              onDeletePayroll={handleDeletePayroll}
+              onPaySalary={handlePaySalary}
+              onUnpaySalary={handleUnpaySalary}
+              onBatchSyncAttendance={(records) => {
+                setAttendance(records);
+                const updatedPayrolls = recalculateMonthlyPayrolls(records, employees, payrolls, '2026-08');
+                setPayrolls(updatedPayrolls);
+              }}
+            />
+          )}
+
           {activeTab === 'expenses' && (
             <ExpensesView
               expenses={expenses}
               onOpenAddExpense={handleOpenAddExpense}
               onEditExpense={handleEditExpense}
               onDeleteExpense={handleDeleteExpense}
+              onDeleteExpensesByMonth={handleDeleteExpensesByMonth}
             />
           )}
 

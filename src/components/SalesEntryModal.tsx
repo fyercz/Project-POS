@@ -52,8 +52,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   const [operatorName, setOperatorName] = useState<string>('Daslam');
   const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || 'prod-pertamax-92');
   
-  // Metering mode: Totalisator Stand Meter vs Direct Liters
-  const [inputMode, setInputMode] = useState<'meter' | 'direct'>('meter');
+  // Metering mode: Direct Liters vs Totalisator Stand Meter
+  const [inputMode, setInputMode] = useState<'direct' | 'meter'>('direct');
   const [meterAwal, setMeterAwal] = useState<number>(lastMeterReading);
   const [meterAkhir, setMeterAkhir] = useState<number>(lastMeterReading + 250);
   const [directLiters, setDirectLiters] = useState<number>(250);
@@ -74,6 +74,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   const [soundingCalculatedLiters, setSoundingCalculatedLiters] = useState<number>(2940);
   const [soundingWaterCm, setSoundingWaterCm] = useState<number>(0);
   const [syncToSoundingLog, setSyncToSoundingLog] = useState<boolean>(true);
+  const [syncToAttendance, setSyncToAttendance] = useState<boolean>(true);
 
   const [notes, setNotes] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -114,6 +115,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
         setHasSounding(false);
       }
 
+      setSyncToAttendance(editingSale.syncToAttendance ?? true);
       setNotes(editingSale.notes || '');
     } else if (isOpen) {
       setTransactionDate(getTodayDateString());
@@ -121,7 +123,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       setShift('Shift 1 (05.30 - 13.30)');
       setOperatorName('Daslam');
       setSelectedProductId(products[0]?.id || 'prod-pertamax-92');
-      setInputMode('meter');
+      setInputMode('direct');
       setMeterAwal(lastMeterReading);
       setMeterAkhir(lastMeterReading + 250);
       setDirectLiters(250);
@@ -138,6 +140,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       setSoundingCalculatedLiters(Math.round(defaultCm * LITERS_PER_CM));
       setSoundingWaterCm(0);
       setSyncToSoundingLog(true);
+      setSyncToAttendance(true);
 
       setNotes('');
     }
@@ -239,6 +242,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       soundingVarianceLiters: hasSounding ? soundingVariance : undefined,
       soundingWaterCm: hasSounding ? soundingWaterCm : undefined,
       syncToSoundingLog: hasSounding ? syncToSoundingLog : false,
+      syncToAttendance,
       notes: notes.trim(),
     });
 
@@ -402,17 +406,6 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold">
                 <button
                   type="button"
-                  onClick={() => setInputMode('meter')}
-                  className={`px-2.5 py-1 rounded-md transition-all ${
-                    inputMode === 'meter'
-                      ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Stand Meter Totalisator
-                </button>
-                <button
-                  type="button"
                   onClick={() => setInputMode('direct')}
                   className={`px-2.5 py-1 rounded-md transition-all ${
                     inputMode === 'direct'
@@ -422,10 +415,40 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 >
                   Input Liter Langsung
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setInputMode('meter')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    inputMode === 'meter'
+                      ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Stand Meter Totalisator
+                </button>
               </div>
             </div>
 
-            {inputMode === 'meter' ? (
+            {inputMode === 'direct' ? (
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Jumlah Liter Terjual
+                </label>
+                <div className="relative max-w-xs">
+                  <input
+                    type="number"
+                    min={1}
+                    step="any"
+                    value={directLiters}
+                    onChange={(e) => setDirectLiters(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-base font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-hidden"
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
+                    Liter
+                  </span>
+                </div>
+              </div>
+            ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">
@@ -458,25 +481,6 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   />
                   <span className="text-[10px] text-slate-400 mt-1 block">
                     Angka totalisator dispenser saat shift tutup
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Jumlah Liter Terjual
-                </label>
-                <div className="relative max-w-xs">
-                  <input
-                    type="number"
-                    min={1}
-                    step="any"
-                    value={directLiters}
-                    onChange={(e) => setDirectLiters(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-base font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-hidden"
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
-                    Liter
                   </span>
                 </div>
               </div>
@@ -788,6 +792,28 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
               />
             </div>
+          </div>
+
+          {/* Sinkronisasi ke Absensi Karyawan */}
+          <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-indigo-600 shrink-0" />
+              <div>
+                <span className="font-bold text-indigo-950">Sinkronkan ke Buku Absensi & Jam Kerja Karyawan</span>
+                <p className="text-[11px] text-indigo-700">
+                  Otomatis membukukan kehadiran / lembur untuk operator <strong>{operatorName || 'Operator'}</strong> pada tanggal <strong>{transactionDate}</strong> ({shift}).
+                </p>
+              </div>
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer bg-white px-3 py-1 rounded-lg border border-indigo-300 shadow-2xs shrink-0">
+              <input
+                type="checkbox"
+                checked={syncToAttendance}
+                onChange={(e) => setSyncToAttendance(e.target.checked)}
+                className="w-4 h-4 text-indigo-600 rounded-md focus:ring-indigo-500"
+              />
+              <span className="text-xs font-bold text-indigo-900">Aktif</span>
+            </label>
           </div>
 
           {/* Footer Actions */}

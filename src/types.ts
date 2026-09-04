@@ -66,6 +66,7 @@ export interface SaleRecord {
   soundingVarianceLiters?: number; // Selisih Fisik vs Sistem (Loss / Gain Liter)
   soundingWaterCm?: number; // Uji pasta air dasar tangki (cm)
   syncToSoundingLog?: boolean; // Apakah dicatat juga ke log resmi sounding tangki
+  syncToAttendance?: boolean; // Apakah shift ini otomatis dicatat ke Buku Absensi Karyawan
 
   notes?: string;
   createdAt: string;
@@ -156,6 +157,7 @@ export type ExpenseCategoryType =
   | 'TOKEN_LISTRIK'
   | 'PDAM'
   | 'MAINTENANCE_ALAT'
+  | 'LOSSES_MINYAK'
   | 'LAINNYA';
 
 export interface ExpenseRecord {
@@ -165,9 +167,11 @@ export interface ExpenseRecord {
   category: ExpenseCategoryType;
   title: string;
   amount: number;
-  quantity?: number; // e.g. 1 hari, 2 shift
-  unitRate?: number; // e.g. 40000 (gaji/hari) atau 30000 (lembur/shift)
-  personOrVendor?: string; // e.g. "Ahmad Fauzi", "PLN Token", "PDAM Tirta", "Teknisi Nozzle"
+  quantity?: number; // e.g. 1 hari, 2 shift, atau volume loss (L)
+  unitRate?: number; // e.g. 40000 (gaji/hari), 30000 (lembur/shift), atau harga beli/L
+  fuelLossLiters?: number; // Volume susut/losses minyak dalam Liter
+  fuelLossBuyPriceSnapshot?: number; // Harga tebus Pertamina/L saat terjadi losses
+  personOrVendor?: string; // e.g. "Ahmad Fauzi", "PLN Token", "PDAM Tirta", "Teknisi Nozzle", "Susut Penguapan / Tera"
   shift?: 'Shift 1 (05.30 - 13.30)' | 'Shift 2 (13.30 - 19.30)' | 'Full Day' | 'Non-Shift' | string;
   paymentSource: 'KAS_HARIAN' | 'REKENING_BANK';
   notes?: string;
@@ -178,4 +182,85 @@ export const EXPENSE_RATES = {
   GAJI_OPERATOR_PER_HARI: 40000,
   LEMBURAN_PER_SHIFT: 30000,
 };
+
+// ==================== SISTEM KEPEGAWAIAN, ABSENSI & PENGGAJIAN ====================
+
+export type EmployeeRole = 'OPERATOR_DISPENSER' | 'KEPALA_REGU' | 'ADMINISTRASI' | 'TEKNISI_KEBERSIHAN';
+export type AttendanceStatus = 'HADIR' | 'LEMBUR' | 'IZIN' | 'SAKIT' | 'ALPA' | 'LIBUR';
+
+export interface Employee {
+  id: string;
+  nik?: string;
+  name: string;
+  role: EmployeeRole;
+  phone: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  dailyRate: number; // Tarif harian (misal: Rp 40.000 / shift atau hari)
+  overtimeRate: number; // Tarif lembur per shift (misal: Rp 30.000)
+  mealAllowanceDaily: number; // Uang makan / kehadiran harian (opsional, misal Rp 10.000)
+  isActive: boolean;
+  joinDate: string;
+  notes?: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string; // YYYY-MM-DD
+  shift: 'Shift 1 (05.30 - 13.30)' | 'Shift 2 (13.30 - 19.30)' | 'Full Day' | 'Non-Shift' | string;
+  status: AttendanceStatus;
+  checkInTime?: string; // HH:mm
+  checkOutTime?: string; // HH:mm
+  overtimeShifts: number; // Jumlah shift lembur (0, 1, 2)
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PayrollRecord {
+  id: string;
+  payrollNumber: string; // e.g. SLIP-2026-08-001
+  month: string; // YYYY-MM (e.g. 2026-08)
+  employeeId: string;
+  employeeName: string;
+  employeeRole: EmployeeRole;
+  periodStartDate: string;
+  periodEndDate: string;
+  
+  // Rangkuman Absensi Bulan Ini
+  totalHadir: number;
+  totalLemburShifts: number;
+  totalIzin: number;
+  totalSakit: number;
+  totalAlpa: number;
+
+  // Komponen Penghasilan (Gaji Kotor)
+  dailyRate: number;
+  basicSalary: number; // totalHadir * dailyRate
+  overtimeRate: number;
+  overtimePay: number; // totalLemburShifts * overtimeRate
+  mealAllowance: number; // totalHadir * mealAllowanceDaily
+  incentiveBonus?: number; // (Opsional/Deprecated)
+  
+  // Potongan
+  kasbonDeduction: number;
+  penaltyDeduction: number;
+  otherDeductions: number;
+
+  // Gaji Bersih (Take Home Pay)
+  grossSalary: number;
+  totalDeductions: number;
+  netSalary: number;
+
+  // Status & Pembayaran
+  paymentStatus: 'DRAFT' | 'DIBAYAR' | 'TERTUNDA';
+  paymentDate?: string;
+  paymentSource: 'KAS_HARIAN' | 'REKENING_BANK';
+  linkedExpenseId?: string; // Tautan ke tabel Pengeluaran Kas/Bank
+  
+  notes?: string;
+  createdAt: string;
+}
+
 

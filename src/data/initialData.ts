@@ -1,4 +1,17 @@
-import { Product, PurchaseOrder, SaleRecord, TankConfig, PertashopProfile, PriceHistory, SoundingRecord, ExpenseRecord, ExpenseCategoryType } from '../types';
+import {
+  Product,
+  PurchaseOrder,
+  SaleRecord,
+  TankConfig,
+  PertashopProfile,
+  PriceHistory,
+  SoundingRecord,
+  ExpenseRecord,
+  ExpenseCategoryType,
+  Employee,
+  AttendanceRecord,
+  PayrollRecord,
+} from '../types';
 import { RAW_JAN_2026, RAW_FEB_2026, MonthRawData } from './realPertashopSales';
 import { RAW_MAR_2026, RAW_APR_2026 } from './realPertashopSalesPart2';
 import { RAW_MEI_2026, RAW_JUN_2026, RAW_JUL_2026, RAW_AGT_2026 } from './realPertashopSalesPart3';
@@ -152,15 +165,15 @@ function buildRealSales(): SaleRecord[] {
           shiftStr = 'Shift 2 (13.30 - 19.30)';
           timeStr = '19:30';
         } else if (isAngga) {
-          operatorName = 'Angga (Full Shift)';
-          shiftStr = 'Full Shift (05.30 - 19.30)';
+          const isExplicitLembur = item.uraian.toLowerCase().includes('lembur');
+          operatorName = isExplicitLembur ? 'Angga (Lembur)' : 'Angga (Shift 2)';
+          shiftStr = isExplicitLembur ? 'Full Shift (05.30 - 19.30)' : 'Shift 2 (13.30 - 19.30)';
           timeStr = '19:30';
         } else if (isDaslam) {
-          operatorName = item.uraian.toLowerCase().includes('lembur')
-            ? 'Daslam (Lembur)'
-            : 'Daslam (Full Shift)';
-          shiftStr = 'Full Shift (05.30 - 19.30)';
-          timeStr = '19:30';
+          const isExplicitLembur = item.uraian.toLowerCase().includes('lembur');
+          operatorName = isExplicitLembur ? 'Daslam (Lembur)' : 'Daslam (Shift 1)';
+          shiftStr = isExplicitLembur ? 'Full Shift (05.30 - 19.30)' : 'Shift 1 (05.30 - 13.30)';
+          timeStr = isExplicitLembur ? '19:30' : '13:30';
         }
 
         const unitPrice = Math.round(item.debet / item.volume);
@@ -286,9 +299,19 @@ function buildRealExpenses(): ExpenseRecord[] {
     });
   });
 
-  // 2. Standard Monthly Operational Expenses
-  const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'];
-  months.forEach((m) => {
+  // 2. Standard Monthly Operational Expenses & Losses Minyak
+  const months = [
+    { m: '2026-01', lossL: 18.5, lossRp: 211600, pln: 450000, atk: 150000 },
+    { m: '2026-02', lossL: 16.0, lossRp: 174200, pln: 450000, atk: 150000 },
+    { m: '2026-03', lossL: 22.0, lossRp: 250500, pln: 450000, atk: 150000 },
+    { m: '2026-04', lossL: 24.5, lossRp: 279000, pln: 450000, atk: 150000 },
+    { m: '2026-05', lossL: 19.0, lossRp: 216400, pln: 450000, atk: 150000 },
+    { m: '2026-06', lossL: 21.5, lossRp: 244800, pln: 450000, atk: 150000 },
+    { m: '2026-07', lossL: 17.0, lossRp: 260900, pln: 450000, atk: 150000 },
+    { m: '2026-08', lossL: 18.0, lossRp: 270800, pln: 450000, atk: 150000 },
+  ];
+
+  months.forEach(({ m, lossL, lossRp, pln, atk }) => {
     // Listrik PLN & Wifi
     expenses.push({
       id: `exp-pln-${expId++}`,
@@ -296,7 +319,7 @@ function buildRealExpenses(): ExpenseRecord[] {
       time: '09:00',
       category: 'TOKEN_LISTRIK' as ExpenseCategoryType,
       title: `Tagihan Listrik PLN & Internet (${m})`,
-      amount: 450000,
+      amount: pln,
       personOrVendor: 'PLN & Provider Internet',
       paymentSource: 'REKENING_BANK',
       notes: 'Listrik operasional dispenser, lampu canopy, dan sistem POS',
@@ -310,11 +333,26 @@ function buildRealExpenses(): ExpenseRecord[] {
       time: '14:00',
       category: 'MAINTENANCE_ALAT' as ExpenseCategoryType,
       title: `Kertas Thermal Struk & Kebersihan (${m})`,
-      amount: 150000,
+      amount: atk,
       personOrVendor: 'Toko ATK Parang',
       paymentSource: 'KAS_HARIAN',
       notes: 'Roll thermal printer kasir, sabun pembersih lantai, plastik',
       createdAt: `${m}-12 14:00`,
+    });
+
+    // Losses Minyak / Susut Fisik Tangki & Penguapan Bulanan
+    expenses.push({
+      id: `exp-loss-${expId++}`,
+      date: `${m}-28`,
+      time: '19:30',
+      category: 'LOSSES_MINYAK' as ExpenseCategoryType,
+      title: `Susut Fisik & Penguapan Minyak Bulanan (${m})`,
+      amount: lossRp,
+      fuelLossLiters: lossL,
+      personOrVendor: 'Rekonsiliasi Stok Tangki & Dispenser',
+      paymentSource: 'KAS_HARIAN',
+      notes: `Susut berkala penguapan tangki pendam dan selisih tera nozzle (${lossL} Liter). Masih dalam batas toleransi Pertamina <0.5%.`,
+      createdAt: `${m}-28 19:30`,
     });
   });
 
@@ -351,3 +389,169 @@ export const INITIAL_SOUNDING_RECORDS: SoundingRecord[] = [
     notes: 'Sounding harian pagi, kondisi tangki normal bebas endapan air.',
   },
 ];
+
+// ================= INITIAL DATA KEPEGAWAIAN, ABSENSI & GAJI =================
+
+export const INITIAL_EMPLOYEES: Employee[] = [
+  {
+    id: 'emp-001',
+    nik: '3520081204960001',
+    name: 'Daslam',
+    role: 'OPERATOR_DISPENSER',
+    phone: '0812-3456-7890',
+    bankName: 'BRI',
+    bankAccountNumber: '6338-01-009281-53-4',
+    dailyRate: 40000,
+    overtimeRate: 30000,
+    mealAllowanceDaily: 10000,
+    isActive: true,
+    joinDate: '2025-01-01',
+    notes: 'Operator shift 1 pagi & teknisi harian dispenser',
+  },
+  {
+    id: 'emp-002',
+    nik: '3520082408980002',
+    name: 'Angga',
+    role: 'OPERATOR_DISPENSER',
+    phone: '0857-9876-5432',
+    bankName: 'BSI',
+    bankAccountNumber: '7192834011',
+    dailyRate: 40000,
+    overtimeRate: 30000,
+    mealAllowanceDaily: 10000,
+    isActive: true,
+    joinDate: '2025-01-01',
+    notes: 'Operator shift 2 sore & penanggung jawab sounding malam',
+  },
+];
+
+function buildRealAttendance(): AttendanceRecord[] {
+  const records: AttendanceRecord[] = [];
+  let attId = 1;
+  const sales = buildRealSales();
+
+  // Extract from existing sales to match actual shifts worked
+  const shiftLogMap = new Map<string, { daslamShift1: boolean; daslamLembur: boolean; anggaShift2: boolean; anggaLembur: boolean }>();
+
+  sales.forEach((s) => {
+    const d = s.transactionDate;
+    if (!shiftLogMap.has(d)) {
+      shiftLogMap.set(d, { daslamShift1: false, daslamLembur: false, anggaShift2: false, anggaLembur: false });
+    }
+    const cur = shiftLogMap.get(d)!;
+    const op = s.operatorName.toLowerCase();
+    const notes = (s.notes || '').toLowerCase();
+
+    if (op.includes('daslam')) {
+      cur.daslamShift1 = true;
+      if (notes.includes('lembur') || op.includes('lembur')) {
+        cur.daslamLembur = true;
+      }
+    }
+    if (op.includes('angga')) {
+      cur.anggaShift2 = true;
+      if (notes.includes('lembur') || op.includes('lembur')) {
+        cur.anggaLembur = true;
+      }
+    }
+  });
+
+  Array.from(shiftLogMap.entries()).forEach(([dateStr, log]) => {
+    // Record Daslam
+    if (log.daslamShift1) {
+      records.push({
+        id: `att-${attId++}`,
+        employeeId: 'emp-001',
+        employeeName: 'Daslam',
+        date: dateStr,
+        shift: log.daslamLembur ? 'Full Shift (05.30 - 19.30)' : 'Shift 1 (05.30 - 13.30)',
+        status: log.daslamLembur ? 'LEMBUR' : 'HADIR',
+        checkInTime: '05:25',
+        checkOutTime: log.daslamLembur ? '19:35' : '13:35',
+        overtimeShifts: log.daslamLembur ? 1 : 0,
+        notes: log.daslamLembur ? 'Shift 1 + Lembur Shift 2' : 'Bertugas Shift 1 Pagi',
+        createdAt: `${dateStr} 05:25`,
+      });
+    }
+
+    // Record Angga
+    if (log.anggaShift2) {
+      records.push({
+        id: `att-${attId++}`,
+        employeeId: 'emp-002',
+        employeeName: 'Angga',
+        date: dateStr,
+        shift: log.anggaLembur ? 'Full Shift (05.30 - 19.30)' : 'Shift 2 (13.30 - 19.30)',
+        status: log.anggaLembur ? 'LEMBUR' : 'HADIR',
+        checkInTime: log.anggaLembur ? '05:30' : '13:25',
+        checkOutTime: '19:35',
+        overtimeShifts: log.anggaLembur ? 1 : 0,
+        notes: log.anggaLembur ? 'Shift 2 + Lembur Shift 1' : 'Bertugas Shift 2 Sore',
+        createdAt: `${dateStr} 13:25`,
+      });
+    }
+  });
+
+  return records.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function buildInitialPayrolls(): PayrollRecord[] {
+  const payrolls: PayrollRecord[] = [];
+  const attendance = buildRealAttendance();
+  const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'];
+  let slipId = 1;
+
+  months.forEach((m) => {
+    INITIAL_EMPLOYEES.forEach((emp) => {
+      const monthAtt = attendance.filter((a) => a.employeeId === emp.id && a.date.startsWith(m));
+      const totalHadir = monthAtt.length;
+      const totalLemburShifts = monthAtt.reduce((sum, a) => sum + (a.overtimeShifts || 0), 0);
+
+      const basicSalary = totalHadir * emp.dailyRate;
+      const overtimePay = totalLemburShifts * emp.overtimeRate;
+      const mealAllowance = totalHadir * emp.mealAllowanceDaily;
+
+      const grossSalary = basicSalary + overtimePay + mealAllowance;
+      const totalDeductions = 0;
+      const netSalary = grossSalary - totalDeductions;
+
+      payrolls.push({
+        id: `pay-${m}-${emp.id}`,
+        payrollNumber: `SLIP-${m.replace('-', '')}-${String(slipId++).padStart(3, '0')}`,
+        month: m,
+        employeeId: emp.id,
+        employeeName: emp.name,
+        employeeRole: emp.role,
+        periodStartDate: `${m}-01`,
+        periodEndDate: `${m}-28`,
+        totalHadir,
+        totalLemburShifts,
+        totalIzin: 0,
+        totalSakit: 0,
+        totalAlpa: 0,
+        dailyRate: emp.dailyRate,
+        basicSalary,
+        overtimeRate: emp.overtimeRate,
+        overtimePay,
+        mealAllowance,
+        kasbonDeduction: 0,
+        penaltyDeduction: 0,
+        otherDeductions: 0,
+        grossSalary,
+        totalDeductions,
+        netSalary,
+        paymentStatus: m === '2026-08' ? 'DRAFT' : 'DIBAYAR',
+        paymentDate: m === '2026-08' ? undefined : `${m}-28`,
+        paymentSource: 'REKENING_BANK',
+        notes: `Gaji bulanan ${emp.name} periode ${m}`,
+        createdAt: `${m}-28 17:00`,
+      });
+    });
+  });
+
+  return payrolls.sort((a, b) => b.month.localeCompare(a.month) || a.employeeName.localeCompare(b.employeeName));
+}
+
+export const INITIAL_ATTENDANCE: AttendanceRecord[] = buildRealAttendance();
+export const INITIAL_PAYROLLS: PayrollRecord[] = buildInitialPayrolls();
+

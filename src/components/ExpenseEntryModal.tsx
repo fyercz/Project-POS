@@ -15,9 +15,12 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
+  Fuel,
+  TrendingDown,
+  Scale,
 } from 'lucide-react';
 import { ExpenseRecord, ExpenseCategoryType, EXPENSE_RATES } from '../types';
-import { getTodayDateString, getCurrentTimeString, formatRupiah } from '../utils/formatters';
+import { getTodayDateString, getCurrentTimeString, formatRupiah, formatNumber } from '../utils/formatters';
 
 interface ExpenseEntryModalProps {
   isOpen: boolean;
@@ -25,6 +28,7 @@ interface ExpenseEntryModalProps {
   onSaveExpense: (expense: Omit<ExpenseRecord, 'id' | 'createdAt'>) => void;
   initialCategory?: ExpenseCategoryType;
   editingExpense?: ExpenseRecord | null;
+  defaultBuyPrice?: number;
 }
 
 export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
@@ -33,6 +37,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
   onSaveExpense,
   initialCategory = 'GAJI_OPERATOR',
   editingExpense = null,
+  defaultBuyPrice = 15046,
 }) => {
   const [category, setCategory] = useState<ExpenseCategoryType>(initialCategory);
   const [date, setDate] = useState<string>(getTodayDateString());
@@ -41,6 +46,8 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
   const [amount, setAmount] = useState<number>(EXPENSE_RATES.GAJI_OPERATOR_PER_HARI);
   const [quantity, setQuantity] = useState<number>(1);
   const [unitRate, setUnitRate] = useState<number>(EXPENSE_RATES.GAJI_OPERATOR_PER_HARI);
+  const [fuelLossLiters, setFuelLossLiters] = useState<number>(5);
+  const [fuelLossBuyPrice, setFuelLossBuyPrice] = useState<number>(defaultBuyPrice);
   const [personOrVendor, setPersonOrVendor] = useState<string>('Daslam');
   const [shift, setShift] = useState<string>('Shift 1 (05.30 - 13.30)');
   const [paymentSource, setPaymentSource] = useState<'KAS_HARIAN' | 'REKENING_BANK'>('KAS_HARIAN');
@@ -85,6 +92,16 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
       setTitle(`Maintenance & Servis ${maintenanceItem}`);
       setPersonOrVendor('Teknisi / Bengkel Alat');
       setPaymentSource('KAS_HARIAN');
+    } else if (cat === 'LOSSES_MINYAK') {
+      const lts = fuelLossLiters || 5;
+      const bp = fuelLossBuyPrice || defaultBuyPrice;
+      const calculatedAmount = Math.round(lts * bp);
+      setQuantity(lts);
+      setUnitRate(bp);
+      setAmount(calculatedAmount);
+      setTitle(`Beban Losses Minyak Pertamax (${formatNumber(lts, 1)} L)`);
+      setPersonOrVendor('Susut Penguapan & Tera Dispenser');
+      setPaymentSource('KAS_HARIAN');
     } else {
       setUnitRate(25000);
       setQuantity(1);
@@ -104,6 +121,8 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
       setAmount(editingExpense.amount);
       setQuantity(editingExpense.quantity || 1);
       setUnitRate(editingExpense.unitRate || editingExpense.amount);
+      setFuelLossLiters(editingExpense.fuelLossLiters || editingExpense.quantity || 5);
+      setFuelLossBuyPrice(editingExpense.fuelLossBuyPriceSnapshot || editingExpense.unitRate || defaultBuyPrice);
       setPersonOrVendor(editingExpense.personOrVendor || '');
       setShift(editingExpense.shift || 'Shift 1 (05.30 - 13.30)');
       setPaymentSource(editingExpense.paymentSource);
@@ -133,6 +152,24 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
     }
   };
 
+  // Recalculate for Losses Minyak
+  const handleFuelLossLitersChange = (lts: number) => {
+    const validLts = Math.max(0.1, lts);
+    setFuelLossLiters(validLts);
+    setQuantity(validLts);
+    const calculated = Math.round(validLts * fuelLossBuyPrice);
+    setAmount(calculated);
+    setTitle(`Beban Losses Minyak Pertamax (${formatNumber(validLts, 1)} L)`);
+  };
+
+  const handleFuelLossBuyPriceChange = (bp: number) => {
+    const validBp = Math.max(0, bp);
+    setFuelLossBuyPrice(validBp);
+    setUnitRate(validBp);
+    const calculated = Math.round(fuelLossLiters * validBp);
+    setAmount(calculated);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0) {
@@ -146,8 +183,10 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
       category,
       title: title.trim() || `Pengeluaran ${category}`,
       amount,
-      quantity,
-      unitRate,
+      quantity: category === 'LOSSES_MINYAK' ? fuelLossLiters : quantity,
+      unitRate: category === 'LOSSES_MINYAK' ? fuelLossBuyPrice : unitRate,
+      fuelLossLiters: category === 'LOSSES_MINYAK' ? fuelLossLiters : undefined,
+      fuelLossBuyPriceSnapshot: category === 'LOSSES_MINYAK' ? fuelLossBuyPrice : undefined,
       personOrVendor: personOrVendor.trim(),
       shift,
       paymentSource,
@@ -173,7 +212,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
                 {editingExpense ? 'Edit Pengeluaran Operasional' : 'Catat Pengeluaran Operasional'}
               </h2>
               <p className="text-xs text-slate-300">
-                Gaji operator (Rp 40k), lembur (Rp 30k), listrik, PDAM, & maintenance
+                Gaji operator, lembur, losses minyak, listrik, PDAM, & maintenance
               </p>
             </div>
           </div>
@@ -191,13 +230,13 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
             <label className="block text-xs font-semibold text-slate-700 mb-2">
               Pilih Kategori Beban Operasional:
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => handleSelectCategory('GAJI_OPERATOR')}
                 className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
                   category === 'GAJI_OPERATOR'
-                    ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-xs'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-xs ring-2 ring-blue-500/20'
                     : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                 }`}
               >
@@ -215,7 +254,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
                 onClick={() => handleSelectCategory('LEMBURAN')}
                 className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
                   category === 'LEMBURAN'
-                    ? 'border-amber-600 bg-amber-50 text-amber-900 shadow-xs'
+                    ? 'border-amber-600 bg-amber-50 text-amber-900 shadow-xs ring-2 ring-amber-500/20'
                     : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                 }`}
               >
@@ -230,10 +269,26 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
 
               <button
                 type="button"
+                onClick={() => handleSelectCategory('LOSSES_MINYAK')}
+                className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                  category === 'LOSSES_MINYAK'
+                    ? 'border-rose-600 bg-rose-50 text-rose-900 shadow-xs ring-2 ring-rose-500/20'
+                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <TrendingDown className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span className="font-bold">Losses Minyak</span>
+                </div>
+                <span className="text-[10px] text-rose-700 font-mono mt-1">Susut / Penguapan</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => handleSelectCategory('TOKEN_LISTRIK')}
                 className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
                   category === 'TOKEN_LISTRIK'
-                    ? 'border-yellow-500 bg-yellow-50 text-yellow-900 shadow-xs'
+                    ? 'border-yellow-500 bg-yellow-50 text-yellow-900 shadow-xs ring-2 ring-yellow-500/20'
                     : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                 }`}
               >
@@ -249,7 +304,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
                 onClick={() => handleSelectCategory('PDAM')}
                 className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
                   category === 'PDAM'
-                    ? 'border-cyan-600 bg-cyan-50 text-cyan-900 shadow-xs'
+                    ? 'border-cyan-600 bg-cyan-50 text-cyan-900 shadow-xs ring-2 ring-cyan-500/20'
                     : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                 }`}
               >
@@ -265,13 +320,13 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
                 onClick={() => handleSelectCategory('MAINTENANCE_ALAT')}
                 className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
                   category === 'MAINTENANCE_ALAT'
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xs'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xs ring-2 ring-indigo-500/20'
                     : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                 }`}
               >
                 <div className="flex items-center gap-1.5">
                   <Wrench className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <span className="font-bold">Maintenance Alat</span>
+                  <span className="font-bold">Maintenance</span>
                 </div>
                 <span className="text-[10px] text-indigo-700 font-mono mt-1">Dispenser / Servis</span>
               </button>
@@ -279,9 +334,9 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleSelectCategory('LAINNYA')}
-                className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between col-span-2 sm:col-span-1 ${
                   category === 'LAINNYA'
-                    ? 'border-slate-600 bg-slate-100 text-slate-900 shadow-xs'
+                    ? 'border-slate-600 bg-slate-100 text-slate-900 shadow-xs ring-2 ring-slate-500/20'
                     : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                 }`}
               >
@@ -320,6 +375,26 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
               <span className="px-2 py-0.5 rounded-md bg-amber-200 text-amber-900 font-bold font-mono text-[11px]">
                 {quantity} Shift = {formatRupiah(quantity * unitRate)}
               </span>
+            </div>
+          )}
+
+          {category === 'LOSSES_MINYAK' && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-rose-900 font-bold">
+                  <TrendingDown className="w-4 h-4 text-rose-600" />
+                  <span>Formula Akuntansi Beban Losses Minyak:</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-rose-200 text-rose-900 font-extrabold font-mono text-xs">
+                  {formatRupiah(amount)}
+                </span>
+              </div>
+              <p className="text-[11px] text-rose-700 leading-relaxed font-mono">
+                Beban Losses (Rp) = Volume Susut ({formatNumber(fuelLossLiters, 1)} L) × Harga Tebus/Beli ({formatRupiah(fuelLossBuyPrice)}/L)
+              </p>
+              <div className="text-[10px] text-rose-600">
+                * Beban losses minyak akan langsung memotong margin laba kotor & diperhitungkan ke dalam akuntansi laba rugi.
+              </div>
             </div>
           )}
 
@@ -373,15 +448,58 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
             <input
               type="text"
               required
-              placeholder="e.g. Gaji Harian Ahmad Fauzi / Token Listrik PLN"
+              placeholder="e.g. Gaji Harian Ahmad Fauzi / Susut Penguapan Tangki"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
             />
           </div>
 
-          {/* Quantity & Unit Rate Calculation OR Direct Amount */}
-          {(category === 'GAJI_OPERATOR' || category === 'LEMBURAN') ? (
+          {/* Quantity & Unit Rate Calculation OR Losses Calculator OR Direct Amount */}
+          {category === 'LOSSES_MINYAK' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-rose-50/70 p-3.5 rounded-xl border border-rose-200">
+              <div>
+                <label className="block text-rose-900 font-semibold mb-1 flex items-center gap-1">
+                  <Fuel className="w-3.5 h-3.5 text-rose-600" />
+                  Volume Susut (Liter)
+                </label>
+                <input
+                  type="number"
+                  min="0.1"
+                  step="0.1"
+                  required
+                  value={fuelLossLiters}
+                  onChange={(e) => handleFuelLossLitersChange(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-1.5 bg-white border border-rose-200 rounded-lg font-mono font-bold text-rose-950 focus:ring-2 focus:ring-rose-500 outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-rose-900 font-semibold mb-1 flex items-center gap-1">
+                  <DollarSign className="w-3.5 h-3.5 text-rose-600" />
+                  Harga Tebus / Beli (Rp/L)
+                </label>
+                <input
+                  type="number"
+                  min="1000"
+                  step="1"
+                  required
+                  value={fuelLossBuyPrice}
+                  onChange={(e) => handleFuelLossBuyPriceChange(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-1.5 bg-white border border-rose-200 rounded-lg font-mono font-bold text-rose-950 focus:ring-2 focus:ring-rose-500 outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-rose-900 font-semibold mb-1">
+                  Total Beban Losses (Rp)
+                </label>
+                <div className="px-3 py-1.5 bg-rose-200/80 border border-rose-300 rounded-lg font-mono font-extrabold text-rose-950 text-sm flex items-center h-[34px]">
+                  {formatRupiah(amount)}
+                </div>
+              </div>
+            </div>
+          ) : (category === 'GAJI_OPERATOR' || category === 'LEMBURAN') ? (
             <div className="grid grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
               <div>
                 <label className="block text-slate-600 font-semibold mb-1">
@@ -448,160 +566,101 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
 
               {/* Quick Nominal Pill Buttons */}
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {[20000, 50000, 100000, 150000, 200000, 500000].map((quickNom) => (
+                {[50000, 100000, 200000, 500000, 1000000].map((nom) => (
                   <button
-                    key={quickNom}
+                    key={nom}
                     type="button"
                     onClick={() => {
-                      setAmount(quickNom);
-                      setUnitRate(quickNom);
+                      setAmount(nom);
+                      setUnitRate(nom);
                     }}
-                    className={`px-2.5 py-1 rounded-lg font-mono font-semibold text-[11px] transition-colors ${
-                      amount === quickNom
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                    }`}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-mono font-semibold transition-colors"
                   >
-                    +{formatRupiah(quickNom)}
+                    +{formatRupiah(nom)}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Maintenance specifics */}
-          {category === 'MAINTENANCE_ALAT' && (
-            <div className="bg-indigo-50/70 p-3 rounded-xl border border-indigo-100 space-y-2">
-              <label className="block text-indigo-950 font-semibold">
-                Komponen / Bagian yang Diservis:
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  'Dispenser & Nozzle Pompa',
-                  'Kalibrasi Tera Bejana 5L',
-                  'Genset Cadangan Listrik',
-                  'Filter & Selang Hose',
-                  'Tangki Pendam & Manhole',
-                  'Alat Pemadam Api (APAR)',
-                ].map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => {
-                      setMaintenanceItem(item);
-                      setTitle(`Maintenance & Servis ${item}`);
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                      maintenanceItem === item
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white border border-indigo-200 text-indigo-800'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recipient/Vendor & Payment Source */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Penerima / Vendor & Sumber Pembayaran */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                {category === 'GAJI_OPERATOR' || category === 'LEMBURAN'
-                  ? 'Nama Operator Penerima'
-                  : 'Vendor / No. Referensi / ID Pelanggan'}
+                Penerima / Vendor / Keterangan Sumber
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. Daslam / Angga / No. ID PLN"
-                  value={personOrVendor}
-                  onChange={(e) => setPersonOrVendor(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
-                />
-              </div>
-
-              {(category === 'GAJI_OPERATOR' || category === 'LEMBURAN') && (
-                <div className="flex gap-1.5 mt-1.5">
-                  {['Daslam', 'Angga'].map((op) => (
-                    <button
-                      key={op}
-                      type="button"
-                      onClick={() => {
-                        setPersonOrVendor(op);
-                        if (category === 'GAJI_OPERATOR') setTitle(`Gaji Harian Operator (${op})`);
-                        if (category === 'LEMBURAN') setTitle(`Uang Lemburan Shift (${op})`);
-                      }}
-                      className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-semibold text-slate-700"
-                    >
-                      {op}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <input
+                type="text"
+                placeholder="e.g. Daslam / PLN / PDAM / Selisih Sounding"
+                value={personOrVendor}
+                onChange={(e) => setPersonOrVendor(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
+              />
             </div>
 
             <div>
-              <label className="block text-slate-700 font-semibold mb-1 flex items-center gap-1">
-                <Wallet className="w-3.5 h-3.5 text-slate-500" />
+              <label className="block text-slate-700 font-semibold mb-1">
                 Sumber Dana Pembayaran
               </label>
-              <select
-                value={paymentSource}
-                onChange={(e) => setPaymentSource(e.target.value as any)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
-              >
-                <option value="KAS_HARIAN">Kas Harian Pertashop (Dipotong dari Uang Kasir)</option>
-                <option value="REKENING_BANK">Rekening Bank / Kas Pengelola</option>
-              </select>
-              <p className="text-[10px] text-slate-500 mt-1">
-                {paymentSource === 'KAS_HARIAN'
-                  ? '⚠️ Mempengaruhi rekonsiliasi setoran uang fisik harian kasir.'
-                  : 'Dibayarkan via transfer bank/owner, tidak memotong uang fisik kasir.'}
-              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentSource('KAS_HARIAN')}
+                  className={`px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 font-bold transition-all ${
+                    paymentSource === 'KAS_HARIAN'
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-xs'
+                      : 'border-slate-200 text-slate-600 bg-white'
+                  }`}
+                >
+                  <Wallet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Kas Harian</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentSource('REKENING_BANK')}
+                  className={`px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 font-bold transition-all ${
+                    paymentSource === 'REKENING_BANK'
+                      ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-xs'
+                      : 'border-slate-200 text-slate-600 bg-white'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Rekening Bank</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-slate-700 font-semibold mb-1">
-              Catatan / Detail Tambahan (Opsional)
-            </label>
+            <label className="block text-slate-700 font-semibold mb-1">Catatan Tambahan (Opsional)</label>
             <textarea
               rows={2}
-              placeholder="Catatan kwitansi, nomor meter token, kondisi alat sebelum diservis, dll."
+              placeholder="Catatan detail pengeluaran..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden resize-none"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden resize-none"
             />
           </div>
 
-          {/* Footer */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-            <div className="text-slate-500 text-xs">
-              Total yang dicatat:{' '}
-              <strong className="text-slate-900 font-mono font-bold text-sm">
-                {formatRupiah(amount)}
-              </strong>
-            </div>
+          {/* Footer Actions */}
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              Batal
+            </button>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl border border-slate-300 font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Simpan Pengeluaran
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{editingExpense ? 'Simpan Perubahan' : 'Catat Pengeluaran'}</span>
+            </button>
           </div>
         </form>
       </div>

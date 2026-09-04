@@ -218,6 +218,9 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">
                   Harga Tebus Pertamina Baru (Rp / Liter)
+                  <span className="text-[10px] text-blue-600 font-normal ml-1">
+                    (s/d 3 angka desimal)
+                  </span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-sm font-bold text-slate-400">Rp</span>
@@ -225,14 +228,15 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     type="number"
                     required
                     min={1000}
-                    step={50}
+                    step="0.001"
                     value={newBuyPrice}
                     onChange={(e) => setNewBuyPrice(parseFloat(e.target.value) || 0)}
                     className="w-full pl-11 pr-3 py-2.5 bg-white border border-slate-300 focus:border-blue-600 rounded-xl text-base font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                    placeholder="Contoh: 15046.375"
                   />
                 </div>
                 <span className="text-[11px] text-slate-500 mt-1 block">
-                  Harga invoice DO/penebusan dari Pertamina
+                  Harga invoice DO/penebusan dari Pertamina (Mendukung 3 digit desimal)
                 </span>
               </div>
             </div>

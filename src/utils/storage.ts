@@ -1,4 +1,4 @@
-import { Product, PurchaseOrder, SaleRecord, TankConfig, PertashopProfile, PriceHistory, SoundingRecord, ExpenseRecord } from '../types';
+import { Product, PurchaseOrder, SaleRecord, TankConfig, PertashopProfile, PriceHistory, SoundingRecord, ExpenseRecord, Employee, AttendanceRecord, PayrollRecord } from '../types';
 import {
   INITIAL_PERTASHOP_PROFILE,
   INITIAL_PRODUCTS,
@@ -8,7 +8,11 @@ import {
   INITIAL_PURCHASE_ORDERS,
   INITIAL_SOUNDING_RECORDS,
   INITIAL_EXPENSES,
+  INITIAL_EMPLOYEES,
+  INITIAL_ATTENDANCE,
+  INITIAL_PAYROLLS,
 } from '../data/initialData';
+import { syncSalesToAttendance, recalculateMonthlyPayrolls } from './attendanceSync';
 
 const KEYS = {
   PROFILE: 'pertashop_profile_v4_krajan',
@@ -19,6 +23,9 @@ const KEYS = {
   PURCHASES: 'pertashop_purchases_v4_krajan',
   SOUNDINGS: 'pertashop_soundings_v4_krajan',
   EXPENSES: 'pertashop_expenses_v4_krajan',
+  EMPLOYEES: 'pertashop_employees_v4_krajan',
+  ATTENDANCE: 'pertashop_attendance_v4_krajan',
+  PAYROLLS: 'pertashop_payrolls_v4_krajan',
 };
 
 function getStorageItem<T>(key: string, defaultValue: T): T {
@@ -70,8 +77,36 @@ export const StorageService = {
   getSoundings: (): SoundingRecord[] => getStorageItem(KEYS.SOUNDINGS, INITIAL_SOUNDING_RECORDS),
   setSoundings: (soundings: SoundingRecord[]) => setStorageItem(KEYS.SOUNDINGS, soundings),
 
-  getExpenses: (): ExpenseRecord[] => getStorageItem(KEYS.EXPENSES, INITIAL_EXPENSES),
+  getExpenses: (): ExpenseRecord[] => {
+    const rawExpenses = getStorageItem(KEYS.EXPENSES, INITIAL_EXPENSES);
+    // Ensure August 2026 expenses are removed
+    return rawExpenses.filter((e) => !e.date.startsWith('2026-08'));
+  },
   setExpenses: (expenses: ExpenseRecord[]) => setStorageItem(KEYS.EXPENSES, expenses),
+
+  getEmployees: (): Employee[] => getStorageItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES),
+  setEmployees: (employees: Employee[]) => setStorageItem(KEYS.EMPLOYEES, employees),
+
+  getAttendance: (): AttendanceRecord[] => {
+    const rawAttendance = getStorageItem(KEYS.ATTENDANCE, INITIAL_ATTENDANCE);
+    const rawSales = getStorageItem(KEYS.SALES, INITIAL_SALES);
+    const employees = getStorageItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
+    
+    // Guarantee synchronization with sales (especially August 2026 and other months)
+    const { updatedAttendance } = syncSalesToAttendance(rawSales, rawAttendance, employees);
+    return updatedAttendance;
+  },
+  setAttendance: (records: AttendanceRecord[]) => setStorageItem(KEYS.ATTENDANCE, records),
+
+  getPayrolls: (): PayrollRecord[] => {
+    const rawPayrolls = getStorageItem(KEYS.PAYROLLS, INITIAL_PAYROLLS);
+    const attendance = StorageService.getAttendance();
+    const employees = getStorageItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
+
+    // Recompute August 2026 payroll to match synced attendance perfectly
+    return recalculateMonthlyPayrolls(attendance, employees, rawPayrolls, '2026-08');
+  },
+  setPayrolls: (payrolls: PayrollRecord[]) => setStorageItem(KEYS.PAYROLLS, payrolls),
 
   resetToDefault: () => {
     // Clear all versions
@@ -85,3 +120,4 @@ export const StorageService = {
     localStorage.removeItem('pertashop_tank_v1');
   },
 };
+

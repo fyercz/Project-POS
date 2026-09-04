@@ -167,6 +167,32 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
         .reduce((acc, curr) => acc + curr.amount, 0),
     [currentMonthExpenses]
   );
+  const monthExpensesLosses = useMemo(
+    () =>
+      currentMonthExpenses
+        .filter((e) => e.category === 'LOSSES_MINYAK')
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [currentMonthExpenses]
+  );
+  const monthLossesLiters = useMemo(
+    () =>
+      currentMonthExpenses
+        .filter((e) => e.category === 'LOSSES_MINYAK')
+        .reduce((acc, curr) => acc + (curr.fuelLossLiters || 0), 0),
+    [currentMonthExpenses]
+  );
+  const monthLossesRecords = useMemo(
+    () => currentMonthExpenses.filter((e) => e.category === 'LOSSES_MINYAK'),
+    [currentMonthExpenses]
+  );
+  const monthLossesPercent = useMemo(
+    () => (monthTotalLiters > 0 ? (monthLossesLiters / monthTotalLiters) * 100 : 0),
+    [monthLossesLiters, monthTotalLiters]
+  );
+  const monthLossRatePerLiter = useMemo(
+    () => (monthTotalLiters > 0 ? Math.round(monthExpensesLosses / monthTotalLiters) : 0),
+    [monthExpensesLosses, monthTotalLiters]
+  );
   const monthExpensesPln = useMemo(
     () =>
       currentMonthExpenses
@@ -191,7 +217,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
   const monthExpensesLain = useMemo(
     () =>
       currentMonthExpenses
-        .filter((e) => e.category === 'LAIN_LAIN')
+        .filter((e) => e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
         .reduce((acc, curr) => acc + curr.amount, 0),
     [currentMonthExpenses]
   );
@@ -322,14 +348,22 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
       const gajiLembur = mExp
         .filter((e) => e.category === 'GAJI_OPERATOR' || e.category === 'LEMBURAN')
         .reduce((acc, curr) => acc + curr.amount, 0);
+      const lossesMinyak = mExp
+        .filter((e) => e.category === 'LOSSES_MINYAK')
+        .reduce((acc, curr) => acc + curr.amount, 0);
+      const lossesLiters = mExp
+        .filter((e) => e.category === 'LOSSES_MINYAK')
+        .reduce((acc, curr) => acc + (curr.fuelLossLiters || 0), 0);
       const utilitas = mExp
         .filter((e) => e.category === 'TOKEN_LISTRIK' || e.category === 'PDAM')
         .reduce((acc, curr) => acc + curr.amount, 0);
       const maintLain = mExp
-        .filter((e) => e.category === 'MAINTENANCE_ALAT' || e.category === 'LAIN_LAIN')
+        .filter((e) => e.category === 'MAINTENANCE_ALAT' || e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
         .reduce((acc, curr) => acc + curr.amount, 0);
 
       const netMargin = grossProfit > 0 ? ((netProfit / grossProfit) * 100).toFixed(1) : '0';
+      const lossesPercent = liters > 0 ? (lossesLiters / liters) * 100 : 0;
+      const lossRatePerLiter = liters > 0 ? Math.round(lossesMinyak / liters) : 0;
 
       return {
         monthIndex: index,
@@ -340,6 +374,10 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
         revenue,
         grossProfit,
         gajiLembur,
+        lossesMinyak,
+        lossesLiters,
+        lossesPercent,
+        lossRatePerLiter,
         utilitas,
         maintLain,
         expTotal,
@@ -374,11 +412,37 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
     [currentYearPurchases]
   );
 
+  // Yearly Losses Totals
+  const yearLossesLiters = useMemo(
+    () =>
+      currentYearExpenses
+        .filter((e) => e.category === 'LOSSES_MINYAK')
+        .reduce((acc, curr) => acc + (curr.fuelLossLiters || 0), 0),
+    [currentYearExpenses]
+  );
+  const yearExpensesLosses = useMemo(
+    () =>
+      currentYearExpenses
+        .filter((e) => e.category === 'LOSSES_MINYAK')
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [currentYearExpenses]
+  );
+  const yearLossesPercent = useMemo(
+    () => (yearTotalLiters > 0 ? (yearLossesLiters / yearTotalLiters) * 100 : 0),
+    [yearLossesLiters, yearTotalLiters]
+  );
+  const yearLossRatePerLiter = useMemo(
+    () => (yearTotalLiters > 0 ? Math.round(yearExpensesLosses / yearTotalLiters) : 0),
+    [yearExpensesLosses, yearTotalLiters]
+  );
+
   const monthsWithDataCount = useMemo(
     () => yearlyMatrix.filter((m) => m.hasData).length || 1,
     [yearlyMatrix]
   );
   const avgMonthlyNetProfit = Math.round(yearTotalNetProfit / monthsWithDataCount);
+  const avgMonthlyLossesLiters = yearLossesLiters / monthsWithDataCount;
+  const avgMonthlyLossesRp = Math.round(yearExpensesLosses / monthsWithDataCount);
 
   // Best performing month in the year
   const bestMonth = useMemo(() => {
@@ -414,6 +478,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
         'Omzet (Rp)',
         'Laba Kotor (Rp)',
         'Beban Gaji & Lembur (Rp)',
+        'Beban Losses Minyak (Rp)',
         'Beban Utilitas (Rp)',
         'Beban Servis & Lain (Rp)',
         'Total Beban (Rp)',
@@ -427,6 +492,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
         m.revenue,
         m.grossProfit,
         m.gajiLembur,
+        m.lossesMinyak,
         m.utilitas,
         m.maintLain,
         m.expTotal,
@@ -862,6 +928,27 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                     </div>
                   </div>
 
+                  {/* Losses Minyak / Susut Fisik */}
+                  <div>
+                    <div className="flex justify-between text-xs font-medium mb-1">
+                      <span className="flex items-center space-x-1.5 text-slate-700">
+                        <Fuel className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Losses Minyak ({formatNumber(monthLossesLiters, 1)} L)</span>
+                      </span>
+                      <span className="font-mono font-bold text-rose-700">
+                        {formatRupiah(monthExpensesLosses)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5">
+                      <div
+                        className="bg-rose-500 h-1.5 rounded-full"
+                        style={{
+                          width: `${monthTotalExpenses > 0 ? (monthExpensesLosses / monthTotalExpenses) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
                   {/* Listrik PLN */}
                   <div>
                     <div className="flex justify-between text-xs font-medium mb-1">
@@ -1035,6 +1122,175 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                   </tfoot>
                 )}
               </table>
+            </div>
+          </div>
+
+          {/* Dedicated Summary Losses Minyak Bulanan */}
+          <div className="bg-white rounded-2xl border border-rose-200/80 shadow-xs overflow-hidden">
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-rose-50/70 via-amber-50/30 to-white border-b border-rose-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-rose-600 text-white rounded-xl shadow-xs">
+                  <Fuel className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                    <span>Summary Losses Minyak & Susut Fisik ({formatMonthYear(selectedMonthStr)})</span>
+                    <span className="text-[10px] px-2 py-0.5 bg-rose-100 text-rose-800 rounded-full font-bold">
+                      Beban Susut BBM
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Rekapitulasi selisih sounding tangki pendam, penguapan suhu, dan selisih tera nozzle dispenser
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                    monthLossesPercent <= 0.5
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>
+                    {monthLossesPercent <= 0.5
+                      ? 'Toleransi Normal (<0.50%)'
+                      : 'Melebihi Toleransi (>0.50%)'}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            {/* 4 KPI Metrics for Losses Minyak */}
+            <div className="p-4 sm:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-5">
+                <div className="bg-rose-50/50 border border-rose-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
+                    Total Volume Susut
+                  </div>
+                  <div className="text-xl font-black text-rose-950 font-mono mt-1">
+                    {formatNumber(monthLossesLiters, 1)} Liter
+                  </div>
+                  <div className="text-[11px] text-rose-600 mt-0.5">
+                    Dari total {formatLiter(monthTotalLiters)} terjual
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    Nilai Kerugian Susut (Rp)
+                  </div>
+                  <div className="text-xl font-black text-slate-900 font-mono mt-1">
+                    {formatRupiah(monthExpensesLosses)}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    Dicatat pada beban operasional
+                  </div>
+                </div>
+
+                <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+                    Rasio Susut terhadap Penjualan
+                  </div>
+                  <div className="text-xl font-black text-amber-950 font-mono mt-1">
+                    {monthLossesPercent.toFixed(2)}%
+                  </div>
+                  <div className="text-[11px] text-amber-700 mt-0.5">
+                    Batas maksimal Pertamina: 0.50%
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    Beban Susut / Liter
+                  </div>
+                  <div className="text-xl font-black text-slate-900 font-mono mt-1">
+                    Rp {monthLossRatePerLiter} / L
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    Rata-rata dampak pada margin
+                  </div>
+                </div>
+              </div>
+
+              {/* Detail Tabel Catatan Losses Bulan Ini */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">
+                    Rincian Transaksi Losses Minyak ({monthLossesRecords.length} Catatan)
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Metode: Sounding Deep-Stick Tangki & Kalibrasi Bejana Tera
+                  </span>
+                </div>
+
+                {monthLossesRecords.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 italic text-xs">
+                    Tidak ada catatan transaksi losses minyak khusus pada bulan {formatMonthYear(selectedMonthStr)}. Stok tangki tercatat seimbang.
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100/70 text-slate-600 font-bold border-b border-slate-200">
+                        <th className="py-2.5 px-4">Tanggal & Waktu</th>
+                        <th className="py-2.5 px-4">Uraian / Keterangan</th>
+                        <th className="py-2.5 px-4 text-center">Metode / Vendor</th>
+                        <th className="py-2.5 px-4 text-right">Volume Susut (L)</th>
+                        <th className="py-2.5 px-4 text-right">Nilai Kerugian (Rp)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-sans">
+                      {monthLossesRecords.map((rec) => (
+                        <tr key={rec.id} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-4 font-mono font-medium text-slate-900">
+                            {formatShortDate(rec.date)} {rec.time ? `• ${rec.time}` : ''}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <div className="font-semibold text-slate-800">{rec.title}</div>
+                            {rec.notes && (
+                              <div className="text-[11px] text-slate-500 mt-0.5">{rec.notes}</div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-4 text-center text-slate-600 font-medium text-[11px]">
+                            {rec.personOrVendor || 'Rekonsiliasi Tangki'}
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono font-bold text-rose-700">
+                            {formatNumber(rec.fuelLossLiters || 0, 1)} Liter
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">
+                            {formatRupiah(rec.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100 font-bold text-slate-900 border-t border-slate-200">
+                        <td className="py-2.5 px-4 uppercase text-[11px]" colSpan={3}>
+                          Total Losses Bulan Ini
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-mono text-rose-800 font-black">
+                          {formatNumber(monthLossesLiters, 1)} Liter
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-mono text-slate-900 font-black">
+                          {formatRupiah(monthExpensesLosses)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+              </div>
+
+              {/* Petunjuk Standar Toleransi Pertamina */}
+              <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start space-x-2.5 text-xs text-slate-600">
+                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-slate-800">Panduan Standar Operasional Pertamina: </span>
+                  <span>
+                    Toleransi susut wajar (penguapan tangki pendam dan pemuaian suhu) yang diperkenankan oleh PT Pertamina Patra Niaga adalah maksimal <strong>0,50% (5 Liter per 1.000 Liter)</strong>. Jika rasio susut melebihi 0,50%, lakukan tera ulang nozzle dan pemeriksaan kebocoran pipa tangki pendam.
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1314,6 +1570,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                     <th className="py-3 px-4 text-right">Omzet (Rp)</th>
                     <th className="py-3 px-4 text-right">Laba Kotor Margin</th>
                     <th className="py-3 px-4 text-right">Gaji & Lembur</th>
+                    <th className="py-3 px-4 text-right">Losses Minyak</th>
                     <th className="py-3 px-4 text-right">Utilitas & Servis</th>
                     <th className="py-3 px-4 text-right">Total Beban</th>
                     <th className="py-3 px-4 text-right">Laba Bersih</th>
@@ -1346,6 +1603,18 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-slate-600">
                         {m.gajiLembur > 0 ? formatRupiah(m.gajiLembur) : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono">
+                        {m.lossesMinyak > 0 ? (
+                          <div>
+                            <span className="font-bold text-rose-700">{formatRupiah(m.lossesMinyak)}</span>
+                            <div className="text-[10px] text-rose-600 font-semibold">
+                              {formatNumber(m.lossesLiters, 1)} L ({m.lossesPercent.toFixed(2)}%)
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-slate-600">
                         {m.utilitas + m.maintLain > 0 ? formatRupiah(m.utilitas + m.maintLain) : '-'}
@@ -1395,8 +1664,17 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                     <td className="py-3.5 px-4 text-right font-mono text-amber-900 font-black">
                       {formatRupiah(yearTotalGrossProfit)}
                     </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-slate-700" colSpan={2}>
-                      Total Akumulasi OpEx
+                    <td className="py-3.5 px-4 text-right font-mono text-slate-800 font-bold">
+                      {formatRupiah(yearlyMatrix.reduce((a, b) => a + b.gajiLembur, 0))}
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono">
+                      <span className="text-rose-900 font-black">{formatRupiah(yearExpensesLosses)}</span>
+                      <div className="text-[10px] text-rose-700 font-bold">
+                        {formatNumber(yearLossesLiters, 1)} L ({yearLossesPercent.toFixed(2)}%)
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono text-slate-800 font-bold">
+                      {formatRupiah(yearlyMatrix.reduce((a, b) => a + (b.utilitas + b.maintLain), 0))}
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono text-rose-800 font-black">
                       {formatRupiah(yearTotalExpenses)}
@@ -1413,6 +1691,205 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                   </tr>
                 </tfoot>
               </table>
+            </div>
+          </div>
+
+          {/* Dedicated Section: Summary & Analisis Losses Minyak Tahunan */}
+          <div className="bg-white rounded-2xl border border-rose-200/80 shadow-xs overflow-hidden">
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-rose-50/70 via-amber-50/30 to-white border-b border-rose-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-rose-600 text-white rounded-xl shadow-xs">
+                  <Fuel className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                    <span>Summary Losses Minyak & Evaluasi Susut Tahunan (Tahun {selectedYear})</span>
+                    <span className="text-[10px] px-2 py-0.5 bg-rose-100 text-rose-800 rounded-full font-bold">
+                      Audit Susut 12 Bulan
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Evaluasi akumulasi susut fisik BBM, deviasi sounding tangki pendam, dan kepatuhan standar Pertamina
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                    yearLossesPercent <= 0.5
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>
+                    {yearLossesPercent <= 0.5
+                      ? 'Toleransi Tahunan Aman (<0.50%)'
+                      : 'Perlu Evaluasi Tera (>0.50%)'}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            {/* 4 Grand Yearly KPI Cards for Losses */}
+            <div className="p-4 sm:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-5">
+                <div className="bg-rose-50/50 border border-rose-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
+                    Total Susut Fisik (YTD)
+                  </div>
+                  <div className="text-xl font-black text-rose-950 font-mono mt-1">
+                    {formatNumber(yearLossesLiters, 1)} Liter
+                  </div>
+                  <div className="text-[11px] text-rose-600 mt-0.5">
+                    Setara {formatNumber(yearLossesLiters / 1000, 2)} KiloLiter (KL)
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    Total Nominal Kerugian Susut
+                  </div>
+                  <div className="text-xl font-black text-slate-900 font-mono mt-1">
+                    {formatRupiah(yearExpensesLosses)}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    Akumulasi beban operasional {selectedYear}
+                  </div>
+                </div>
+
+                <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+                    Rata-rata Rasio Susut Tahunan
+                  </div>
+                  <div className="text-xl font-black text-amber-950 font-mono mt-1">
+                    {yearLossesPercent.toFixed(2)}%
+                  </div>
+                  <div className="text-[11px] text-amber-700 mt-0.5">
+                    Batas toleransi Pertamina: ≤ 0.50%
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                    Rata-rata Susut / Bulan
+                  </div>
+                  <div className="text-xl font-black text-slate-900 font-mono mt-1">
+                    {formatNumber(avgMonthlyLossesLiters, 1)} L / bln
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    ≈ {formatRupiah(avgMonthlyLossesRp)} per bulan
+                  </div>
+                </div>
+              </div>
+
+              {/* 12-Month Table Breakdown for Fuel Losses */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">
+                    Matriks Losses & Susut BBM 12 Bulan (Tahun {selectedYear})
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Standar Batas Toleransi PT Pertamina Patra Niaga: Maksimal 0,50%
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100/70 text-slate-600 font-bold border-b border-slate-200">
+                        <th className="py-2.5 px-4">Bulan</th>
+                        <th className="py-2.5 px-4 text-right">Volume Penjualan (L)</th>
+                        <th className="py-2.5 px-4 text-right">Volume Susut (L)</th>
+                        <th className="py-2.5 px-4 text-right">Rasio Susut (%)</th>
+                        <th className="py-2.5 px-4 text-right">Beban Biaya Susut (Rp)</th>
+                        <th className="py-2.5 px-4 text-right">Beban / Liter Penjualan</th>
+                        <th className="py-2.5 px-4 text-center">Status Toleransi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-sans">
+                      {yearlyMatrix.map((m) => (
+                        <tr
+                          key={`losses-${m.monthKey}`}
+                          className={`hover:bg-slate-50 transition-colors ${
+                            !m.hasData ? 'text-slate-400 bg-slate-50/30' : ''
+                          }`}
+                        >
+                          <td className="py-2.5 px-4 font-semibold text-slate-900">
+                            {m.monthName}
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono text-slate-700">
+                            {m.liters > 0 ? formatLiter(m.liters) : '-'}
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono font-bold text-rose-700">
+                            {m.lossesLiters > 0 ? `${formatNumber(m.lossesLiters, 1)} L` : '-'}
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono font-semibold text-amber-800">
+                            {m.liters > 0 ? `${m.lossesPercent.toFixed(2)}%` : '-'}
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">
+                            {m.lossesMinyak > 0 ? formatRupiah(m.lossesMinyak) : '-'}
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono text-slate-600">
+                            {m.liters > 0 ? `Rp ${m.lossRatePerLiter} / L` : '-'}
+                          </td>
+                          <td className="py-2.5 px-4 text-center">
+                            {m.hasData ? (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded font-bold text-[11px] ${
+                                  m.lossesPercent <= 0.5
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {m.lossesPercent <= 0.5 ? 'Wajar (<0.50%)' : 'Tinggi (>0.50%)'}
+                              </span>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300">
+                        <td className="py-3 px-4 uppercase text-[11px]">Total Tahunan (YTD)</td>
+                        <td className="py-3 px-4 text-right font-mono text-blue-900 font-black">
+                          {formatLiter(yearTotalLiters)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-rose-800 font-black">
+                          {formatNumber(yearLossesLiters, 1)} Liter
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-amber-900 font-black">
+                          {yearLossesPercent.toFixed(2)}%
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-slate-900 font-black">
+                          {formatRupiah(yearExpensesLosses)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-slate-900 font-black">
+                          Rp {yearLossRatePerLiter} / L
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[11px]">
+                            {yearLossesPercent <= 0.5 ? 'Aman & Wajar' : 'Evaluasi'}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Informative Guidance */}
+              <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start space-x-2.5 text-xs text-slate-600">
+                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-slate-800">Catatan Rekonsiliasi & Audit Tahunan: </span>
+                  <span>
+                    Rekapitulasi susut minyak tahunan menggabungkan deviasi berkala antara penerimaan DO mobil tangki Pertamina, sounding stick tangki pendam, penguapan suhu tangki, dan volume dispenser. Nilai susut diakui sebagai pengurang laba kotor pada laporan rugi laba sesuai standar akuntansi SPBU/Pertashop.
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

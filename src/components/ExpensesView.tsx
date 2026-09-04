@@ -6,6 +6,7 @@ import {
   Zap,
   Droplets,
   Wrench,
+  Fuel,
   Plus,
   Search,
   Filter,
@@ -27,6 +28,7 @@ interface ExpensesViewProps {
   onOpenAddExpense: (category?: ExpenseCategoryType) => void;
   onEditExpense: (expense: ExpenseRecord) => void;
   onDeleteExpense: (expenseId: string) => void;
+  onDeleteExpensesByMonth?: (monthKey: string) => void;
 }
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({
@@ -34,9 +36,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   onOpenAddExpense,
   onEditExpense,
   onDeleteExpense,
+  onDeleteExpensesByMonth,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [selectedDate, setSelectedDate] = useState<string>('ALL');
 
   const todayStr = getTodayDateString();
@@ -67,6 +71,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     .filter((e) => e.category === 'MAINTENANCE_ALAT')
     .reduce((acc, e) => acc + e.amount, 0);
 
+  const totalLossesMinyak = expenses
+    .filter((e) => e.category === 'LOSSES_MINYAK')
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const totalLossesLiters = expenses
+    .filter((e) => e.category === 'LOSSES_MINYAK')
+    .reduce((acc, e) => acc + (e.fuelLossLiters || 0), 0);
+
   const totalLainnya = expenses
     .filter((e) => e.category === 'LAINNYA')
     .reduce((acc, e) => acc + e.amount, 0);
@@ -80,16 +92,22 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     .filter((e) => e.paymentSource === 'REKENING_BANK')
     .reduce((acc, e) => acc + e.amount, 0);
 
+  // Get list of unique months available in expenses
+  const availableMonths = Array.from(
+    new Set(expenses.map((e) => e.date.substring(0, 7)))
+  ).sort().reverse();
+
   // Filtered List
   const filteredExpenses = expenses.filter((item) => {
     const matchCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
+    const matchMonth = selectedMonth === 'ALL' || item.date.startsWith(selectedMonth);
     const matchSearch =
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.personOrVendor && item.personOrVendor.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (item.notes && item.notes.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchDate = selectedDate === 'ALL' || item.date === selectedDate;
 
-    return matchCategory && matchSearch && matchDate;
+    return matchCategory && matchMonth && matchSearch && matchDate;
   });
 
   const getCategoryBadge = (category: ExpenseCategoryType) => {
@@ -106,6 +124,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
             <Clock className="w-3.5 h-3.5 text-amber-600" />
             Lemburan
+          </span>
+        );
+      case 'LOSSES_MINYAK':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+            <Fuel className="w-3.5 h-3.5 text-rose-600" />
+            Losses Minyak
           </span>
         );
       case 'TOKEN_LISTRIK':
@@ -140,13 +165,15 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   };
 
   const handleExportCSV = () => {
-    const headers = ['ID', 'Tanggal', 'Jam', 'Kategori', 'Keterangan', 'Jumlah', 'Tarif', 'Total (Rp)', 'Penerima / Vendor', 'Shift', 'Sumber Dana', 'Catatan'];
+    const headers = ['ID', 'Tanggal', 'Jam', 'Kategori', 'Keterangan', 'Volume Susut (L)', 'Harga Tebus (Rp)', 'Jumlah', 'Tarif', 'Total (Rp)', 'Penerima / Vendor', 'Shift', 'Sumber Dana', 'Catatan'];
     const rows = filteredExpenses.map((e) => [
       e.id,
       e.date,
       e.time,
       e.category,
       `"${e.title}"`,
+      e.fuelLossLiters || '-',
+      e.fuelLossBuyPriceSnapshot || '-',
       e.quantity || 1,
       e.unitRate || e.amount,
       e.amount,
@@ -169,95 +196,118 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* 1. Summary Cards for Operational Expenses */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {/* Card 1: Gaji & Lemburan */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
                 Gaji & Lembur Operator
               </span>
               <div className="mt-2">
-                <span className="text-xl sm:text-2xl font-extrabold text-blue-900 font-mono tracking-tight">
+                <span className="text-lg sm:text-xl font-extrabold text-blue-900 font-mono tracking-tight">
                   {formatRupiah(totalGaji + totalLembur)}
                 </span>
               </div>
             </div>
-            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
-              <UserCheck className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+              <UserCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-mono">
             <span>Gaji: {formatRupiah(totalGaji)}</span>
             <span>Lembur: {formatRupiah(totalLembur)}</span>
           </div>
         </div>
 
-        {/* Card 2: Token Listrik PLN */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        {/* Card 2: Losses Minyak / Susut */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-rose-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest block">
+                Losses Minyak (Susut)
+              </span>
+              <div className="mt-2">
+                <span className="text-lg sm:text-xl font-extrabold text-rose-700 font-mono tracking-tight">
+                  {formatRupiah(totalLossesMinyak)}
+                </span>
+              </div>
+            </div>
+            <div className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+              <Fuel className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-rose-100 flex items-center justify-between text-[10px] text-rose-600">
+            <span>Volume Susut Fisik:</span>
+            <span className="font-bold font-mono">{formatNumber(totalLossesLiters, 1)} L</span>
+          </div>
+        </div>
+
+        {/* Card 3: Token Listrik PLN */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
                 Token Listrik PLN
               </span>
               <div className="mt-2">
-                <span className="text-xl sm:text-2xl font-extrabold text-yellow-700 font-mono tracking-tight">
+                <span className="text-lg sm:text-xl font-extrabold text-yellow-700 font-mono tracking-tight">
                   {formatRupiah(totalListrik)}
                 </span>
               </div>
             </div>
-            <div className="p-2.5 rounded-xl bg-yellow-50 text-yellow-600 border border-yellow-200">
-              <Zap className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-yellow-50 text-yellow-600 border border-yellow-200">
+              <Zap className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
             <span>Daya Pompa & Canopy</span>
             <span className="font-semibold text-yellow-800">PLN Prabayar</span>
           </div>
         </div>
 
-        {/* Card 3: PDAM Air */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        {/* Card 4: PDAM Air */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
                 Tagihan PDAM Air
               </span>
               <div className="mt-2">
-                <span className="text-xl sm:text-2xl font-extrabold text-cyan-800 font-mono tracking-tight">
+                <span className="text-lg sm:text-xl font-extrabold text-cyan-800 font-mono tracking-tight">
                   {formatRupiah(totalPdam)}
                 </span>
               </div>
             </div>
-            <div className="p-2.5 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100">
-              <Droplets className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100">
+              <Droplets className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
             <span>Fasilitas Air Bersih</span>
             <span className="font-semibold text-cyan-800">Tirta Lawu</span>
           </div>
         </div>
 
-        {/* Card 4: Maintenance Alat */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        {/* Card 5: Maintenance Alat */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
                 Maintenance Peralatan
               </span>
               <div className="mt-2">
-                <span className="text-xl sm:text-2xl font-extrabold text-indigo-900 font-mono tracking-tight">
+                <span className="text-lg sm:text-xl font-extrabold text-indigo-900 font-mono tracking-tight">
                   {formatRupiah(totalMaintenance)}
                 </span>
               </div>
             </div>
-            <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-              <Wrench className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <Wrench className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Servis Dispenser, Nozzle, Genset</span>
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+            <span>Dispenser & Nozzle</span>
             <span className="font-semibold text-indigo-800 font-mono">
               Total {formatRupiah(totalAllExpenses)}
             </span>
@@ -273,7 +323,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             <h3 className="text-sm sm:text-base font-bold">Pencatatan Cepat Pengeluaran Rutin</h3>
           </div>
           <p className="text-xs text-slate-300 mt-1">
-            Standar Pertashop: Gaji Operator Rp 40.000/hari • Lembur Rp 30.000/shift
+            Standar Pertashop: Gaji Operator Rp 40.000/hari • Lembur Rp 30.000/shift • Losses = Liter × Harga Tebus
           </p>
         </div>
 
@@ -292,6 +342,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           >
             <Clock className="w-3.5 h-3.5" />
             + Lembur (Rp 30k)
+          </button>
+
+          <button
+            onClick={() => onOpenAddExpense('LOSSES_MINYAK')}
+            className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+          >
+            <Fuel className="w-3.5 h-3.5" />
+            + Losses Minyak
           </button>
 
           <button
@@ -330,7 +388,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               Buku Pengeluaran & Beban Operasional
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Daftar seluruh pos pengeluaran harian, gaji pegawai, tagihan utilitas, dan perbaikan
+              Daftar seluruh pos pengeluaran harian, gaji pegawai, losses minyak, tagihan utilitas, dan perbaikan
             </p>
           </div>
 
@@ -375,11 +433,41 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <option value="ALL">Semua Kategori</option>
               <option value="GAJI_OPERATOR">Gaji Operator (Rp 40.000/hari)</option>
               <option value="LEMBURAN">Uang Lemburan (Rp 30.000/shift)</option>
+              <option value="LOSSES_MINYAK">Losses Minyak (Susut Fisik)</option>
               <option value="TOKEN_LISTRIK">Token Listrik PLN</option>
               <option value="PDAM">Tagihan PDAM Air</option>
               <option value="MAINTENANCE_ALAT">Maintenance & Servis</option>
               <option value="LAINNYA">Lain-lain / ATK</option>
             </select>
+
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-hidden"
+            >
+              <option value="ALL">Semua Bulan</option>
+              {availableMonths.map((m) => (
+                <option key={m} value={m}>
+                  Bulan {m}
+                </option>
+              ))}
+            </select>
+
+            {selectedMonth !== 'ALL' && onDeleteExpensesByMonth && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Hapus SEMUA pengeluaran untuk Bulan ${selectedMonth}? Tindakan ini akan menghapus seluruh pos biaya pada bulan tersebut.`)) {
+                    onDeleteExpensesByMonth(selectedMonth);
+                  }
+                }}
+                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg border border-rose-200 transition-colors flex items-center gap-1"
+                title={`Hapus semua pengeluaran bulan ${selectedMonth}`}
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                Hapus Bulan {selectedMonth}
+              </button>
+            )}
           </div>
 
           <div className="text-xs text-slate-500 flex items-center gap-3">
@@ -449,6 +537,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                       ) : exp.category === 'LEMBURAN' ? (
                         <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
                           {exp.quantity || 1} Shift × {formatRupiah(exp.unitRate || 30000)}
+                        </span>
+                      ) : exp.category === 'LOSSES_MINYAK' ? (
+                        <span className="bg-rose-50 text-rose-900 px-2 py-0.5 rounded border border-rose-200">
+                          {exp.fuelLossLiters || exp.quantity || 0} L × {formatRupiah(exp.fuelLossBuyPriceSnapshot || exp.unitRate || 0)}
                         </span>
                       ) : (
                         <span className="text-slate-400">Fixed Rate</span>

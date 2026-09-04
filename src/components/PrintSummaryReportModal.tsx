@@ -92,6 +92,12 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
   const monthLembur = monthExpenses
     .filter((e) => e.category === 'LEMBURAN')
     .reduce((acc, curr) => acc + curr.amount, 0);
+  const monthLosses = monthExpenses
+    .filter((e) => e.category === 'LOSSES_MINYAK')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+  const monthLossesLiters = monthExpenses
+    .filter((e) => e.category === 'LOSSES_MINYAK')
+    .reduce((acc, curr) => acc + (curr.fuelLossLiters || 0), 0);
   const monthPln = monthExpenses
     .filter((e) => e.category === 'TOKEN_LISTRIK')
     .reduce((acc, curr) => acc + curr.amount, 0);
@@ -102,7 +108,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
     .filter((e) => e.category === 'MAINTENANCE_ALAT')
     .reduce((acc, curr) => acc + curr.amount, 0);
   const monthLain = monthExpenses
-    .filter((e) => e.category === 'LAIN_LAIN')
+    .filter((e) => e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const totalMonthExpenses = monthExpenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -146,8 +152,12 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
     const doKL = mPurch.reduce((acc, curr) => acc + (curr.volumeKL || curr.volumeLiters / 1000), 0);
 
     const gaji = mExp.filter((e) => e.category === 'GAJI_OPERATOR' || e.category === 'LEMBURAN').reduce((acc, curr) => acc + curr.amount, 0);
+    const losses = mExp.filter((e) => e.category === 'LOSSES_MINYAK').reduce((acc, curr) => acc + curr.amount, 0);
+    const lossesLiters = mExp.filter((e) => e.category === 'LOSSES_MINYAK').reduce((acc, curr) => acc + (curr.fuelLossLiters || 0), 0);
+    const lossesPercent = liters > 0 ? (lossesLiters / liters) * 100 : 0;
+    const lossRatePerLiter = liters > 0 ? Math.round(losses / liters) : 0;
     const utilitas = mExp.filter((e) => e.category === 'TOKEN_LISTRIK' || e.category === 'PDAM').reduce((acc, curr) => acc + curr.amount, 0);
-    const maint = mExp.filter((e) => e.category === 'MAINTENANCE_ALAT' || e.category === 'LAIN_LAIN').reduce((acc, curr) => acc + curr.amount, 0);
+    const maint = mExp.filter((e) => e.category === 'MAINTENANCE_ALAT' || e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN').reduce((acc, curr) => acc + curr.amount, 0);
 
     return {
       monthIndex: index,
@@ -157,6 +167,10 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
       revenue,
       grossProfit,
       gaji,
+      losses,
+      lossesLiters,
+      lossesPercent,
+      lossRatePerLiter,
       utilitas,
       maint,
       expTotal,
@@ -172,6 +186,14 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
   const totalYearExpenses = yearExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   const totalYearNetProfit = totalYearGrossProfit - totalYearExpenses;
   const totalYearDOKL = yearPurchases.reduce((acc, curr) => acc + (curr.volumeKL || curr.volumeLiters / 1000), 0);
+  const totalYearLosses = yearExpenses
+    .filter((e) => e.category === 'LOSSES_MINYAK')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+  const totalYearLossesLiters = yearExpenses
+    .filter((e) => e.category === 'LOSSES_MINYAK')
+    .reduce((acc, curr) => acc + (curr.fuelLossLiters || 0), 0);
+  const totalYearLossesPercent = totalYearLiters > 0 ? (totalYearLossesLiters / totalYearLiters) * 100 : 0;
+  const totalYearLossRatePerLiter = totalYearLiters > 0 ? Math.round(totalYearLosses / totalYearLiters) : 0;
 
   return (
     <div
@@ -357,36 +379,46 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
                     Total Beban: {formatRupiah(totalMonthExpenses)}
                   </span>
                 </h3>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <div className="p-2.5 border border-slate-200 rounded-lg bg-slate-50/50">
                     <div className="flex justify-between items-center text-[10px] font-semibold text-slate-600">
-                      <span>1. Gaji Operator (Rp 40k/hari)</span>
+                      <span>1. Gaji Operator</span>
                       <span className="font-mono font-bold text-slate-900">{formatRupiah(monthGaji)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-semibold text-slate-600 mt-1">
-                      <span>2. Uang Lemburan (Rp 30k/shift)</span>
+                      <span>2. Uang Lemburan</span>
                       <span className="font-mono font-bold text-slate-900">{formatRupiah(monthLembur)}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 border border-rose-200 rounded-lg bg-rose-50/40">
+                    <div className="flex justify-between items-center text-[10px] font-semibold text-rose-700">
+                      <span>3. Losses Minyak (BBM)</span>
+                      <span className="font-mono font-bold text-rose-900">{formatRupiah(monthLosses)}</span>
+                    </div>
+                    <div className="text-[9px] text-rose-600 mt-1 font-mono">
+                      Selisih: {formatNumber(monthLossesLiters, 1)} Liter
                     </div>
                   </div>
 
                   <div className="p-2.5 border border-slate-200 rounded-lg bg-slate-50/50">
                     <div className="flex justify-between items-center text-[10px] font-semibold text-slate-600">
-                      <span>3. Token Listrik PLN</span>
+                      <span>4. Token Listrik PLN</span>
                       <span className="font-mono font-bold text-slate-900">{formatRupiah(monthPln)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-semibold text-slate-600 mt-1">
-                      <span>4. Tagihan Air PDAM</span>
+                      <span>5. Tagihan Air PDAM</span>
                       <span className="font-mono font-bold text-slate-900">{formatRupiah(monthPdam)}</span>
                     </div>
                   </div>
 
                   <div className="p-2.5 border border-slate-200 rounded-lg bg-slate-50/50">
                     <div className="flex justify-between items-center text-[10px] font-semibold text-slate-600">
-                      <span>5. Maintenance & Tera Nozzle</span>
+                      <span>6. Maintenance & Tera</span>
                       <span className="font-mono font-bold text-slate-900">{formatRupiah(monthMaint)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-semibold text-slate-600 mt-1">
-                      <span>6. Biaya Lain-lain / ATK</span>
+                      <span>7. Biaya Lain / ATK</span>
                       <span className="font-mono font-bold text-slate-900">{formatRupiah(monthLain)}</span>
                     </div>
                   </div>
@@ -575,6 +607,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
                       <th className="p-1.5 border-r border-slate-300 text-right">Omzet (Rp)</th>
                       <th className="p-1.5 border-r border-slate-300 text-right">Laba Kotor</th>
                       <th className="p-1.5 border-r border-slate-300 text-right">Beban Gaji</th>
+                      <th className="p-1.5 border-r border-slate-300 text-right">Losses BBM</th>
                       <th className="p-1.5 border-r border-slate-300 text-right">Utilitas & Servis</th>
                       <th className="p-1.5 border-r border-slate-300 text-right">Total Beban</th>
                       <th className="p-1.5 text-right">Laba Bersih</th>
@@ -606,6 +639,18 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
                         <td className="p-1.5 border-r border-slate-200 text-right font-mono text-slate-600">
                           {item.gaji > 0 ? formatRupiah(item.gaji) : '-'}
                         </td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono text-rose-700">
+                          {item.losses > 0 ? (
+                            <div>
+                              <span className="font-semibold">{formatRupiah(item.losses)}</span>
+                              <div className="text-[9px] text-rose-600">
+                                {formatNumber(item.lossesLiters, 1)} L ({item.lossesPercent.toFixed(2)}%)
+                              </div>
+                            </div>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
                         <td className="p-1.5 border-r border-slate-200 text-right font-mono text-slate-600">
                           {item.utilitas + item.maint > 0 ? formatRupiah(item.utilitas + item.maint) : '-'}
                         </td>
@@ -630,17 +675,113 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
                       <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold">
                         {formatRupiah(totalYearRevenue)}
                       </td>
-                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold text-amber-900">
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold text-emerald-900">
                         {formatRupiah(totalYearGrossProfit)}
                       </td>
-                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold" colSpan={2}>
-                        Akumulasi Beban OpEx
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono text-slate-800">
+                        {formatRupiah(yearlyMatrix.reduce((a, b) => a + b.gaji, 0))}
                       </td>
-                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold text-rose-800">
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono text-rose-900 font-bold">
+                        {formatRupiah(totalYearLosses)}
+                      </td>
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono text-slate-800">
+                        {formatRupiah(yearlyMatrix.reduce((a, b) => a + (b.utilitas + b.maint), 0))}
+                      </td>
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold text-rose-900">
                         {formatRupiah(totalYearExpenses)}
                       </td>
-                      <td className="p-1.5 text-right font-mono font-black text-emerald-900">
+                      <td className="p-1.5 text-right font-mono font-bold text-emerald-900">
                         {formatRupiah(totalYearNetProfit)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Section 3: Ringkasan & Evaluasi Susut Minyak (Losses BBM) 12 Bulan */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 border-b border-slate-200 pb-1 flex items-center justify-between">
+                  <span>III. Ringkasan & Audit Susut Fisik BBM (Losses Minyak) 12 Bulan</span>
+                  <span className="font-mono text-xs font-bold text-rose-700">
+                    Total Susut: {formatNumber(totalYearLossesLiters, 1)} Liter ({totalYearLossesPercent.toFixed(2)}%) = {formatRupiah(totalYearLosses)}
+                  </span>
+                </h3>
+                <table className="w-full border-collapse border border-slate-300 text-left text-[11px]">
+                  <thead>
+                    <tr className="bg-slate-100 font-bold border-b border-slate-300">
+                      <th className="p-1.5 border-r border-slate-300">Bulan</th>
+                      <th className="p-1.5 border-r border-slate-300 text-right">Penjualan (L)</th>
+                      <th className="p-1.5 border-r border-slate-300 text-right">Volume Susut (L)</th>
+                      <th className="p-1.5 border-r border-slate-300 text-right">Rasio Susut (%)</th>
+                      <th className="p-1.5 border-r border-slate-300 text-right">Biaya Susut (Rp)</th>
+                      <th className="p-1.5 border-r border-slate-300 text-right">Beban/Liter</th>
+                      <th className="p-1.5 text-center">Status Toleransi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {yearlyMatrix.map((item) => (
+                      <tr
+                        key={`print-losses-${item.monthKey}`}
+                        className={`border-b border-slate-200 ${
+                          !item.hasData ? 'text-slate-400 bg-slate-50/40' : ''
+                        }`}
+                      >
+                        <td className="p-1.5 border-r border-slate-200 font-medium">
+                          {item.monthName}
+                        </td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono">
+                          {item.liters > 0 ? formatNumber(item.liters, 0) : '-'}
+                        </td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono font-bold text-rose-700">
+                          {item.lossesLiters > 0 ? `${formatNumber(item.lossesLiters, 1)} L` : '-'}
+                        </td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono font-semibold text-amber-800">
+                          {item.liters > 0 ? `${item.lossesPercent.toFixed(2)}%` : '-'}
+                        </td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono font-bold">
+                          {item.losses > 0 ? formatRupiah(item.losses) : '-'}
+                        </td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono text-slate-600">
+                          {item.liters > 0 ? `Rp ${item.lossRatePerLiter}` : '-'}
+                        </td>
+                        <td className="p-1.5 text-center font-bold text-[10px]">
+                          {item.hasData ? (
+                            <span
+                              className={`px-1.5 py-0.5 rounded ${
+                                item.lossesPercent <= 0.5
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              {item.lossesPercent <= 0.5 ? 'Wajar (<0.50%)' : 'Tinggi (>0.50%)'}
+                            </span>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-100 font-bold">
+                      <td className="p-1.5 border-r border-slate-300 uppercase">Total Tahunan (YTD)</td>
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold text-blue-900">
+                        {formatLiter(totalYearLiters)}
+                      </td>
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold text-rose-900">
+                        {formatNumber(totalYearLossesLiters, 1)} Liter
+                      </td>
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold text-amber-900">
+                        {totalYearLossesPercent.toFixed(2)}%
+                      </td>
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono font-bold text-slate-900">
+                        {formatRupiah(totalYearLosses)}
+                      </td>
+                      <td className="p-1.5 border-r border-slate-300 text-right font-mono text-slate-900">
+                        Rp {totalYearLossRatePerLiter} / L
+                      </td>
+                      <td className="p-1.5 text-center text-emerald-800 font-bold">
+                        {totalYearLossesPercent <= 0.5 ? 'Wajar / Memenuhi Syarat' : 'Perlu Tera Ulang'}
                       </td>
                     </tr>
                   </tfoot>

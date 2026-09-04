@@ -277,6 +277,9 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Harga Tebus Pertamina (Rp / Liter)
+                <span className="text-[10px] text-blue-600 font-normal ml-1">
+                  (Dukungan s/d 3 angka desimal: misal 15046.375)
+                </span>
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">Rp</span>
@@ -284,10 +287,11 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                   type="number"
                   required
                   min={1000}
-                  step={50}
+                  step="0.001"
                   value={buyPricePerLiter}
                   onChange={(e) => setBuyPricePerLiter(parseFloat(e.target.value) || 0)}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900"
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                  placeholder="Contoh: 15046.375"
                 />
               </div>
             </div>

@@ -77,6 +77,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     .filter((e) => e.category === 'LEMBURAN')
     .reduce((acc, e) => acc + e.amount, 0);
 
+  const totalLosses = expenses
+    .filter((e) => e.category === 'LOSSES_MINYAK')
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const totalLossesLiters = expenses
+    .filter((e) => e.category === 'LOSSES_MINYAK')
+    .reduce((acc, e) => acc + (e.fuelLossLiters || 0), 0);
+
   const totalListrik = expenses
     .filter((e) => e.category === 'TOKEN_LISTRIK')
     .reduce((acc, e) => acc + e.amount, 0);
@@ -90,10 +98,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     .reduce((acc, e) => acc + e.amount, 0);
 
   const totalLainnya = expenses
-    .filter((e) => e.category === 'LAINNYA')
+    .filter((e) => e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const totalExpenses = totalGaji + totalLembur + totalListrik + totalPdam + totalMaintenance + totalLainnya;
+  const totalExpenses = totalGaji + totalLembur + totalLosses + totalListrik + totalPdam + totalMaintenance + totalLainnya;
   const netProfit = totalGrossProfit - totalExpenses;
   const netProfitMarginRatio = totalGrossProfit > 0 ? (netProfit / totalGrossProfit) * 100 : 0;
 
@@ -150,7 +158,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               -{formatRupiah(totalExpenses)}
             </div>
             <span className="text-[11px] text-slate-400 mt-1 block">
-              Gaji, Lembur, Listrik, PDAM, Maintenance
+              Gaji, Lembur, Losses BBM, Listrik, PDAM, Servis
             </span>
           </div>
 
@@ -184,7 +192,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 pt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 pt-5">
           {/* Gaji */}
           <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/60">
             <div className="flex items-center gap-1.5 text-blue-800 font-bold text-xs">
@@ -210,6 +218,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             </div>
             <span className="text-[10px] text-amber-700 mt-0.5 block font-medium">
               Rate Rp 30.000/shift
+            </span>
+          </div>
+
+          {/* Losses Minyak */}
+          <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/60">
+            <div className="flex items-center gap-1.5 text-rose-800 font-bold text-xs">
+              <Fuel className="w-4 h-4 text-rose-600" />
+              Losses Minyak
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-rose-950 mt-1.5">
+              {formatRupiah(totalLosses)}
+            </div>
+            <span className="text-[10px] text-rose-700 mt-0.5 block font-medium">
+              {formatNumber(totalLossesLiters, 1)} L Selisih Sounding
             </span>
           </div>
 
@@ -242,16 +264,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </div>
 
           {/* Maintenance */}
-          <div className="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/60 col-span-2 sm:col-span-1">
+          <div className="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/60">
             <div className="flex items-center gap-1.5 text-indigo-900 font-bold text-xs">
               <Wrench className="w-4 h-4 text-indigo-600" />
               Maintenance Alat
             </div>
             <div className="text-base sm:text-lg font-black font-mono text-indigo-950 mt-1.5">
-              {formatRupiah(totalMaintenance)}
+              {formatRupiah(totalMaintenance + totalLainnya)}
             </div>
             <span className="text-[10px] text-indigo-800 mt-0.5 block font-medium">
-              Dispenser & Nozzle
+              Dispenser & Servis
             </span>
           </div>
         </div>

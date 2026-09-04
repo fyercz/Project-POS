@@ -1,12 +1,12 @@
 import React from 'react';
-import { Fuel, Truck, Gauge, TrendingUp, Settings, FileText, X, Receipt, CalendarDays } from 'lucide-react';
+import { Fuel, Truck, Gauge, TrendingUp, Settings, FileText, X, Receipt, CalendarDays, Users } from 'lucide-react';
 import { PertashopProfile, TankConfig } from '../types';
 
 interface SidebarProps {
   profile: PertashopProfile;
   tank: TankConfig;
-  activeTab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics';
-  setActiveTab: (tab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics') => void;
+  activeTab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'attendance' | 'summary' | 'analytics';
+  setActiveTab: (tab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'attendance' | 'summary' | 'analytics') => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   onOpenProfileModal: () => void;
@@ -48,6 +48,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Gauge,
     },
     {
+      id: 'attendance' as const,
+      label: 'Absensi & Gaji Karyawan',
+      subtitle: 'Presensi, Shift & Slip Gaji',
+      icon: Users,
+      badge: 'NEW',
+      badgeColor: 'bg-indigo-500',
+    },
+    {
       id: 'expenses' as const,
       label: 'Beban & Pengeluaran',
       subtitle: 'Gaji, Lembur, Listrik, PDAM',
@@ -58,8 +66,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Rekap Bulanan & Tahunan',
       subtitle: 'Summary Eksekutif & P&L',
       icon: CalendarDays,
-      badge: 'NEW',
-      badgeColor: 'bg-emerald-500',
     },
     {
       id: 'analytics' as const,
@@ -68,6 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: TrendingUp,
     },
   ];
+
 
 
   return (
