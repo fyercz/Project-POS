@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Building2, Check, Fuel, Settings2 } from 'lucide-react';
+import { X, Building2, Check, Fuel, Trash2 } from 'lucide-react';
 import { PertashopProfile, TankConfig } from '../types';
 
 interface PertashopProfileModalProps {
@@ -8,6 +8,7 @@ interface PertashopProfileModalProps {
   profile: PertashopProfile;
   tank: TankConfig;
   onSaveProfile: (profile: PertashopProfile, tank: TankConfig) => void;
+  onResetAllData?: () => void;
 }
 
 export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
@@ -16,6 +17,7 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
   profile,
   tank,
   onSaveProfile,
+  onResetAllData,
 }) => {
   const [formData, setFormData] = useState<PertashopProfile>(profile);
   const [tankData, setTankData] = useState<TankConfig>(tank);
@@ -118,9 +120,9 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
               Spesifikasi Tangki Modular
             </span>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-slate-600 mb-1">Kapasitas (Liter)</label>
+                <label className="block text-slate-600 mb-1">Kapasitas (L)</label>
                 <input
                   type="number"
                   min={1000}
@@ -128,7 +130,23 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                   required
                   value={tankData.totalCapacityLiters}
                   onChange={(e) =>
-                    setTankData({ ...tankData, totalCapacityLiters: parseFloat(e.target.value) || 3000 })
+                    setTankData({ ...tankData, totalCapacityLiters: parseFloat(e.target.value) || 5000 })
+                  }
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 mb-1">Stok Saat Ini (L)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={tankData.totalCapacityLiters}
+                  step={10}
+                  required
+                  value={tankData.currentStockLiters}
+                  onChange={(e) =>
+                    setTankData({ ...tankData, currentStockLiters: parseFloat(e.target.value) || 0 })
                   }
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900"
                 />
@@ -145,7 +163,7 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                   onChange={(e) =>
                     setTankData({
                       ...tankData,
-                      warningThresholdLiters: parseFloat(e.target.value) || 1200,
+                      warningThresholdLiters: parseFloat(e.target.value) || 1500,
                     })
                   }
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900"
@@ -163,7 +181,7 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                   onChange={(e) =>
                     setTankData({
                       ...tankData,
-                      criticalThresholdLiters: parseFloat(e.target.value) || 600,
+                      criticalThresholdLiters: parseFloat(e.target.value) || 800,
                     })
                   }
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900"
@@ -172,21 +190,37 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-200 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm"
-            >
-              <Check className="w-4 h-4" />
-              <span>Simpan Profil</span>
-            </button>
+          <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            {onResetAllData ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onResetAllData();
+                }}
+                className="px-3.5 py-2 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-semibold flex items-center gap-1.5 transition-colors text-xs cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4 text-rose-500" />
+                <span>Reset Aplikasi ke Kondisi Baru</span>
+              </button>
+            ) : <div />}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm"
+              >
+                <Check className="w-4 h-4" />
+                <span>Simpan Profil</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

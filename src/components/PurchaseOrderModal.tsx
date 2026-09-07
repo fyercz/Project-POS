@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, ShoppingCart, Truck, AlertCircle, Check, Fuel, Building2, Calendar, FileCheck, Layers } from 'lucide-react';
 import { Product, PurchaseOrder, TankConfig, OrderVolumePecahan } from '../types';
 import { formatRupiah, formatNumber, formatLiter, getTodayDateString } from '../utils/formatters';
+import { ConfirmModal } from './ConfirmModal';
 
 interface PurchaseOrderModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   const [driverName, setDriverName] = useState<string>('Pak Joko Santoso');
   const [notes, setNotes] = useState<string>('Pemesanan kuota harian Pertashop.');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [showOverflowConfirm, setShowOverflowConfirm] = useState<boolean>(false);
 
   useEffect(() => {
     if (editingOrder) {
@@ -92,17 +94,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   const ullageLiters = tank.totalCapacityLiters - tank.currentStockLiters;
   const willOverflow = !editingOrder && volumeLiters > ullageLiters;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-
-    if (willOverflow) {
-      const confirmOverflow = window.confirm(
-        `Perhatian: Volume pesanan (${formatLiter(volumeLiters)}) melebihi ruang kosong tangki (${formatLiter(ullageLiters)}). Apakah Anda yakin pesanan ini tiba saat tangki sudah berkurang?`
-      );
-      if (!confirmOverflow) return;
-    }
-
+  const executeSaveOrder = () => {
     const generatedPoNumber = editingOrder
       ? editingOrder.poNumber
       : `PO-PTS-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`;
@@ -137,6 +129,18 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
     });
 
     onClose();
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+
+    if (willOverflow) {
+      setShowOverflowConfirm(true);
+      return;
+    }
+
+    executeSaveOrder();
   };
 
   return (
@@ -336,6 +340,20 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
           </div>
         </form>
       </div>
+
+      <ConfirmModal
+        isOpen={showOverflowConfirm}
+        title="Konfirmasi Kapasitas Tangki"
+        message={`Perhatian: Volume pesanan (${formatLiter(volumeLiters)}) saat ini melebihi ruang kosong tangki pendam (${formatLiter(ullageLiters)}). Apakah Anda yakin ingin tetap menerbitkan PO ini dengan asumsi BBM tangki akan berkurang saat truk tangki tiba?`}
+        confirmLabel="Ya, Terbitkan PO"
+        cancelLabel="Kembali / Ubah"
+        isDestructive={false}
+        onConfirm={() => {
+          setShowOverflowConfirm(false);
+          executeSaveOrder();
+        }}
+        onClose={() => setShowOverflowConfirm(false)}
+      />
     </div>
   );
 };

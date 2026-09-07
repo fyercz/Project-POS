@@ -44,6 +44,7 @@ import {
   getCurrentTimeString,
 } from '../utils/formatters';
 import { syncSalesToAttendance, recalculateMonthlyPayrolls } from '../utils/attendanceSync';
+import { ConfirmModal } from './ConfirmModal';
 import * as XLSX from 'xlsx';
 
 interface AttendancePayrollViewProps {
@@ -93,6 +94,9 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState<boolean>(false);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState<boolean>(false);
   const [isPayrollModalOpen, setIsPayrollModalOpen] = useState<boolean>(false);
+
+  const [attendanceToDelete, setAttendanceToDelete] = useState<AttendanceRecord | null>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [selectedSlipForPrint, setSelectedSlipForPrint] = useState<PayrollRecord | null>(null);
 
   // Salary Payment Modal State
@@ -960,12 +964,8 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm('Hapus catatan absensi ini?')) {
-                                onDeleteAttendance(rec.id);
-                              }
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            onClick={() => setAttendanceToDelete(rec)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title="Hapus Absensi"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1033,12 +1033,8 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                     {employees.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm(`Hapus data karyawan ${emp.name}?`)) {
-                            onDeleteEmployee(emp.id);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors"
+                        onClick={() => setEmployeeToDelete(emp)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
                         title="Hapus Karyawan"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1812,6 +1808,46 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           </button>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={attendanceToDelete !== null}
+        title="Hapus Catatan Absensi"
+        message={
+          attendanceToDelete
+            ? `Apakah Anda yakin ingin menghapus catatan absensi ${attendanceToDelete.employeeName} tanggal ${formatShortDate(attendanceToDelete.date)}?`
+            : ''
+        }
+        confirmLabel="Ya, Hapus"
+        cancelLabel="Batal"
+        isDestructive={true}
+        onConfirm={() => {
+          if (attendanceToDelete) {
+            onDeleteAttendance(attendanceToDelete.id);
+            setAttendanceToDelete(null);
+          }
+        }}
+        onClose={() => setAttendanceToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={employeeToDelete !== null}
+        title="Hapus Data Karyawan"
+        message={
+          employeeToDelete
+            ? `Apakah Anda yakin ingin menghapus data karyawan ${employeeToDelete.name} (${employeeToDelete.role})? Data karyawan yang dihapus tidak dapat dipulihkan.`
+            : ''
+        }
+        confirmLabel="Hapus Karyawan"
+        cancelLabel="Batal"
+        isDestructive={true}
+        onConfirm={() => {
+          if (employeeToDelete) {
+            onDeleteEmployee(employeeToDelete.id);
+            setEmployeeToDelete(null);
+          }
+        }}
+        onClose={() => setEmployeeToDelete(null)}
+      />
     </div>
   );
 };

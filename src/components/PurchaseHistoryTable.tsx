@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Truck, CheckCircle2, Clock, ShoppingCart, Eye, Plus, Pencil, Trash2 } from 'lucide-react';
 import { PurchaseOrder, POStatus } from '../types';
 import { formatRupiah, formatNumber, formatShortDate } from '../utils/formatters';
+import { ConfirmModal } from './ConfirmModal';
 
 interface PurchaseHistoryTableProps {
   orders: PurchaseOrder[];
@@ -20,6 +21,7 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
 }) => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<PurchaseOrder | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null);
 
   const filteredOrders = orders.filter((o) => {
     if (statusFilter === 'ALL') return true;
@@ -206,12 +208,8 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm(`Hapus data pemesanan PO ${order.poNumber} (${order.volumeKL} KL)?`)) {
-                            onDeleteOrder(order.id);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        onClick={() => setOrderToDelete(order)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         title="Hapus Pemesanan"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -309,6 +307,26 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={orderToDelete !== null}
+        title="Hapus Catatan Pemesanan DO"
+        message={
+          orderToDelete
+            ? `Apakah Anda yakin ingin menghapus data pemesanan PO ${orderToDelete.poNumber} volume ${orderToDelete.volumeKL} KL (${formatRupiah(orderToDelete.totalAmount)}) tanggal ${formatShortDate(orderToDelete.orderDate)}?`
+            : ''
+        }
+        confirmLabel="Ya, Hapus"
+        cancelLabel="Batal"
+        isDestructive={true}
+        onConfirm={() => {
+          if (orderToDelete) {
+            onDeleteOrder(orderToDelete.id);
+            setOrderToDelete(null);
+          }
+        }}
+        onClose={() => setOrderToDelete(null)}
+      />
     </div>
   );
 };

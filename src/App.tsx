@@ -20,6 +20,7 @@ import { PertashopProfileModal } from './components/PertashopProfileModal';
 import { ExpenseEntryModal } from './components/ExpenseEntryModal';
 import { ImportSalesModal } from './components/ImportSalesModal';
 import { AttendancePayrollView } from './components/AttendancePayrollView';
+import { ConfirmModal } from './components/ConfirmModal';
 import { StorageService } from './utils/storage';
 import { syncSalesToAttendance, recalculateMonthlyPayrolls } from './utils/attendanceSync';
 import {
@@ -89,6 +90,22 @@ export default function App() {
   const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<ExpenseCategoryType>('GAJI_OPERATOR');
   const [editingExpense, setEditingExpense] = useState<ExpenseRecord | null>(null);
 
+  // Global In-App Confirm Modal State (bypasses iframe window.confirm blocks)
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string | React.ReactNode;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
 
   // Sync to localStorage
   useEffect(() => {
@@ -149,7 +166,7 @@ export default function App() {
 
   // Last meter reading
   const lastSaleWithMeter = [...sales].reverse().find((s) => s.meterAkhir !== undefined);
-  const lastMeterReading = lastSaleWithMeter ? lastSaleWithMeter.meterAkhir! : 145530;
+  const lastMeterReading = lastSaleWithMeter ? lastSaleWithMeter.meterAkhir! : 0;
 
   // Handlers
   const handleOpenAddSale = () => {
@@ -482,6 +499,44 @@ export default function App() {
     setSoundings(soundings.filter((s) => s.id !== soundingId));
   };
 
+  const handleDeleteAugustSoundings = () => {
+    const augustSoundings = soundings.filter((s) => s.date.startsWith('2026-08') || s.date.includes('-08-'));
+    if (augustSoundings.length === 0) {
+      setConfirmConfig({
+        isOpen: true,
+        title: 'Tidak Ada Data Sounding Agustus',
+        message: 'Tidak ditemukan catatan hasil sounding pada bulan Agustus 2026. Semua rekaman sounding sudah bersih.',
+        confirmLabel: 'Tutup',
+        cancelLabel: 'Kembali',
+        isDestructive: false,
+        onConfirm: () => {},
+      });
+      return;
+    }
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Hapus Semua Sounding Bulan Agustus',
+      message: `Apakah Anda yakin ingin menghapus seluruh (${augustSoundings.length}) catatan hasil sounding pada bulan Agustus 2026? Data sounding fisik tangki bulan Agustus akan dihapus permanen.`,
+      confirmLabel: `Hapus Semua (${augustSoundings.length}) Sounding`,
+      cancelLabel: 'Batal',
+      isDestructive: true,
+      onConfirm: () => {
+        const remaining = soundings.filter((s) => !s.date.startsWith('2026-08') && !s.date.includes('-08-'));
+        setSoundings(remaining);
+        StorageService.setSoundings(remaining);
+        if (tank.lastSoundingDate && (tank.lastSoundingDate.startsWith('2026-08') || tank.lastSoundingDate.includes('-08-'))) {
+          const updatedTank = {
+            ...tank,
+            lastSoundingDate: '2026-07-31',
+          };
+          setTank(updatedTank);
+          StorageService.setTankConfig(updatedTank);
+        }
+      },
+    });
+  };
+
   const handleQuickOrder = (kl: OrderVolumePecahan = 2) => {
     setEditingOrder(null);
     setSelectedOrderKL(kl);
@@ -491,6 +546,41 @@ export default function App() {
   const handleSaveProfile = (newProfile: PertashopProfile, newTank: TankConfig) => {
     setProfile(newProfile);
     setTank(newTank);
+  };
+
+  const handleResetAllData = () => {
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Reset Aplikasi ke Kondisi Baru',
+      message:
+        'Apakah Anda yakin ingin mengosongkan seluruh data penjualan, pemesanan/DO BBM, pengeluaran operasional, absensi karyawan, dan sounding tangki? Aplikasi akan dikembalikan ke kondisi awal bersih seperti aplikasi baru.',
+      confirmLabel: 'Ya, Reset Semua Data',
+      cancelLabel: 'Batal',
+      isDestructive: true,
+      onConfirm: () => {
+        StorageService.resetToDefault();
+        setSales([]);
+        setPurchases([]);
+        setExpenses([]);
+        setSoundings([]);
+        setAttendance([]);
+        setPayrolls([]);
+        const cleanTank: TankConfig = {
+          tankId: 'TANK-01',
+          tankName: 'Tangki Pendam Modular Pertamax',
+          productId: 'prod-pertamax-92',
+          totalCapacityLiters: 5000,
+          currentStockLiters: 0,
+          deadStockLiters: 300,
+          warningThresholdLiters: 1500,
+          criticalThresholdLiters: 800,
+          lastSoundingDate: '',
+          lastSoundingLiters: 0,
+        };
+        setTank(cleanTank);
+        StorageService.setTankConfig(cleanTank);
+      },
+    });
   };
 
   // Expense Handlers
@@ -740,17 +830,30 @@ export default function App() {
                     Log Sounding Stick Celup & Uji Pasta Air
                   </h3>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingSounding(null);
-                    setIsSoundingModalOpen(true);
-                  }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm shadow-blue-200 flex items-center gap-1.5 self-start sm:self-auto"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Input Sounding Baru</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  {soundings.some((s) => s.date.includes('-08-')) && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteAugustSoundings}
+                      className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                      title="Hapus Semua Hasil Sounding Bulan Agustus"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Hapus Sounding Agustus</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingSounding(null);
+                      setIsSoundingModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm shadow-blue-200 flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Input Sounding Baru</span>
+                  </button>
+                </div>
               </div>
 
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -770,62 +873,80 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium">
-                      {soundings.map((s) => (
-                        <tr key={s.id} className="hover:bg-slate-50/70">
-                          <td className="py-3 px-5 font-mono font-bold text-slate-800">
-                            {s.date} {s.time}
-                          </td>
-                          <td className="py-3 px-4">{s.operatorName}</td>
-                          <td className="py-3 px-4 text-right font-mono">{s.stickDipCm} cm</td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-blue-600">
-                            {s.calculatedLiters} L
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono text-slate-600">
-                            {s.systemStockLiters} L
-                          </td>
-                          <td
-                            className={`py-3 px-4 text-right font-mono font-bold ${
-                              s.varianceLiters === 0
-                                ? 'text-emerald-600'
-                                : s.varianceLiters > 0
-                                ? 'text-blue-600'
-                                : 'text-rose-600'
-                            }`}
-                          >
-                            {s.varianceLiters > 0 ? `+${s.varianceLiters}` : s.varianceLiters} L
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {s.waterBottomCm === 0 ? '0 cm (Nihil)' : `${s.waterBottomCm} cm`}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-500 text-[11px]">{s.notes || '-'}</td>
-                          <td className="py-3 px-4 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleEditSounding(s)}
-                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Edit Catatan Sounding"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (window.confirm(`Hapus catatan sounding tanggal ${s.date}?`)) {
-                                    handleDeleteSounding(s.id);
-                                  }
-                                }}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                title="Hapus Catatan"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                      {soundings.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="py-12 text-center text-slate-400">
+                            <Gauge className="w-9 h-9 mx-auto mb-2 text-slate-300 stroke-1" />
+                            <div className="font-semibold text-slate-700 text-sm">Tidak Ada Catatan Sounding</div>
+                            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                              Semua hasil sounding pada bulan Agustus telah berhasil dihapus. Klik tombol "+ Input Sounding Baru" untuk mencatat pemeriksaan fisik stok tangki pendam.
+                            </p>
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        soundings.map((s) => (
+                          <tr key={s.id} className="hover:bg-slate-50/70">
+                            <td className="py-3 px-5 font-mono font-bold text-slate-800">
+                              {s.date} {s.time}
+                            </td>
+                            <td className="py-3 px-4">{s.operatorName}</td>
+                            <td className="py-3 px-4 text-right font-mono">{s.stickDipCm} cm</td>
+                            <td className="py-3 px-4 text-right font-mono font-bold text-blue-600">
+                              {s.calculatedLiters} L
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono text-slate-600">
+                              {s.systemStockLiters} L
+                            </td>
+                            <td
+                              className={`py-3 px-4 text-right font-mono font-bold ${
+                                s.varianceLiters === 0
+                                  ? 'text-emerald-600'
+                                  : s.varianceLiters > 0
+                                  ? 'text-blue-600'
+                                  : 'text-rose-600'
+                              }`}
+                            >
+                              {s.varianceLiters > 0 ? `+${s.varianceLiters}` : s.varianceLiters} L
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {s.waterBottomCm === 0 ? '0 cm (Nihil)' : `${s.waterBottomCm} cm`}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-slate-500 text-[11px]">{s.notes || '-'}</td>
+                            <td className="py-3 px-4 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditSounding(s)}
+                                  className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Edit Catatan Sounding"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setConfirmConfig({
+                                      isOpen: true,
+                                      title: 'Hapus Catatan Sounding',
+                                      message: `Apakah Anda yakin ingin menghapus catatan sounding tanggal ${s.date} pukul ${s.time} (Stick: ${s.stickDipCm} cm / ${s.calculatedLiters} L) oleh ${s.operatorName}?`,
+                                      confirmLabel: 'Ya, Hapus',
+                                      cancelLabel: 'Batal',
+                                      isDestructive: true,
+                                      onConfirm: () => handleDeleteSounding(s.id),
+                                    });
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Hapus Catatan"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -953,6 +1074,7 @@ export default function App() {
         editingSounding={editingSounding}
         onSaveSounding={handleSaveSounding}
         onDeleteSounding={handleDeleteSounding}
+        onDeleteAugustSoundings={handleDeleteAugustSoundings}
       />
 
       <ExpenseEntryModal
@@ -996,6 +1118,18 @@ export default function App() {
         profile={profile}
         tank={tank}
         onSaveProfile={handleSaveProfile}
+        onResetAllData={handleResetAllData}
+      />
+
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmLabel={confirmConfig.confirmLabel}
+        cancelLabel={confirmConfig.cancelLabel}
+        isDestructive={confirmConfig.isDestructive}
+        onConfirm={confirmConfig.onConfirm}
+        onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

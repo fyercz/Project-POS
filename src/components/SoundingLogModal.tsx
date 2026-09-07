@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Gauge, Check, AlertCircle, Droplet, History, Pencil, Trash2 } from 'lucide-react';
 import { TankConfig, SoundingRecord } from '../types';
 import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString } from '../utils/formatters';
+import { ConfirmModal } from './ConfirmModal';
 
 interface SoundingLogModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface SoundingLogModalProps {
   editingSounding?: SoundingRecord | null;
   onSaveSounding: (record: Omit<SoundingRecord, 'id'>, newStockLiters: number, editingId?: string) => void;
   onDeleteSounding?: (id: string) => void;
+  onDeleteAugustSoundings?: () => void;
 }
 
 export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
@@ -21,9 +23,12 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
   editingSounding,
   onSaveSounding,
   onDeleteSounding,
+  onDeleteAugustSoundings,
 }) => {
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
   const [currentEditId, setCurrentEditId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SoundingRecord | null>(null);
+  const [showAugustConfirm, setShowAugustConfirm] = useState<boolean>(false);
   const [date, setDate] = useState<string>(getTodayDateString());
   const [time, setTime] = useState<string>(getCurrentTimeString());
   const [operatorName, setOperatorName] = useState<string>('Daslam');
@@ -349,9 +354,27 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
           </form>
         ) : (
           <div className="p-6 max-h-[75vh] overflow-y-auto space-y-3">
+            {onDeleteAugustSoundings && soundings.some((s) => s.date.includes('-08-')) && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-3 text-xs mb-2">
+                <span className="text-rose-800 font-medium">
+                  Terdapat {soundings.filter((s) => s.date.includes('-08-')).length} catatan sounding pada bulan Agustus.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAugustConfirm(true)}
+                  className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Semua Sounding Agustus</span>
+                </button>
+              </div>
+            )}
+
             {soundings.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-xs">
-                Belum ada riwayat sounding.
+              <div className="text-center py-10 text-slate-400 text-xs">
+                <Gauge className="w-8 h-8 mx-auto mb-2 text-slate-300 stroke-1" />
+                <div className="font-semibold text-slate-600 text-sm">Belum Ada Riwayat Sounding</div>
+                <p className="mt-1 text-slate-400">Semua catatan sounding pada bulan Agustus telah dihapus.</p>
               </div>
             ) : (
               soundings.map((s) => (
@@ -378,7 +401,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleStartEditFromHistory(s)}
-                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors"
+                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
                       title="Edit Sounding"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -386,12 +409,8 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     {onDeleteSounding && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm(`Hapus catatan sounding tanggal ${s.date}?`)) {
-                            onDeleteSounding(s.id);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors"
+                        onClick={() => setDeleteTarget(s)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
                         title="Hapus Sounding"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -404,6 +423,44 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
           </div>
         )}
       </div>
+
+      {/* Modal Konfirmasi Hapus Baris Sounding */}
+      <ConfirmModal
+        isOpen={deleteTarget !== null}
+        title="Hapus Catatan Sounding"
+        message={
+          deleteTarget
+            ? `Apakah Anda yakin ingin menghapus catatan sounding tanggal ${formatShortDate(deleteTarget.date)} pukul ${deleteTarget.time} (Stick: ${deleteTarget.stickDipCm} cm / ${formatLiter(deleteTarget.calculatedLiters)})?`
+            : ''
+        }
+        confirmLabel="Ya, Hapus"
+        cancelLabel="Batal"
+        isDestructive={true}
+        onConfirm={() => {
+          if (deleteTarget && onDeleteSounding) {
+            onDeleteSounding(deleteTarget.id);
+            setDeleteTarget(null);
+          }
+        }}
+        onClose={() => setDeleteTarget(null)}
+      />
+
+      {/* Modal Konfirmasi Hapus Semua Sounding Bulan Agustus */}
+      <ConfirmModal
+        isOpen={showAugustConfirm}
+        title="Hapus Semua Sounding Bulan Agustus"
+        message="Apakah Anda yakin ingin menghapus seluruh catatan hasil sounding pada bulan Agustus? Tindakan ini akan menghapus permanen data sounding fisik tangki bulan Agustus."
+        confirmLabel="Hapus Semua Sounding Agustus"
+        cancelLabel="Batal"
+        isDestructive={true}
+        onConfirm={() => {
+          setShowAugustConfirm(false);
+          if (onDeleteAugustSoundings) {
+            onDeleteAugustSoundings();
+          }
+        }}
+        onClose={() => setShowAugustConfirm(false)}
+      />
     </div>
   );
 };

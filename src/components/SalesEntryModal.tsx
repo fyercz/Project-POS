@@ -40,7 +40,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   currentBuyPrice,
   currentStockLiters,
   tankCapacity = 5000,
-  lastMeterReading = 145530,
+  lastMeterReading = 0,
   editingSale,
   onSaveSale,
 }) => {
@@ -55,8 +55,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   // Metering mode: Direct Liters vs Totalisator Stand Meter
   const [inputMode, setInputMode] = useState<'direct' | 'meter'>('direct');
   const [meterAwal, setMeterAwal] = useState<number>(lastMeterReading);
-  const [meterAkhir, setMeterAkhir] = useState<number>(lastMeterReading + 250);
-  const [directLiters, setDirectLiters] = useState<number>(250);
+  const [meterAkhir, setMeterAkhir] = useState<number>(lastMeterReading + 200);
+  const [directLiters, setDirectLiters] = useState<number>(200);
   
   // Custom unit price if needed, initialized to current product price
   const [unitPrice, setUnitPrice] = useState<number>(currentPrice);
@@ -204,7 +204,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
 
     if (calculatedLiters > currentStockLiters) {
       setErrorMessage(
-        `Penjualan (${calculatedLiters} L) melebihi sisa stok di tangki (${currentStockLiters} L). Silakan cek kembali data totalisator.`
+        `Penjualan (${calculatedLiters} L) melebihi sisa stok di tangki (${currentStockLiters} L). Silakan catat penerimaan DO BBM di menu Pemesanan atau atur stok tangki di Profil & Tangki.`
       );
       return;
     }

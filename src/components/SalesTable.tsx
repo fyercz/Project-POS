@@ -18,6 +18,7 @@ import {
 import * as XLSX from 'xlsx';
 import { SaleRecord } from '../types';
 import { formatRupiah, formatNumber, formatShortDate, formatLiter } from '../utils/formatters';
+import { ConfirmModal } from './ConfirmModal';
 
 interface SalesTableProps {
   sales: SaleRecord[];
@@ -36,6 +37,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   onOpenPrintReportModal,
   onOpenImportModal,
 }) => {
+  const [saleToDelete, setSaleToDelete] = useState<SaleRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedShift, setSelectedShift] = useState<string>('ALL');
   const [dateFilter, setDateFilter] = useState<'ALL' | 'TODAY' | '7DAYS' | '30DAYS'>('ALL');
@@ -405,12 +407,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm(`Hapus catatan penjualan shift ${sale.shift} (${sale.operatorName})?`)) {
-                            onDeleteSale(sale.id);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        onClick={() => setSaleToDelete(sale)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         title="Hapus"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -574,6 +572,26 @@ export const SalesTable: React.FC<SalesTableProps> = ({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={saleToDelete !== null}
+        title="Hapus Catatan Penjualan"
+        message={
+          saleToDelete
+            ? `Apakah Anda yakin ingin menghapus data penjualan tanggal ${formatShortDate(saleToDelete.transactionDate)} (${saleToDelete.shift}) oleh ${saleToDelete.operatorName} senilai ${formatRupiah(saleToDelete.totalRevenue)} (${formatLiter(saleToDelete.literSold)})?`
+            : ''
+        }
+        confirmLabel="Ya, Hapus"
+        cancelLabel="Batal"
+        isDestructive={true}
+        onConfirm={() => {
+          if (saleToDelete) {
+            onDeleteSale(saleToDelete.id);
+            setSaleToDelete(null);
+          }
+        }}
+        onClose={() => setSaleToDelete(null)}
+      />
     </div>
   );
 };

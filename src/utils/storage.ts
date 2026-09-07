@@ -1,4 +1,16 @@
-import { Product, PurchaseOrder, SaleRecord, TankConfig, PertashopProfile, PriceHistory, SoundingRecord, ExpenseRecord, Employee, AttendanceRecord, PayrollRecord } from '../types';
+import {
+  Product,
+  PurchaseOrder,
+  SaleRecord,
+  TankConfig,
+  PertashopProfile,
+  PriceHistory,
+  SoundingRecord,
+  ExpenseRecord,
+  Employee,
+  AttendanceRecord,
+  PayrollRecord,
+} from '../types';
 import {
   INITIAL_PERTASHOP_PROFILE,
   INITIAL_PRODUCTS,
@@ -12,21 +24,46 @@ import {
   INITIAL_ATTENDANCE,
   INITIAL_PAYROLLS,
 } from '../data/initialData';
-import { syncSalesToAttendance, recalculateMonthlyPayrolls } from './attendanceSync';
 
 const KEYS = {
-  PROFILE: 'pertashop_profile_v4_krajan',
-  PRODUCTS: 'pertashop_products_v4_krajan',
-  TANK: 'pertashop_tank_v4_krajan',
-  PRICE_HISTORY: 'pertashop_price_hist_v4_krajan',
-  SALES: 'pertashop_sales_v4_krajan',
-  PURCHASES: 'pertashop_purchases_v4_krajan',
-  SOUNDINGS: 'pertashop_soundings_v4_krajan',
-  EXPENSES: 'pertashop_expenses_v4_krajan',
-  EMPLOYEES: 'pertashop_employees_v4_krajan',
-  ATTENDANCE: 'pertashop_attendance_v4_krajan',
-  PAYROLLS: 'pertashop_payrolls_v4_krajan',
+  PROFILE: 'pertashop_profile_v5_fresh',
+  PRODUCTS: 'pertashop_products_v5_fresh',
+  TANK: 'pertashop_tank_v5_fresh',
+  PRICE_HISTORY: 'pertashop_price_hist_v5_fresh',
+  SALES: 'pertashop_sales_v5_fresh',
+  PURCHASES: 'pertashop_purchases_v5_fresh',
+  SOUNDINGS: 'pertashop_soundings_v5_fresh',
+  EXPENSES: 'pertashop_expenses_v5_fresh',
+  EMPLOYEES: 'pertashop_employees_v5_fresh',
+  ATTENDANCE: 'pertashop_attendance_v5_fresh',
+  PAYROLLS: 'pertashop_payrolls_v5_fresh',
 };
+
+// Automatic cleanup of legacy mock/test datasets in user's browser
+try {
+  const legacyKeys = [
+    'pertashop_profile_v4_krajan',
+    'pertashop_products_v4_krajan',
+    'pertashop_tank_v4_krajan',
+    'pertashop_price_hist_v4_krajan',
+    'pertashop_sales_v4_krajan',
+    'pertashop_purchases_v4_krajan',
+    'pertashop_soundings_v4_krajan',
+    'pertashop_expenses_v4_krajan',
+    'pertashop_employees_v4_krajan',
+    'pertashop_attendance_v4_krajan',
+    'pertashop_payrolls_v4_krajan',
+    'pertashop_sales_v2',
+    'pertashop_purchases_v2',
+    'pertashop_expenses_v2',
+    'pertashop_profile_v1',
+    'pertashop_products_v1',
+    'pertashop_tank_v1',
+  ];
+  legacyKeys.forEach((key) => localStorage.removeItem(key));
+} catch (err) {
+  // localStorage might be restricted in some iframe contexts
+}
 
 function getStorageItem<T>(key: string, defaultValue: T): T {
   try {
@@ -60,15 +97,7 @@ export const StorageService = {
   getPriceHistory: (): PriceHistory[] => getStorageItem(KEYS.PRICE_HISTORY, INITIAL_PRICE_HISTORY),
   setPriceHistory: (history: PriceHistory[]) => setStorageItem(KEYS.PRICE_HISTORY, history),
 
-  getSales: (): SaleRecord[] => {
-    const rawSales = getStorageItem(KEYS.SALES, INITIAL_SALES);
-    return rawSales.map((s) => {
-      let shift = s.shift;
-      if (shift === 'Shift 1 (Pagi)') shift = 'Shift 1 (05.30 - 13.30)';
-      if (shift === 'Shift 2 (Sore)') shift = 'Shift 2 (13.30 - 19.30)';
-      return { ...s, shift };
-    });
-  },
+  getSales: (): SaleRecord[] => getStorageItem(KEYS.SALES, INITIAL_SALES),
   setSales: (sales: SaleRecord[]) => setStorageItem(KEYS.SALES, sales),
 
   getPurchases: (): PurchaseOrder[] => getStorageItem(KEYS.PURCHASES, INITIAL_PURCHASE_ORDERS),
@@ -77,47 +106,23 @@ export const StorageService = {
   getSoundings: (): SoundingRecord[] => getStorageItem(KEYS.SOUNDINGS, INITIAL_SOUNDING_RECORDS),
   setSoundings: (soundings: SoundingRecord[]) => setStorageItem(KEYS.SOUNDINGS, soundings),
 
-  getExpenses: (): ExpenseRecord[] => {
-    const rawExpenses = getStorageItem(KEYS.EXPENSES, INITIAL_EXPENSES);
-    // Ensure August 2026 expenses are removed
-    return rawExpenses.filter((e) => !e.date.startsWith('2026-08'));
-  },
+  getExpenses: (): ExpenseRecord[] => getStorageItem(KEYS.EXPENSES, INITIAL_EXPENSES),
   setExpenses: (expenses: ExpenseRecord[]) => setStorageItem(KEYS.EXPENSES, expenses),
 
   getEmployees: (): Employee[] => getStorageItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES),
   setEmployees: (employees: Employee[]) => setStorageItem(KEYS.EMPLOYEES, employees),
 
-  getAttendance: (): AttendanceRecord[] => {
-    const rawAttendance = getStorageItem(KEYS.ATTENDANCE, INITIAL_ATTENDANCE);
-    const rawSales = getStorageItem(KEYS.SALES, INITIAL_SALES);
-    const employees = getStorageItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
-    
-    // Guarantee synchronization with sales (especially August 2026 and other months)
-    const { updatedAttendance } = syncSalesToAttendance(rawSales, rawAttendance, employees);
-    return updatedAttendance;
-  },
+  getAttendance: (): AttendanceRecord[] => getStorageItem(KEYS.ATTENDANCE, INITIAL_ATTENDANCE),
   setAttendance: (records: AttendanceRecord[]) => setStorageItem(KEYS.ATTENDANCE, records),
 
-  getPayrolls: (): PayrollRecord[] => {
-    const rawPayrolls = getStorageItem(KEYS.PAYROLLS, INITIAL_PAYROLLS);
-    const attendance = StorageService.getAttendance();
-    const employees = getStorageItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
-
-    // Recompute August 2026 payroll to match synced attendance perfectly
-    return recalculateMonthlyPayrolls(attendance, employees, rawPayrolls, '2026-08');
-  },
+  getPayrolls: (): PayrollRecord[] => getStorageItem(KEYS.PAYROLLS, INITIAL_PAYROLLS),
   setPayrolls: (payrolls: PayrollRecord[]) => setStorageItem(KEYS.PAYROLLS, payrolls),
 
   resetToDefault: () => {
-    // Clear all versions
-    const allKeys = Object.values(KEYS);
-    allKeys.forEach((k) => localStorage.removeItem(k));
-    localStorage.removeItem('pertashop_sales_v2');
-    localStorage.removeItem('pertashop_purchases_v2');
-    localStorage.removeItem('pertashop_expenses_v2');
-    localStorage.removeItem('pertashop_profile_v1');
-    localStorage.removeItem('pertashop_products_v1');
-    localStorage.removeItem('pertashop_tank_v1');
+    Object.values(KEYS).forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+      } catch (e) {}
+    });
   },
 };
-

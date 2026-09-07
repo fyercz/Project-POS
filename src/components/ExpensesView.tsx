@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { ExpenseRecord, ExpenseCategoryType, EXPENSE_RATES } from '../types';
 import { formatRupiah, formatShortDate, formatNumber, getTodayDateString } from '../utils/formatters';
+import { ConfirmModal } from './ConfirmModal';
 
 interface ExpensesViewProps {
   expenses: ExpenseRecord[];
@@ -42,6 +43,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [selectedDate, setSelectedDate] = useState<string>('ALL');
+  const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRecord | null>(null);
+  const [monthToDelete, setMonthToDelete] = useState<string | null>(null);
 
   const todayStr = getTodayDateString();
 
@@ -456,12 +459,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             {selectedMonth !== 'ALL' && onDeleteExpensesByMonth && (
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm(`Hapus SEMUA pengeluaran untuk Bulan ${selectedMonth}? Tindakan ini akan menghapus seluruh pos biaya pada bulan tersebut.`)) {
-                    onDeleteExpensesByMonth(selectedMonth);
-                  }
-                }}
-                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg border border-rose-200 transition-colors flex items-center gap-1"
+                onClick={() => setMonthToDelete(selectedMonth)}
+                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg border border-rose-200 transition-colors flex items-center gap-1 cursor-pointer"
                 title={`Hapus semua pengeluaran bulan ${selectedMonth}`}
               >
                 <Trash2 className="w-3.5 h-3.5 text-rose-600" />
@@ -577,12 +576,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (window.confirm(`Hapus catatan pengeluaran "${exp.title}" (${formatRupiah(exp.amount)})?`)) {
-                              onDeleteExpense(exp.id);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          type="button"
+                          onClick={() => setExpenseToDelete(exp)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                           title="Hapus Pengeluaran"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -611,6 +607,42 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={expenseToDelete !== null}
+        title="Hapus Catatan Pengeluaran"
+        message={
+          expenseToDelete
+            ? `Apakah Anda yakin ingin menghapus catatan pengeluaran "${expenseToDelete.title}" sebesar ${formatRupiah(expenseToDelete.amount)} pada tanggal ${formatShortDate(expenseToDelete.date)}?`
+            : ''
+        }
+        confirmLabel="Ya, Hapus"
+        cancelLabel="Batal"
+        isDestructive={true}
+        onConfirm={() => {
+          if (expenseToDelete) {
+            onDeleteExpense(expenseToDelete.id);
+            setExpenseToDelete(null);
+          }
+        }}
+        onClose={() => setExpenseToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={monthToDelete !== null}
+        title={`Hapus Semua Pengeluaran Bulan ${monthToDelete}`}
+        message={`Apakah Anda yakin ingin menghapus SEMUA pengeluaran untuk Bulan ${monthToDelete}? Tindakan ini akan menghapus seluruh pos biaya operasional pada bulan tersebut secara permanen.`}
+        confirmLabel={`Hapus Semua Bulan ${monthToDelete}`}
+        cancelLabel="Batal"
+        isDestructive={true}
+        onConfirm={() => {
+          if (monthToDelete && onDeleteExpensesByMonth) {
+            onDeleteExpensesByMonth(monthToDelete);
+            setMonthToDelete(null);
+          }
+        }}
+        onClose={() => setMonthToDelete(null)}
+      />
     </div>
   );
 };
