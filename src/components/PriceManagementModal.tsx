@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
-import { X, DollarSign, TrendingUp, TrendingDown, Clock, ShieldCheck, History, Check, FileText } from 'lucide-react';
-import { Product, PriceHistory } from '../types';
-import { formatRupiah, formatShortDate, getTodayDateString, getCurrentTimeString } from '../utils/formatters';
+import React, { useState, useEffect } from 'react';
+import { X, DollarSign, TrendingUp, TrendingDown, History, Check, FileText, Sparkles, Calendar } from 'lucide-react';
+import { Product, PriceHistory, SaleRecord, PurchaseOrder } from '../types';
+import { formatRupiah, formatShortDate, getTodayDateString } from '../utils/formatters';
+import { formatMonthYearId, getEffectivePriceForDate } from '../utils/pricing';
 
 interface PriceManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[];
   priceHistory: PriceHistory[];
+  sales?: SaleRecord[];
+  purchases?: PurchaseOrder[];
   onUpdateProductPrice: (newPriceData: {
     productId: string;
     newPrice: number;
@@ -15,6 +18,7 @@ interface PriceManagementModalProps {
     effectiveDate: string;
     referenceDoc?: string;
     notes?: string;
+    autoUpdateMonthSales?: boolean;
   }) => void;
 }
 
@@ -23,6 +27,8 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
   onClose,
   products,
   priceHistory,
+  sales = [],
+  purchases = [],
   onUpdateProductPrice,
 }) => {
   const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || 'prod-pertamax-92');
@@ -33,10 +39,31 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
   const [effectiveDate, setEffectiveDate] = useState<string>(getTodayDateString());
   const [effectiveTime, setEffectiveTime] = useState<string>('00:00');
   const [referenceDoc, setReferenceDoc] = useState<string>('');
-  const [notes, setNotes] = useState<string>('Penyesuaian harga berkala BBM Non-Subsidi');
+  const [notes, setNotes] = useState<string>('Penyesuaian tarif Pertamax berkala');
+  const [autoUpdateMonthSales, setAutoUpdateMonthSales] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
 
+  // Load existing price for target date / month when effectiveDate or selectedProductId changes
+  useEffect(() => {
+    if (selectedProduct && isOpen) {
+      const existingEff = getEffectivePriceForDate(selectedProductId, effectiveDate, products, priceHistory);
+      setNewSellingPrice(existingEff.sellingPrice);
+      setNewBuyPrice(existingEff.buyPrice);
+    }
+  }, [effectiveDate, selectedProductId, isOpen]);
+
   if (!isOpen || !selectedProduct) return null;
+
+  const targetMonth = effectiveDate.substring(0, 7); // YYYY-MM
+  const targetMonthLabel = formatMonthYearId(targetMonth);
+
+  // Filter sales and purchases in the targeted month
+  const matchingSales = sales.filter(
+    (s) => s.productId === selectedProductId && s.transactionDate.startsWith(targetMonth)
+  );
+  const matchingPurchases = purchases.filter(
+    (p) => p.productId === selectedProductId && p.orderDate.startsWith(targetMonth)
+  );
 
   const currentMargin = selectedProduct.currentPrice - selectedProduct.buyPrice;
   const newMargin = newSellingPrice - newBuyPrice;
@@ -44,11 +71,9 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
 
   const handleProductSelect = (pId: string) => {
     setSelectedProductId(pId);
-    const prod = products.find((p) => p.id === pId);
-    if (prod) {
-      setNewSellingPrice(prod.currentPrice);
-      setNewBuyPrice(prod.buyPrice);
-    }
+    const eff = getEffectivePriceForDate(pId, effectiveDate, products, priceHistory);
+    setNewSellingPrice(eff.sellingPrice);
+    setNewBuyPrice(eff.buyPrice);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -61,7 +86,8 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
       newBuyPrice: newBuyPrice,
       effectiveDate: `${effectiveDate} ${effectiveTime}`,
       referenceDoc: referenceDoc.trim(),
-      notes: notes.trim(),
+      notes: notes.trim() || `Penyesuaian tarif ${targetMonthLabel}`,
+      autoUpdateMonthSales,
     });
 
     onClose();
@@ -89,14 +115,14 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-slate-300 mt-0.5">
-                Ubah tarif Pertamax harian, harga tebus Pertamina, & margin dealer
+                Ubah tarif Pertamax, harga tebus Pertamina, & sinkronisasi otomatis transaksi bulanan
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -107,7 +133,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('form')}
-            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
+            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeTab === 'form'
                 ? 'border-blue-600 text-blue-600 bg-white rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -119,7 +145,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
+            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeTab === 'history'
                 ? 'border-blue-600 text-blue-600 bg-white rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -141,7 +167,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                 key={p.id}
                 type="button"
                 onClick={() => handleProductSelect(p.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border cursor-pointer ${
                   selectedProductId === p.id
                     ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -180,6 +206,42 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
               </div>
             </div>
 
+            {/* Waktu Efektif & Target Bulan */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  <span>Bulan & Tanggal Berlaku Efektif</span>
+                </label>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                  Target: {targetMonthLabel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block mb-1">Tanggal Mulai Berlaku</span>
+                  <input
+                    type="date"
+                    required
+                    value={effectiveDate}
+                    onChange={(e) => setEffectiveDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 focus:border-blue-600 rounded-xl text-xs font-semibold text-slate-900"
+                  />
+                </div>
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block mb-1">Jam Efektif</span>
+                  <input
+                    type="time"
+                    required
+                    value={effectiveTime}
+                    onChange={(e) => setEffectiveTime(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 focus:border-blue-600 rounded-xl text-xs font-semibold text-slate-900"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Form Inputs for New Price */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -210,7 +272,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                       Turun {formatRupiah(priceDiff)}/L
                     </span>
                   ) : (
-                    <span className="text-slate-400">Tidak ada perubahan harga</span>
+                    <span className="text-slate-400">Tidak ada perubahan dari harga master</span>
                   )}
                 </div>
               </div>
@@ -219,7 +281,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                 <label className="block text-xs font-bold text-slate-800 mb-1">
                   Harga Tebus Pertamina Baru (Rp / Liter)
                   <span className="text-[10px] text-blue-600 font-normal ml-1">
-                    (s/d 3 angka desimal)
+                    (s/d 3 desimal)
                   </span>
                 </label>
                 <div className="relative">
@@ -236,7 +298,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                   />
                 </div>
                 <span className="text-[11px] text-slate-500 mt-1 block">
-                  Harga invoice DO/penebusan dari Pertamina (Mendukung 3 digit desimal)
+                  Harga invoice DO/penebusan dari Pertamina
                 </span>
               </div>
             </div>
@@ -259,30 +321,58 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
               </div>
             </div>
 
-            {/* Waktu Efektif & Referensi SK */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tanggal & Jam Berlaku Efektif
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    required
-                    value={effectiveDate}
-                    onChange={(e) => setEffectiveDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
-                  <input
-                    type="time"
-                    required
-                    value={effectiveTime}
-                    onChange={(e) => setEffectiveTime(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
+            {/* AUTOMATIC MONTH SYNCHRONIZATION BANNER */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 space-y-2.5">
+              <div className="flex items-start gap-2.5">
+                <div className="p-1.5 bg-blue-600 text-white rounded-lg mt-0.5 shrink-0 shadow-xs">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs font-bold text-blue-900 flex items-center gap-2">
+                    <span>Sinkronisasi Otomatis Bulan {targetMonthLabel}</span>
+                    {matchingSales.length > 0 && (
+                      <span className="text-[10px] bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full font-bold">
+                        {matchingSales.length} Transaksi Ditemukan
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-blue-800 mt-1 leading-relaxed">
+                    {matchingSales.length > 0 ? (
+                      <>
+                        Ditemukan <strong>{matchingSales.length} transaksi penjualan</strong> dan{' '}
+                        <strong>{matchingPurchases.length} penerimaan DO BBM</strong> di bulan{' '}
+                        <strong>{targetMonthLabel}</strong>. Seluruh transaksi tersebut akan otomatis disesuaikan
+                        ke tarif baru ({formatRupiah(newSellingPrice)}/L), dan seluruh omzet, keuntungan kotor,
+                        serta rekapitulasi laba rugi akan dikalkulasi ulang secara otomatis.
+                      </>
+                    ) : (
+                      <>
+                        Belum ada transaksi di bulan <strong>{targetMonthLabel}</strong>. Tarif baru ini akan
+                        otomatis menjadi harga default untuk setiap transaksi penjualan dan DO BBM yang diinput
+                        pada bulan <strong>{targetMonthLabel}</strong>.
+                      </>
+                    )}
+                  </p>
                 </div>
               </div>
 
+              <div className="pt-2 border-t border-blue-200/70">
+                <label className="flex items-center gap-2.5 text-xs font-bold text-blue-950 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoUpdateMonthSales}
+                    onChange={(e) => setAutoUpdateMonthSales(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>
+                    Otomatis sesuaikan seluruh transaksi di bulan {targetMonthLabel} dengan harga yang diganti
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Referensi SK & Catatan */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Surat Edaran / SK Pertamina
@@ -295,18 +385,18 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Catatan Penyesuaian
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-              />
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Catatan Penyesuaian
+                </label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+                />
+              </div>
             </div>
 
             {/* Footer buttons */}
@@ -314,14 +404,14 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 id="save-price-adjustment-btn"
                 type="submit"
-                className="px-5 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-colors flex items-center gap-2"
+                className="px-5 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
               >
                 <Check className="w-4 h-4" />
                 <span>Simpan Penyesuaian Harga</span>
@@ -335,43 +425,46 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                 Belum ada riwayat penyesuaian harga tercatat untuk produk ini.
               </div>
             ) : (
-              filteredHistory.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900">
-                        {formatShortDate(item.effectiveDate)}
-                      </span>
-                      <span className="text-slate-400">•</span>
-                      <span className="text-slate-600">{item.effectiveDate}</span>
-                    </div>
-                    {item.referenceDoc && (
-                      <div className="text-blue-700 font-medium mt-0.5 flex items-center gap-1">
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>{item.referenceDoc}</span>
+              filteredHistory.map((item) => {
+                const monthName = formatMonthYearId(item.effectiveDate.substring(0, 7));
+                return (
+                  <div
+                    key={item.id}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">
+                          {monthName} ({formatShortDate(item.effectiveDate)})
+                        </span>
+                        <span className="text-slate-400">•</span>
+                        <span className="text-slate-600">{item.effectiveDate}</span>
                       </div>
-                    )}
-                    {item.notes && <p className="text-slate-500 mt-1">{item.notes}</p>}
-                  </div>
+                      {item.referenceDoc && (
+                        <div className="text-blue-700 font-medium mt-0.5 flex items-center gap-1">
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>{item.referenceDoc}</span>
+                        </div>
+                      )}
+                      {item.notes && <p className="text-slate-500 mt-1">{item.notes}</p>}
+                    </div>
 
-                  <div className="text-right sm:border-l sm:border-slate-200 sm:pl-4">
-                    <div className="flex items-baseline gap-1 justify-end font-mono">
-                      <span className="text-slate-400 line-through">
-                        {formatRupiah(item.oldPrice)}
-                      </span>
-                      <span className="font-bold text-slate-900 text-sm">
-                        → {formatRupiah(item.newPrice)}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
-                      Margin: {formatRupiah(item.marginPerLiter)}/L
+                    <div className="text-right sm:border-l sm:border-slate-200 sm:pl-4">
+                      <div className="flex items-baseline gap-1 justify-end font-mono">
+                        <span className="text-slate-400 line-through">
+                          {formatRupiah(item.oldPrice)}
+                        </span>
+                        <span className="font-bold text-slate-900 text-sm">
+                          → {formatRupiah(item.newPrice)}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
+                        Tebus: {formatRupiah(item.newBuyPrice)} | Margin: {formatRupiah(item.marginPerLiter)}/L
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -379,3 +472,4 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
     </div>
   );
 };
+

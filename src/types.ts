@@ -158,6 +158,8 @@ export type ExpenseCategoryType =
   | 'PDAM'
   | 'MAINTENANCE_ALAT'
   | 'LOSSES_MINYAK'
+  | 'INTERNET_WIFI'
+  | 'DIVIDEN_OWNER'
   | 'LAINNYA';
 
 export interface ExpenseRecord {
@@ -198,7 +200,7 @@ export interface Employee {
   bankAccountNumber?: string;
   dailyRate: number; // Tarif harian (misal: Rp 40.000 / shift atau hari)
   overtimeRate: number; // Tarif lembur per shift (misal: Rp 30.000)
-  mealAllowanceDaily: number; // Uang makan / kehadiran harian (opsional, misal Rp 10.000)
+  mealAllowanceDaily?: number; // (Dihapus/Opsional)
   isActive: boolean;
   joinDate: string;
   notes?: string;
@@ -240,7 +242,8 @@ export interface PayrollRecord {
   basicSalary: number; // totalHadir * dailyRate
   overtimeRate: number;
   overtimePay: number; // totalLemburShifts * overtimeRate
-  mealAllowance: number; // totalHadir * mealAllowanceDaily
+  mealAllowance?: number; // (Dihapus/0)
+  bonusAllowance?: number; // Tunjangan / bonus / penyesuaian nominal tambahan
   incentiveBonus?: number; // (Opsional/Deprecated)
   
   // Potongan

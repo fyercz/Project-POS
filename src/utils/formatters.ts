@@ -146,3 +146,39 @@ export function getCurrentTimeString(): string {
   const minutes = String(now.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
 }
+
+export type ShiftCategory = 'shift1' | 'shift2' | 'fullday' | 'other';
+
+export function getShiftCategory(shiftStr: string): ShiftCategory {
+  const s = (shiftStr || '').toLowerCase();
+  if (s.includes('shift 1') || s.includes('shift1')) return 'shift1';
+  if (s.includes('shift 2') || s.includes('shift2')) return 'shift2';
+  if (s.includes('full day') || s.includes('fullday')) return 'fullday';
+  return 'other';
+}
+
+/**
+ * Adds or subtracts days to a YYYY-MM-DD date string safely without timezone offset issues
+ */
+export function addDays(dateStr: string, days: number): string {
+  if (!dateStr) return dateStr;
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      d.setDate(d.getDate() + days);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dt = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${dt}`;
+    }
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  } catch {
+    return dateStr;
+  }
+}

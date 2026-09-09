@@ -199,54 +199,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-[10px] text-slate-400 block">Cetak Laporan Harian</span>
               </div>
             </button>
-
-            <button
-              id="nav-profile-config-btn"
-              type="button"
-              onClick={() => {
-                onOpenProfileModal();
-                onCloseMobile();
-              }}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-all"
-            >
-              <Settings className="w-4 h-4 text-slate-400" />
-              <div className="text-left">
-                <span className="text-sm block">Profil & Tangki</span>
-                <span className="text-[10px] text-slate-400 block">Kalibrasi Kapasitas</span>
-              </div>
-            </button>
           </nav>
         </div>
 
-        {/* Operator Badge at Bottom */}
-        <div className="p-4 border-t border-slate-800/80">
-          <div className="bg-slate-950/60 rounded-xl p-3.5 border border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white ring-2 ring-slate-800">
-                AF
-              </div>
-              <div className="text-left">
-                <div className="text-xs font-bold text-white leading-tight">
-                  Ahmad Fauzi
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] text-emerald-400 font-medium">
-                    Shift 1 (05.30-13.30) • Online
-                  </span>
-                </div>
-              </div>
+        {/* Settings Button at Bottom */}
+        <div className="p-3 sm:p-4 border-t border-slate-800/80">
+          <button
+            id="sidebar-bottom-settings-btn"
+            type="button"
+            onClick={() => {
+              onOpenProfileModal();
+              onCloseMobile();
+            }}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-950/60 hover:bg-slate-800/80 rounded-xl border border-slate-800 text-slate-300 hover:text-white transition-all text-xs font-semibold cursor-pointer group"
+            title="Pengaturan Profil & Tangki"
+          >
+            <div className="flex items-center gap-2.5">
+              <Settings className="w-4 h-4 text-slate-400 group-hover:text-slate-200 transition-colors" />
+              <span className="text-sm font-semibold">Pengaturan</span>
             </div>
-
-            <button
-              type="button"
-              onClick={onOpenProfileModal}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-              title="Pengaturan"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
-          </div>
+            <span className="text-[10px] text-slate-400 group-hover:text-slate-300">Profil & Tangki</span>
+          </button>
         </div>
       </aside>
     </>

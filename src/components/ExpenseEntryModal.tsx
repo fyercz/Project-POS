@@ -18,6 +18,8 @@ import {
   Fuel,
   TrendingDown,
   Scale,
+  Wifi,
+  Landmark,
 } from 'lucide-react';
 import { ExpenseRecord, ExpenseCategoryType, EXPENSE_RATES } from '../types';
 import { getTodayDateString, getCurrentTimeString, formatRupiah, formatNumber } from '../utils/formatters';
@@ -102,6 +104,20 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
       setTitle(`Beban Losses Minyak Pertamax (${formatNumber(lts, 1)} L)`);
       setPersonOrVendor('Susut Penguapan & Tera Dispenser');
       setPaymentSource('KAS_HARIAN');
+    } else if (cat === 'INTERNET_WIFI') {
+      setUnitRate(250000);
+      setQuantity(1);
+      setAmount(250000);
+      setTitle('Biaya Langganan Internet & WiFi Pertashop');
+      setPersonOrVendor('IndiHome / Telkom / Orbit');
+      setPaymentSource('REKENING_BANK');
+    } else if (cat === 'DIVIDEN_OWNER') {
+      setUnitRate(1500000);
+      setQuantity(1);
+      setAmount(1500000);
+      setTitle('Dividen / Bagi Hasil Laba Pemilik (Owner)');
+      setPersonOrVendor('Owner / Pemilik Pertashop');
+      setPaymentSource('REKENING_BANK');
     } else {
       setUnitRate(25000);
       setQuantity(1);
@@ -333,6 +349,38 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
 
               <button
                 type="button"
+                onClick={() => handleSelectCategory('INTERNET_WIFI')}
+                className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                  category === 'INTERNET_WIFI'
+                    ? 'border-violet-600 bg-violet-50 text-violet-900 shadow-xs ring-2 ring-violet-500/20'
+                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Wifi className="w-4 h-4 text-violet-600 shrink-0" />
+                  <span className="font-bold">Internet & WiFi</span>
+                </div>
+                <span className="text-[10px] text-violet-700 font-mono mt-1">IndiHome / Orbit</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectCategory('DIVIDEN_OWNER')}
+                className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                  category === 'DIVIDEN_OWNER'
+                    ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-xs ring-2 ring-emerald-500/20'
+                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Landmark className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-bold">Dividen Owner</span>
+                </div>
+                <span className="text-[10px] text-emerald-700 font-mono mt-1">Prive / Bagi Hasil</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => handleSelectCategory('LAINNYA')}
                 className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between col-span-2 sm:col-span-1 ${
                   category === 'LAINNYA'
@@ -394,6 +442,28 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
               </p>
               <div className="text-[10px] text-rose-600">
                 * Beban losses minyak akan langsung memotong margin laba kotor & diperhitungkan ke dalam akuntansi laba rugi.
+              </div>
+            </div>
+          )}
+
+          {category === 'INTERNET_WIFI' && (
+            <div className="p-3 bg-violet-50 border border-violet-200 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wifi className="w-4 h-4 text-violet-700" />
+                <span className="text-violet-900 font-medium text-xs">
+                  Biaya Internet & WiFi: <strong>Mendukung operasional EDC, ATG tanki, CCTV, & pelaporan POS</strong>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {category === 'DIVIDEN_OWNER' && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Landmark className="w-4 h-4 text-emerald-700" />
+                <span className="text-emerald-900 font-medium text-xs">
+                  Bagi Hasil / Dividen Owner: <strong>Penarikan keuntungan (prive) pemilik dari laba operasional Pertashop</strong>
+                </span>
               </div>
             </div>
           )}

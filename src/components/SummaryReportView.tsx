@@ -24,6 +24,8 @@ import {
   Users,
   Building,
   Info,
+  Wifi,
+  Landmark,
 } from 'lucide-react';
 import {
   SaleRecord,
@@ -214,6 +216,20 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
         .reduce((acc, curr) => acc + curr.amount, 0),
     [currentMonthExpenses]
   );
+  const monthExpensesInternet = useMemo(
+    () =>
+      currentMonthExpenses
+        .filter((e) => e.category === 'INTERNET_WIFI')
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [currentMonthExpenses]
+  );
+  const monthExpensesDividen = useMemo(
+    () =>
+      currentMonthExpenses
+        .filter((e) => e.category === 'DIVIDEN_OWNER')
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [currentMonthExpenses]
+  );
   const monthExpensesLain = useMemo(
     () =>
       currentMonthExpenses
@@ -355,10 +371,10 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
         .filter((e) => e.category === 'LOSSES_MINYAK')
         .reduce((acc, curr) => acc + (curr.fuelLossLiters || 0), 0);
       const utilitas = mExp
-        .filter((e) => e.category === 'TOKEN_LISTRIK' || e.category === 'PDAM')
+        .filter((e) => e.category === 'TOKEN_LISTRIK' || e.category === 'PDAM' || e.category === 'INTERNET_WIFI')
         .reduce((acc, curr) => acc + curr.amount, 0);
       const maintLain = mExp
-        .filter((e) => e.category === 'MAINTENANCE_ALAT' || e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
+        .filter((e) => e.category === 'MAINTENANCE_ALAT' || e.category === 'DIVIDEN_OWNER' || e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
         .reduce((acc, curr) => acc + curr.amount, 0);
 
       const netMargin = grossProfit > 0 ? ((netProfit / grossProfit) * 100).toFixed(1) : '0';
@@ -995,8 +1011,8 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                   <div>
                     <div className="flex justify-between text-xs font-medium mb-1">
                       <span className="flex items-center space-x-1.5 text-slate-700">
-                        <Wrench className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Maintenance & Tera Nozzle</span>
+                        <Wrench className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Maintenance & Servis Alat</span>
                       </span>
                       <span className="font-mono font-bold text-slate-900">
                         {formatRupiah(monthExpensesMaint + monthExpensesLain)}
@@ -1004,13 +1020,55 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-1.5">
                       <div
-                        className="bg-emerald-600 h-1.5 rounded-full"
+                        className="bg-indigo-600 h-1.5 rounded-full"
                         style={{
                           width: `${
                             monthTotalExpenses > 0
                               ? ((monthExpensesMaint + monthExpensesLain) / monthTotalExpenses) * 100
                               : 0
                           }%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Internet & WiFi */}
+                  <div>
+                    <div className="flex justify-between text-xs font-medium mb-1">
+                      <span className="flex items-center space-x-1.5 text-slate-700">
+                        <Wifi className="w-3.5 h-3.5 text-violet-600" />
+                        <span>Internet & WiFi Pertashop</span>
+                      </span>
+                      <span className="font-mono font-bold text-slate-900">
+                        {formatRupiah(monthExpensesInternet)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5">
+                      <div
+                        className="bg-violet-600 h-1.5 rounded-full"
+                        style={{
+                          width: `${monthTotalExpenses > 0 ? (monthExpensesInternet / monthTotalExpenses) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Dividen Owner */}
+                  <div>
+                    <div className="flex justify-between text-xs font-medium mb-1">
+                      <span className="flex items-center space-x-1.5 text-slate-700">
+                        <Landmark className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Dividen / Prive Owner</span>
+                      </span>
+                      <span className="font-mono font-bold text-emerald-800">
+                        {formatRupiah(monthExpensesDividen)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5">
+                      <div
+                        className="bg-emerald-600 h-1.5 rounded-full"
+                        style={{
+                          width: `${monthTotalExpenses > 0 ? (monthExpensesDividen / monthTotalExpenses) * 100 : 0}%`,
                         }}
                       />
                     </div>

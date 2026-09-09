@@ -23,6 +23,7 @@ import { AttendancePayrollView } from './components/AttendancePayrollView';
 import { ConfirmModal } from './components/ConfirmModal';
 import { StorageService } from './utils/storage';
 import { syncSalesToAttendance, recalculateMonthlyPayrolls } from './utils/attendanceSync';
+import { recalculateSaleWithPrice, recalculatePurchaseWithPrice, formatMonthYearId } from './utils/pricing';
 import {
   Product,
   PurchaseOrder,
@@ -38,7 +39,7 @@ import {
   AttendanceRecord,
   PayrollRecord,
 } from './types';
-import { getTodayDateString, getCurrentTimeString } from './utils/formatters';
+import { getTodayDateString, getCurrentTimeString, getShiftCategory } from './utils/formatters';
 import { Gauge, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export default function App() {
@@ -63,12 +64,14 @@ export default function App() {
   const [isSalesModalOpen, setIsSalesModalOpen] = useState<boolean>(false);
   const [isImportSalesModalOpen, setIsImportSalesModalOpen] = useState<boolean>(false);
   const [editingSale, setEditingSale] = useState<SaleRecord | null>(null);
+  const [lastSalesInputDate, setLastSalesInputDate] = useState<string | null>(() => StorageService.getLastSalesDate());
 
   const [isPriceModalOpen, setIsPriceModalOpen] = useState<boolean>(false);
 
   const [isOrderModalOpen, setIsOrderModalOpen] = useState<boolean>(false);
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [selectedOrderKL, setSelectedOrderKL] = useState<OrderVolumePecahan>(2);
+  const [lastPurchaseOrderDate, setLastPurchaseOrderDate] = useState<string | null>(() => StorageService.getLastPoDate());
 
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState<boolean>(false);
   const [activeReceivingOrder, setActiveReceivingOrder] = useState<PurchaseOrder | null>(null);
@@ -180,6 +183,35 @@ export default function App() {
   };
 
   const handleSaveSale = (saleData: Omit<SaleRecord, 'id' | 'createdAt'>) => {
+    // Safety check: Prevent duplicate shift or conflict on the same date
+    const targetCat = getShiftCategory(saleData.shift);
+    const hasConflict = sales.some((s) => {
+      if (editingSale && s.id === editingSale.id) return false;
+      if (s.transactionDate !== saleData.transactionDate) return false;
+      const sCat = getShiftCategory(s.shift);
+      if (sCat === targetCat) return true;
+      if (sCat === 'fullday' || targetCat === 'fullday') return true;
+      return false;
+    });
+
+    if (hasConflict) {
+      console.warn(`[Rules] Shift '${saleData.shift}' sudah terisi pada ${saleData.transactionDate}. Simpan dibatalkan.`);
+      return;
+    }
+
+    // Safety check: Prevent duplicate operator on the same date
+    const targetOperator = saleData.operatorName.trim().toLowerCase();
+    const hasOperatorConflict = sales.some((s) => {
+      if (editingSale && s.id === editingSale.id) return false;
+      if (s.transactionDate !== saleData.transactionDate) return false;
+      return s.operatorName.trim().toLowerCase() === targetOperator;
+    });
+
+    if (hasOperatorConflict) {
+      console.warn(`[Rules] Operator '${saleData.operatorName}' sudah bertugas pada ${saleData.transactionDate}. Simpan dibatalkan.`);
+      return;
+    }
+
     if (editingSale) {
       const diffLiters = saleData.literSold - editingSale.literSold;
       const updatedSales = sales.map((s) =>
@@ -212,6 +244,8 @@ export default function App() {
 
       const updatedSales = [newSale, ...sales];
       setSales(updatedSales);
+      setLastSalesInputDate(saleData.transactionDate);
+      StorageService.setLastSalesDate(saleData.transactionDate);
 
       // Auto deduct stock from tank or sync to physical sounding
       const theoreticalStock = Math.max(0, tank.currentStockLiters - saleData.literSold);
@@ -304,6 +338,35 @@ export default function App() {
         }
       }
     }
+
+    // Auto-sync price history if this month doesn't have an explicit entry yet
+    if (saleData.unitPrice > 0) {
+      const saleMonth = saleData.transactionDate.substring(0, 7);
+      const existingHist = priceHistory.find(
+        (h) => h.productId === saleData.productId && h.effectiveDate.startsWith(saleMonth)
+      );
+      if (!existingHist) {
+        const prod = products.find((p) => p.id === saleData.productId) || primaryProduct;
+        const buyPrice = saleData.buyPriceSnapshot || prod.buyPrice;
+        const newHistEntry: PriceHistory = {
+          id: `price-hist-${Date.now()}`,
+          productId: saleData.productId,
+          effectiveDate: `${saleData.transactionDate} 00:00`,
+          oldPrice: prod.currentPrice,
+          newPrice: saleData.unitPrice,
+          oldBuyPrice: prod.buyPrice,
+          newBuyPrice: buyPrice,
+          marginPerLiter: saleData.unitPrice - buyPrice,
+          referenceDoc: 'Pencatatan Penjualan',
+          notes: `Tarif dari input penjualan ${formatMonthYearId(saleMonth)}`,
+          updatedBy: saleData.operatorName,
+          updatedAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
+        };
+        const updatedHistory = [newHistEntry, ...priceHistory];
+        setPriceHistory(updatedHistory);
+        StorageService.setPriceHistory(updatedHistory);
+      }
+    }
   };
 
   const handleImportSales = (
@@ -349,6 +412,7 @@ export default function App() {
     effectiveDate: string;
     referenceDoc?: string;
     notes?: string;
+    autoUpdateMonthSales?: boolean;
   }) => {
     const targetProduct = products.find((p) => p.id === priceData.productId);
     if (!targetProduct) return;
@@ -356,6 +420,7 @@ export default function App() {
     const oldPrice = targetProduct.currentPrice;
     const oldBuyPrice = targetProduct.buyPrice;
     const newMargin = priceData.newPrice - priceData.newBuyPrice;
+    const targetMonth = priceData.effectiveDate.substring(0, 7);
 
     // 1. Update Product
     const updatedProducts = products.map((p) => {
@@ -370,23 +435,68 @@ export default function App() {
       return p;
     });
     setProducts(updatedProducts);
+    StorageService.setProducts(updatedProducts);
 
-    // 2. Add to Price History
+    // 2. Add / Update Price History
+    const existingHistIdx = priceHistory.findIndex(
+      (h) => h.productId === priceData.productId && h.effectiveDate.startsWith(targetMonth)
+    );
+
     const newHistoryEntry: PriceHistory = {
-      id: `price-hist-${Date.now()}`,
+      id: existingHistIdx >= 0 ? priceHistory[existingHistIdx].id : `price-hist-${Date.now()}`,
       productId: priceData.productId,
       effectiveDate: priceData.effectiveDate,
-      oldPrice,
+      oldPrice: existingHistIdx >= 0 ? priceHistory[existingHistIdx].oldPrice : oldPrice,
       newPrice: priceData.newPrice,
-      oldBuyPrice,
+      oldBuyPrice: existingHistIdx >= 0 ? priceHistory[existingHistIdx].oldBuyPrice : oldBuyPrice,
       newBuyPrice: priceData.newBuyPrice,
       marginPerLiter: newMargin,
       referenceDoc: priceData.referenceDoc,
-      notes: priceData.notes,
+      notes: priceData.notes || `Penyesuaian tarif ${formatMonthYearId(targetMonth)}`,
       updatedBy: 'Admin Pertashop',
       updatedAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
     };
-    setPriceHistory([newHistoryEntry, ...priceHistory]);
+
+    let updatedHistory: PriceHistory[];
+    if (existingHistIdx >= 0) {
+      updatedHistory = priceHistory.map((h, idx) => (idx === existingHistIdx ? newHistoryEntry : h));
+    } else {
+      updatedHistory = [newHistoryEntry, ...priceHistory];
+    }
+    setPriceHistory(updatedHistory);
+    StorageService.setPriceHistory(updatedHistory);
+
+    // 3. Otomatis sinkronisasi seluruh penjualan & DO pada bulan tersebut jika diaktifkan
+    if (priceData.autoUpdateMonthSales !== false) {
+      // Update penjualan pada bulan tersebut
+      const updatedSales = sales.map((sale) => {
+        if (sale.productId === priceData.productId && sale.transactionDate.startsWith(targetMonth)) {
+          return recalculateSaleWithPrice(sale, priceData.newPrice, priceData.newBuyPrice);
+        }
+        return sale;
+      });
+      setSales(updatedSales);
+      StorageService.setSales(updatedSales);
+
+      // Sinkronisasi data absensi & penggajian jika ada perubahan
+      const syncResult = syncSalesToAttendance(updatedSales, attendance, employees, targetMonth);
+      setAttendance(syncResult.updatedAttendance);
+      StorageService.setAttendance(syncResult.updatedAttendance);
+
+      const updatedPayrolls = recalculateMonthlyPayrolls(syncResult.updatedAttendance, employees, payrolls, targetMonth);
+      setPayrolls(updatedPayrolls);
+      StorageService.setPayrolls(updatedPayrolls);
+
+      // Update DO BBM (pembelian) pada bulan tersebut
+      const updatedPurchases = purchases.map((po) => {
+        if (po.productId === priceData.productId && po.orderDate.startsWith(targetMonth)) {
+          return recalculatePurchaseWithPrice(po, priceData.newBuyPrice);
+        }
+        return po;
+      });
+      setPurchases(updatedPurchases);
+      StorageService.setPurchases(updatedPurchases);
+    }
   };
 
   const handleEditOrder = (order: PurchaseOrder) => {
@@ -396,6 +506,9 @@ export default function App() {
   };
 
   const handleSavePurchaseOrder = (poData: Omit<PurchaseOrder, 'id' | 'createdAt'>) => {
+    setLastPurchaseOrderDate(poData.orderDate);
+    StorageService.setLastPoDate(poData.orderDate);
+
     if (editingOrder) {
       const updated = purchases.map((p) =>
         p.id === editingOrder.id
@@ -1021,6 +1134,10 @@ export default function App() {
           setEditingSale(null);
         }}
         products={products}
+        priceHistory={priceHistory}
+        sales={sales}
+        employees={employees}
+        lastInputtedDate={lastSalesInputDate}
         currentPrice={primaryProduct.currentPrice}
         currentBuyPrice={primaryProduct.buyPrice}
         currentStockLiters={tank.currentStockLiters}
@@ -1035,6 +1152,8 @@ export default function App() {
         onClose={() => setIsPriceModalOpen(false)}
         products={products}
         priceHistory={priceHistory}
+        sales={sales}
+        purchases={purchases}
         onUpdateProductPrice={handleUpdateProductPrice}
       />
 
@@ -1045,6 +1164,10 @@ export default function App() {
           setEditingOrder(null);
         }}
         products={products}
+        priceHistory={priceHistory}
+        sales={sales}
+        purchases={purchases}
+        lastInputtedOrderDate={lastPurchaseOrderDate}
         tank={tank}
         defaultKL={selectedOrderKL}
         tbbmDepot={profile.tbbmDepot}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Gauge, Check, AlertCircle, Droplet, History, Pencil, Trash2 } from 'lucide-react';
 import { TankConfig, SoundingRecord } from '../types';
-import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString } from '../utils/formatters';
+import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString, addDays } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 
 interface SoundingLogModalProps {
@@ -173,9 +173,37 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
         {activeTab === 'form' ? (
           <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
             {/* Tanggal, Jam, Operator */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Tanggal</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-600">Tanggal</label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setDate(addDays(date, -1))}
+                      className="text-[9px] px-1 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
+                      title="Mundur 1 hari"
+                    >
+                      -1H
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDate(addDays(date, 1))}
+                      className="text-[9px] px-1 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
+                      title="Maju 1 hari"
+                    >
+                      +1H
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDate(getTodayDateString())}
+                      className="text-[9px] px-1 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
+                      title="Hari Ini"
+                    >
+                      Kini
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="date"
                   required

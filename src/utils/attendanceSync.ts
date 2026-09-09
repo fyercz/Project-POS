@@ -147,23 +147,33 @@ export function recalculateMonthlyPayrolls(
     const totalSakit = empMonthAtt.filter((a) => a.status === 'SAKIT').length;
     const totalAlpa = empMonthAtt.filter((a) => a.status === 'ALPA').length;
 
-    const basicSalary = totalHadir * emp.dailyRate;
-    const overtimePay = totalLemburShifts * emp.overtimeRate;
-    const mealAllowance = totalHadir * (emp.mealAllowanceDaily || 0);
-
     const existingIndex = updatedPayrolls.findIndex(
       (p) => p.month === targetMonth && p.employeeId === emp.id
     );
 
     const existingSlip = existingIndex >= 0 ? updatedPayrolls[existingIndex] : null;
 
+    // Hitung gaji pokok & lembur (pertahankan nominal manual jika jumlah hari/shift sama)
+    const basicSalary =
+      existingSlip && existingSlip.totalHadir === totalHadir
+        ? existingSlip.basicSalary
+        : totalHadir * emp.dailyRate;
+
+    const overtimePay =
+      existingSlip && existingSlip.totalLemburShifts === totalLemburShifts
+        ? existingSlip.overtimePay
+        : totalLemburShifts * emp.overtimeRate;
+
+    const mealAllowance = 0; // Fitur uang makan dihapus sesuai instruksi
+    const bonusAllowance = existingSlip?.bonusAllowance || 0;
+
     const totalDeductions =
       (existingSlip?.kasbonDeduction || 0) +
       (existingSlip?.penaltyDeduction || 0) +
       (existingSlip?.otherDeductions || 0);
 
-    const grossSalary = basicSalary + overtimePay + mealAllowance;
-    const netSalary = grossSalary - totalDeductions;
+    const grossSalary = basicSalary + overtimePay + bonusAllowance;
+    const netSalary = Math.max(0, grossSalary - totalDeductions);
 
     const payrollItem: PayrollRecord = {
       id: existingSlip ? existingSlip.id : `pay-${targetMonth}-${emp.id}`,
@@ -186,6 +196,7 @@ export function recalculateMonthlyPayrolls(
       overtimeRate: emp.overtimeRate,
       overtimePay,
       mealAllowance,
+      bonusAllowance,
       kasbonDeduction: existingSlip?.kasbonDeduction || 0,
       penaltyDeduction: existingSlip?.penaltyDeduction || 0,
       otherDeductions: existingSlip?.otherDeductions || 0,

@@ -16,6 +16,8 @@ import {
   Clock,
   ArrowDownRight,
   Sparkles,
+  Wifi,
+  Landmark,
 } from 'lucide-react';
 import { Product, SaleRecord, TankConfig, ExpenseRecord, EXPENSE_RATES } from '../types';
 import { formatRupiah, formatNumber, formatLiter, formatShortDate } from '../utils/formatters';
@@ -97,11 +99,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     .filter((e) => e.category === 'MAINTENANCE_ALAT')
     .reduce((acc, e) => acc + e.amount, 0);
 
+  const totalInternet = expenses
+    .filter((e) => e.category === 'INTERNET_WIFI')
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const totalDividen = expenses
+    .filter((e) => e.category === 'DIVIDEN_OWNER')
+    .reduce((acc, e) => acc + e.amount, 0);
+
   const totalLainnya = expenses
     .filter((e) => e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const totalExpenses = totalGaji + totalLembur + totalLosses + totalListrik + totalPdam + totalMaintenance + totalLainnya;
+  const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
   const netProfit = totalGrossProfit - totalExpenses;
   const netProfitMarginRatio = totalGrossProfit > 0 ? (netProfit / totalGrossProfit) * 100 : 0;
 
@@ -192,88 +202,116 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 pt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 pt-5">
           {/* Gaji */}
-          <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/60">
-            <div className="flex items-center gap-1.5 text-blue-800 font-bold text-xs">
-              <UserCheck className="w-4 h-4 text-blue-600" />
-              Gaji Operator
+          <div className="p-3 rounded-xl border border-blue-200 bg-blue-50/60">
+            <div className="flex items-center gap-1 text-blue-800 font-bold text-xs">
+              <UserCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="truncate">Gaji Operator</span>
             </div>
-            <div className="text-base sm:text-lg font-black font-mono text-blue-950 mt-1.5">
+            <div className="text-sm sm:text-base font-black font-mono text-blue-950 mt-1.5 truncate">
               {formatRupiah(totalGaji)}
             </div>
-            <span className="text-[10px] text-blue-700 mt-0.5 block font-medium">
-              Rate Rp 40.000/hari
+            <span className="text-[10px] text-blue-700 mt-0.5 block font-medium truncate">
+              Rp 40k/hari
             </span>
           </div>
 
           {/* Lemburan */}
-          <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/60">
-            <div className="flex items-center gap-1.5 text-amber-800 font-bold text-xs">
-              <Clock className="w-4 h-4 text-amber-600" />
-              Lemburan Shift
+          <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/60">
+            <div className="flex items-center gap-1 text-amber-800 font-bold text-xs">
+              <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="truncate">Lemburan</span>
             </div>
-            <div className="text-base sm:text-lg font-black font-mono text-amber-950 mt-1.5">
+            <div className="text-sm sm:text-base font-black font-mono text-amber-950 mt-1.5 truncate">
               {formatRupiah(totalLembur)}
             </div>
-            <span className="text-[10px] text-amber-700 mt-0.5 block font-medium">
-              Rate Rp 30.000/shift
+            <span className="text-[10px] text-amber-700 mt-0.5 block font-medium truncate">
+              Rp 30k/shift
             </span>
           </div>
 
           {/* Losses Minyak */}
-          <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/60">
-            <div className="flex items-center gap-1.5 text-rose-800 font-bold text-xs">
-              <Fuel className="w-4 h-4 text-rose-600" />
-              Losses Minyak
+          <div className="p-3 rounded-xl border border-rose-200 bg-rose-50/60">
+            <div className="flex items-center gap-1 text-rose-800 font-bold text-xs">
+              <Fuel className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span className="truncate">Losses Minyak</span>
             </div>
-            <div className="text-base sm:text-lg font-black font-mono text-rose-950 mt-1.5">
+            <div className="text-sm sm:text-base font-black font-mono text-rose-950 mt-1.5 truncate">
               {formatRupiah(totalLosses)}
             </div>
-            <span className="text-[10px] text-rose-700 mt-0.5 block font-medium">
-              {formatNumber(totalLossesLiters, 1)} L Selisih Sounding
+            <span className="text-[10px] text-rose-700 mt-0.5 block font-medium truncate">
+              {formatNumber(totalLossesLiters, 1)} L Susut
             </span>
           </div>
 
           {/* Listrik */}
-          <div className="p-3.5 rounded-xl border border-yellow-200 bg-yellow-50/60">
-            <div className="flex items-center gap-1.5 text-yellow-900 font-bold text-xs">
-              <Zap className="w-4 h-4 text-yellow-600" />
-              Token Listrik
+          <div className="p-3 rounded-xl border border-yellow-200 bg-yellow-50/60">
+            <div className="flex items-center gap-1 text-yellow-900 font-bold text-xs">
+              <Zap className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+              <span className="truncate">Token Listrik</span>
             </div>
-            <div className="text-base sm:text-lg font-black font-mono text-yellow-950 mt-1.5">
+            <div className="text-sm sm:text-base font-black font-mono text-yellow-950 mt-1.5 truncate">
               {formatRupiah(totalListrik)}
             </div>
-            <span className="text-[10px] text-yellow-800 mt-0.5 block font-medium">
+            <span className="text-[10px] text-yellow-800 mt-0.5 block font-medium truncate">
               PLN Prabayar
             </span>
           </div>
 
           {/* PDAM */}
-          <div className="p-3.5 rounded-xl border border-cyan-200 bg-cyan-50/60">
-            <div className="flex items-center gap-1.5 text-cyan-900 font-bold text-xs">
-              <Droplets className="w-4 h-4 text-cyan-600" />
-              PDAM Air
+          <div className="p-3 rounded-xl border border-cyan-200 bg-cyan-50/60">
+            <div className="flex items-center gap-1 text-cyan-900 font-bold text-xs">
+              <Droplets className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+              <span className="truncate">PDAM Air</span>
             </div>
-            <div className="text-base sm:text-lg font-black font-mono text-cyan-950 mt-1.5">
+            <div className="text-sm sm:text-base font-black font-mono text-cyan-950 mt-1.5 truncate">
               {formatRupiah(totalPdam)}
             </div>
-            <span className="text-[10px] text-cyan-800 mt-0.5 block font-medium">
+            <span className="text-[10px] text-cyan-800 mt-0.5 block font-medium truncate">
               Air Bersih
             </span>
           </div>
 
           {/* Maintenance */}
-          <div className="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/60">
-            <div className="flex items-center gap-1.5 text-indigo-900 font-bold text-xs">
-              <Wrench className="w-4 h-4 text-indigo-600" />
-              Maintenance Alat
+          <div className="p-3 rounded-xl border border-indigo-200 bg-indigo-50/60">
+            <div className="flex items-center gap-1 text-indigo-900 font-bold text-xs">
+              <Wrench className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="truncate">Maintenance</span>
             </div>
-            <div className="text-base sm:text-lg font-black font-mono text-indigo-950 mt-1.5">
+            <div className="text-sm sm:text-base font-black font-mono text-indigo-950 mt-1.5 truncate">
               {formatRupiah(totalMaintenance + totalLainnya)}
             </div>
-            <span className="text-[10px] text-indigo-800 mt-0.5 block font-medium">
-              Dispenser & Servis
+            <span className="text-[10px] text-indigo-800 mt-0.5 block font-medium truncate">
+              Dispenser & Alat
+            </span>
+          </div>
+
+          {/* Internet & WiFi */}
+          <div className="p-3 rounded-xl border border-violet-200 bg-violet-50/60">
+            <div className="flex items-center gap-1 text-violet-900 font-bold text-xs">
+              <Wifi className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+              <span className="truncate">Internet & WiFi</span>
+            </div>
+            <div className="text-sm sm:text-base font-black font-mono text-violet-950 mt-1.5 truncate">
+              {formatRupiah(totalInternet)}
+            </div>
+            <span className="text-[10px] text-violet-800 mt-0.5 block font-medium truncate">
+              EDC & CCTV
+            </span>
+          </div>
+
+          {/* Dividen Owner */}
+          <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60">
+            <div className="flex items-center gap-1 text-emerald-900 font-bold text-xs">
+              <Landmark className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="truncate">Dividen Owner</span>
+            </div>
+            <div className="text-sm sm:text-base font-black font-mono text-emerald-950 mt-1.5 truncate">
+              {formatRupiah(totalDividen)}
+            </div>
+            <span className="text-[10px] text-emerald-800 mt-0.5 block font-medium truncate">
+              Bagi Hasil
             </span>
           </div>
         </div>

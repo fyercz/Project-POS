@@ -37,6 +37,8 @@ const KEYS = {
   EMPLOYEES: 'pertashop_employees_v5_fresh',
   ATTENDANCE: 'pertashop_attendance_v5_fresh',
   PAYROLLS: 'pertashop_payrolls_v5_fresh',
+  LAST_SALES_DATE: 'pertashop_last_sales_date_v5',
+  LAST_PO_DATE: 'pertashop_last_po_date_v5',
 };
 
 // Automatic cleanup of legacy mock/test datasets in user's browser
@@ -117,6 +119,12 @@ export const StorageService = {
 
   getPayrolls: (): PayrollRecord[] => getStorageItem(KEYS.PAYROLLS, INITIAL_PAYROLLS),
   setPayrolls: (payrolls: PayrollRecord[]) => setStorageItem(KEYS.PAYROLLS, payrolls),
+
+  getLastSalesDate: (): string | null => getStorageItem(KEYS.LAST_SALES_DATE, null),
+  setLastSalesDate: (date: string) => setStorageItem(KEYS.LAST_SALES_DATE, date),
+
+  getLastPoDate: (): string | null => getStorageItem(KEYS.LAST_PO_DATE, null),
+  setLastPoDate: (date: string) => setStorageItem(KEYS.LAST_PO_DATE, date),
 
   resetToDefault: () => {
     Object.values(KEYS).forEach((k) => {

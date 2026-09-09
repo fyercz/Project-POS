@@ -19,6 +19,8 @@ import {
   Download,
   AlertCircle,
   Sparkles,
+  Wifi,
+  Landmark,
 } from 'lucide-react';
 import { ExpenseRecord, ExpenseCategoryType, EXPENSE_RATES } from '../types';
 import { formatRupiah, formatShortDate, formatNumber, getTodayDateString } from '../utils/formatters';
@@ -81,6 +83,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const totalLossesLiters = expenses
     .filter((e) => e.category === 'LOSSES_MINYAK')
     .reduce((acc, e) => acc + (e.fuelLossLiters || 0), 0);
+
+  const totalInternet = expenses
+    .filter((e) => e.category === 'INTERNET_WIFI')
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const totalDividen = expenses
+    .filter((e) => e.category === 'DIVIDEN_OWNER')
+    .reduce((acc, e) => acc + e.amount, 0);
 
   const totalLainnya = expenses
     .filter((e) => e.category === 'LAINNYA')
@@ -157,6 +167,20 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             Maintenance
           </span>
         );
+      case 'INTERNET_WIFI':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-violet-100 text-violet-800 border border-violet-200">
+            <Wifi className="w-3.5 h-3.5 text-violet-600" />
+            Internet & WiFi
+          </span>
+        );
+      case 'DIVIDEN_OWNER':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <Landmark className="w-3.5 h-3.5 text-emerald-600" />
+            Dividen Owner
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
@@ -199,121 +223,165 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* 1. Summary Cards for Operational Expenses */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3.5">
         {/* Card 1: Gaji & Lemburan */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                Gaji & Lembur Operator
+                Gaji & Lembur
               </span>
-              <div className="mt-2">
-                <span className="text-lg sm:text-xl font-extrabold text-blue-900 font-mono tracking-tight">
+              <div className="mt-1.5">
+                <span className="text-base sm:text-lg font-extrabold text-blue-900 font-mono tracking-tight">
                   {formatRupiah(totalGaji + totalLembur)}
                 </span>
               </div>
             </div>
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+            <div className="p-1.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
               <UserCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+          <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-mono">
             <span>Gaji: {formatRupiah(totalGaji)}</span>
             <span>Lembur: {formatRupiah(totalLembur)}</span>
           </div>
         </div>
 
         {/* Card 2: Losses Minyak / Susut */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-rose-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-rose-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest block">
-                Losses Minyak (Susut)
+                Losses Minyak
               </span>
-              <div className="mt-2">
-                <span className="text-lg sm:text-xl font-extrabold text-rose-700 font-mono tracking-tight">
+              <div className="mt-1.5">
+                <span className="text-base sm:text-lg font-extrabold text-rose-700 font-mono tracking-tight">
                   {formatRupiah(totalLossesMinyak)}
                 </span>
               </div>
             </div>
-            <div className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+            <div className="p-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
               <Fuel className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-rose-100 flex items-center justify-between text-[10px] text-rose-600">
-            <span>Volume Susut Fisik:</span>
+          <div className="mt-2.5 pt-2.5 border-t border-rose-100 flex items-center justify-between text-[10px] text-rose-600">
+            <span>Susut Fisik:</span>
             <span className="font-bold font-mono">{formatNumber(totalLossesLiters, 1)} L</span>
           </div>
         </div>
 
         {/* Card 3: Token Listrik PLN */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                Token Listrik PLN
+                Listrik PLN
               </span>
-              <div className="mt-2">
-                <span className="text-lg sm:text-xl font-extrabold text-yellow-700 font-mono tracking-tight">
+              <div className="mt-1.5">
+                <span className="text-base sm:text-lg font-extrabold text-yellow-700 font-mono tracking-tight">
                   {formatRupiah(totalListrik)}
                 </span>
               </div>
             </div>
-            <div className="p-2 rounded-xl bg-yellow-50 text-yellow-600 border border-yellow-200">
+            <div className="p-1.5 rounded-xl bg-yellow-50 text-yellow-600 border border-yellow-200">
               <Zap className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Daya Pompa & Canopy</span>
-            <span className="font-semibold text-yellow-800">PLN Prabayar</span>
+          <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+            <span>Daya Pompa</span>
+            <span className="font-semibold text-yellow-800">Prabayar</span>
           </div>
         </div>
 
         {/* Card 4: PDAM Air */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                Tagihan PDAM Air
+                PDAM Air
               </span>
-              <div className="mt-2">
-                <span className="text-lg sm:text-xl font-extrabold text-cyan-800 font-mono tracking-tight">
+              <div className="mt-1.5">
+                <span className="text-base sm:text-lg font-extrabold text-cyan-800 font-mono tracking-tight">
                   {formatRupiah(totalPdam)}
                 </span>
               </div>
             </div>
-            <div className="p-2 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100">
+            <div className="p-1.5 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100">
               <Droplets className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Fasilitas Air Bersih</span>
-            <span className="font-semibold text-cyan-800">Tirta Lawu</span>
+          <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+            <span>Air Bersih</span>
+            <span className="font-semibold text-cyan-800">Operasional</span>
           </div>
         </div>
 
-        {/* Card 5: Maintenance Alat */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col justify-between">
+        {/* Card 5: Internet & WiFi */}
+        <div className="bg-white rounded-2xl p-4 border border-violet-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-violet-600 uppercase tracking-widest block">
+                Internet & WiFi
+              </span>
+              <div className="mt-1.5">
+                <span className="text-base sm:text-lg font-extrabold text-violet-900 font-mono tracking-tight">
+                  {formatRupiah(totalInternet)}
+                </span>
+              </div>
+            </div>
+            <div className="p-1.5 rounded-xl bg-violet-50 text-violet-600 border border-violet-100">
+              <Wifi className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 pt-2.5 border-t border-violet-100 flex items-center justify-between text-[10px] text-slate-500">
+            <span>EDC & CCTV</span>
+            <span className="font-semibold text-violet-800">Bulanan</span>
+          </div>
+        </div>
+
+        {/* Card 6: Maintenance Alat */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                Maintenance Peralatan
+                Maintenance
               </span>
-              <div className="mt-2">
-                <span className="text-lg sm:text-xl font-extrabold text-indigo-900 font-mono tracking-tight">
+              <div className="mt-1.5">
+                <span className="text-base sm:text-lg font-extrabold text-indigo-900 font-mono tracking-tight">
                   {formatRupiah(totalMaintenance)}
                 </span>
               </div>
             </div>
-            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+            <div className="p-1.5 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
               <Wrench className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Dispenser & Nozzle</span>
-            <span className="font-semibold text-indigo-800 font-mono">
-              Total {formatRupiah(totalAllExpenses)}
-            </span>
+          <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+            <span>Dispenser</span>
+            <span className="font-semibold text-indigo-800">Servis Alat</span>
+          </div>
+        </div>
+
+        {/* Card 7: Dividen Owner */}
+        <div className="bg-white rounded-2xl p-4 border border-emerald-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest block">
+                Dividen Owner
+              </span>
+              <div className="mt-1.5">
+                <span className="text-base sm:text-lg font-extrabold text-emerald-900 font-mono tracking-tight">
+                  {formatRupiah(totalDividen)}
+                </span>
+              </div>
+            </div>
+            <div className="p-1.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+              <Landmark className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 pt-2.5 border-t border-emerald-100 flex items-center justify-between text-[10px] text-emerald-700">
+            <span>Prive Pemilik</span>
+            <span className="font-semibold text-emerald-800">Bagi Hasil</span>
           </div>
         </div>
       </div>
@@ -378,6 +446,22 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             <Wrench className="w-3.5 h-3.5" />
             + Maintenance
           </button>
+
+          <button
+            onClick={() => onOpenAddExpense('INTERNET_WIFI')}
+            className="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+          >
+            <Wifi className="w-3.5 h-3.5" />
+            + Internet (WiFi)
+          </button>
+
+          <button
+            onClick={() => onOpenAddExpense('DIVIDEN_OWNER')}
+            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+          >
+            <Landmark className="w-3.5 h-3.5" />
+            + Dividen Owner
+          </button>
         </div>
       </div>
 
@@ -440,6 +524,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <option value="TOKEN_LISTRIK">Token Listrik PLN</option>
               <option value="PDAM">Tagihan PDAM Air</option>
               <option value="MAINTENANCE_ALAT">Maintenance & Servis</option>
+              <option value="INTERNET_WIFI">Internet & WiFi Pertashop</option>
+              <option value="DIVIDEN_OWNER">Dividen / Prive Owner</option>
               <option value="LAINNYA">Lain-lain / ATK</option>
             </select>
 

@@ -121,7 +121,6 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   // Editing items
   const [editingAttendance, setEditingAttendance] = useState<AttendanceRecord | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [editingPayroll, setEditingPayroll] = useState<PayrollRecord | null>(null);
 
   // Form states for attendance
   const [attEmployeeId, setAttEmployeeId] = useState<string>(employees[0]?.id || '');
@@ -142,9 +141,22 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   const [empBankAcc, setEmpBankAcc] = useState<string>('');
   const [empDailyRate, setEmpDailyRate] = useState<number>(40000);
   const [empOvertimeRate, setEmpOvertimeRate] = useState<number>(30000);
-  const [empMealAllowance, setEmpMealAllowance] = useState<number>(10000);
   const [empJoinDate, setEmpJoinDate] = useState<string>(getTodayDateString());
   const [empNotes, setEmpNotes] = useState<string>('');
+
+  // Modal Edit Nominal Gaji states
+  const [editingPayroll, setEditingPayroll] = useState<PayrollRecord | null>(null);
+  const [editBasicSalary, setEditBasicSalary] = useState<number>(0);
+  const [editOvertimePay, setEditOvertimePay] = useState<number>(0);
+  const [editBonusAllowance, setEditBonusAllowance] = useState<number>(0);
+  const [editKasbonDeduction, setEditKasbonDeduction] = useState<number>(0);
+  const [editPenaltyDeduction, setEditPenaltyDeduction] = useState<number>(0);
+  const [editOtherDeductions, setEditOtherDeductions] = useState<number>(0);
+  const [editTotalHadir, setEditTotalHadir] = useState<number>(0);
+  const [editTotalLemburShifts, setEditTotalLemburShifts] = useState<number>(0);
+  const [editDailyRate, setEditDailyRate] = useState<number>(40000);
+  const [editOvertimeRate, setEditOvertimeRate] = useState<number>(30000);
+  const [editNotes, setEditNotes] = useState<string>('');
 
   // Filtered data for selected month
   const monthAttendance = attendance.filter((a) => a.date.startsWith(selectedMonth));
@@ -235,19 +247,29 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
       const totalSakit = empAtt.filter((a) => a.status === 'SAKIT').length;
       const totalAlpa = empAtt.filter((a) => a.status === 'ALPA').length;
 
-      const basicSalary = totalHadir * emp.dailyRate;
-      const overtimePay = totalLemburShifts * emp.overtimeRate;
-      const mealAllowance = totalHadir * (emp.mealAllowanceDaily || 0);
-
-      const grossSalary = basicSalary + overtimePay + mealAllowance;
       const existingSlip = payrolls.find((p) => p.month === selectedMonth && p.employeeId === emp.id);
+
+      // Pertahankan nominal manual jika jumlah hari hadir/shift sama
+      const basicSalary =
+        existingSlip && existingSlip.totalHadir === totalHadir
+          ? existingSlip.basicSalary
+          : totalHadir * emp.dailyRate;
+
+      const overtimePay =
+        existingSlip && existingSlip.totalLemburShifts === totalLemburShifts
+          ? existingSlip.overtimePay
+          : totalLemburShifts * emp.overtimeRate;
+
+      const mealAllowance = 0; // Uang makan dihapus
+      const bonusAllowance = existingSlip?.bonusAllowance || 0;
 
       const totalDeductions =
         (existingSlip?.kasbonDeduction || 0) +
         (existingSlip?.penaltyDeduction || 0) +
         (existingSlip?.otherDeductions || 0);
 
-      const netSalary = grossSalary - totalDeductions;
+      const grossSalary = basicSalary + overtimePay + bonusAllowance;
+      const netSalary = Math.max(0, grossSalary - totalDeductions);
 
       const payrollItem: PayrollRecord = {
         id: existingSlip ? existingSlip.id : `pay-${selectedMonth}-${emp.id}`,
@@ -270,6 +292,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
         overtimeRate: emp.overtimeRate,
         overtimePay,
         mealAllowance,
+        bonusAllowance,
         kasbonDeduction: existingSlip?.kasbonDeduction || 0,
         penaltyDeduction: existingSlip?.penaltyDeduction || 0,
         otherDeductions: existingSlip?.otherDeductions || 0,
@@ -289,6 +312,68 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
     setToastMessage({
       text: `Berhasil mengkalkulasi ulang slip gaji untuk ${newPayrolls.length} karyawan pada bulan ${formatMonthYear(selectedMonth)}!`,
+      type: 'success',
+    });
+  };
+
+  // Handlers for Edit Nominal Gaji
+  const handleOpenEditPayroll = (payroll: PayrollRecord) => {
+    setEditingPayroll(payroll);
+    setEditTotalHadir(payroll.totalHadir);
+    setEditTotalLemburShifts(payroll.totalLemburShifts);
+    setEditDailyRate(payroll.dailyRate || 40000);
+    setEditOvertimeRate(payroll.overtimeRate || 30000);
+    setEditBasicSalary(payroll.basicSalary);
+    setEditOvertimePay(payroll.overtimePay);
+    setEditBonusAllowance(payroll.bonusAllowance || 0);
+    setEditKasbonDeduction(payroll.kasbonDeduction || 0);
+    setEditPenaltyDeduction(payroll.penaltyDeduction || 0);
+    setEditOtherDeductions(payroll.otherDeductions || 0);
+    setEditNotes(payroll.notes || '');
+  };
+
+  const handleResetToFormula = () => {
+    if (!editingPayroll) return;
+    setEditBasicSalary(editTotalHadir * editDailyRate);
+    setEditOvertimePay(editTotalLemburShifts * editOvertimeRate);
+    setEditBonusAllowance(0);
+    setToastMessage({
+      text: `Nominal dihitung ulang berdasarkan tarif master (Hadir × Rp ${editDailyRate.toLocaleString()} + Lembur × Rp ${editOvertimeRate.toLocaleString()})`,
+      type: 'info',
+    });
+  };
+
+  const handleSaveEditPayrollSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPayroll) return;
+
+    const grossSalary = editBasicSalary + editOvertimePay + editBonusAllowance;
+    const totalDeductions = editKasbonDeduction + editPenaltyDeduction + editOtherDeductions;
+    const netSalary = Math.max(0, grossSalary - totalDeductions);
+
+    const updated: PayrollRecord = {
+      ...editingPayroll,
+      totalHadir: editTotalHadir,
+      totalLemburShifts: editTotalLemburShifts,
+      dailyRate: editDailyRate,
+      overtimeRate: editOvertimeRate,
+      basicSalary: editBasicSalary,
+      overtimePay: editOvertimePay,
+      mealAllowance: 0,
+      bonusAllowance: editBonusAllowance,
+      kasbonDeduction: editKasbonDeduction,
+      penaltyDeduction: editPenaltyDeduction,
+      otherDeductions: editOtherDeductions,
+      grossSalary,
+      totalDeductions,
+      netSalary,
+      notes: editNotes.trim(),
+    };
+
+    onSavePayroll(updated);
+    setEditingPayroll(null);
+    setToastMessage({
+      text: `Nominal gaji ${updated.employeeName} berhasil diperbarui (Gaji Bersih: ${formatRupiah(netSalary)})`,
       type: 'success',
     });
   };
@@ -357,7 +442,6 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
     setEmpBankAcc('');
     setEmpDailyRate(40000);
     setEmpOvertimeRate(30000);
-    setEmpMealAllowance(10000);
     setEmpJoinDate(getTodayDateString());
     setEmpNotes('');
     setIsEmployeeModalOpen(true);
@@ -373,7 +457,6 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
     setEmpBankAcc(emp.bankAccountNumber || '');
     setEmpDailyRate(emp.dailyRate);
     setEmpOvertimeRate(emp.overtimeRate);
-    setEmpMealAllowance(emp.mealAllowanceDaily || 0);
     setEmpJoinDate(emp.joinDate);
     setEmpNotes(emp.notes || '');
     setIsEmployeeModalOpen(true);
@@ -393,7 +476,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
       bankAccountNumber: empBankAcc.trim(),
       dailyRate: empDailyRate,
       overtimeRate: empOvertimeRate,
-      mealAllowanceDaily: empMealAllowance,
+      mealAllowanceDaily: 0,
       isActive: true,
       joinDate: empJoinDate,
       notes: empNotes.trim(),
@@ -462,7 +545,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
       'Gaji Pokok Hadir (Rp)': p.basicSalary,
       'Shift Lembur': p.totalLemburShifts,
       'Upah Lembur (Rp)': p.overtimePay,
-      'Uang Makan/Kehadiran (Rp)': p.mealAllowance,
+      'Tunjangan/Bonus (Rp)': p.bonusAllowance || 0,
       'Gaji Kotor (Rp)': p.grossSalary,
       'Potongan Kasbon (Rp)': p.kasbonDeduction,
       'Total Potongan (Rp)': p.totalDeductions,
@@ -692,7 +775,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               </h3>
             </div>
             <p className="text-xs text-slate-500">
-              *Gaji dihitung otomatis: <span className="font-semibold text-slate-700">(Hadir × Rp 40.000) + (Lembur × Rp 30.000) + Uang Makan</span>
+              *Gaji otomatis: <span className="font-semibold text-slate-700">(Hadir × Rp 40.000) + (Lembur × Rp 30.000)</span> • Klik <strong className="text-amber-700 font-semibold">Edit Nominal</strong> untuk penyesuaian gaji fleksibel
             </p>
           </div>
 
@@ -705,7 +788,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   <th className="py-3 px-3 text-center">Lemburan</th>
                   <th className="py-3 px-3 text-right">Gaji Pokok</th>
                   <th className="py-3 px-3 text-right">Uang Lembur</th>
-                  <th className="py-3 px-3 text-right">Uang Makan</th>
+                  <th className="py-3 px-3 text-right">Bonus/Tunjangan</th>
                   <th className="py-3 px-3 text-right">Potongan</th>
                   <th className="py-3 px-4 text-right">Gaji Bersih (THP)</th>
                   <th className="py-3 px-3 text-center">Status</th>
@@ -766,8 +849,12 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                           {formatRupiah(p.overtimePay)}
                         </td>
 
-                        <td className="py-3.5 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
-                          +{formatRupiah(p.mealAllowance || 0)}
+                        <td className="py-3.5 px-3 text-right font-mono text-emerald-700 whitespace-nowrap">
+                          {p.bonusAllowance && p.bonusAllowance > 0 ? (
+                            `+${formatRupiah(p.bonusAllowance)}`
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
                         </td>
 
                         <td className="py-3.5 px-3 text-right font-mono text-rose-600 whitespace-nowrap">
@@ -801,6 +888,16 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditPayroll(p)}
+                              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                              title="Edit Nominal Rincian Gaji"
+                            >
+                              <Edit2 className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Edit Nominal</span>
+                            </button>
+
                             <button
                               type="button"
                               onClick={() => setSelectedSlipForPrint(p)}
@@ -1043,18 +1140,14 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-200/80 grid grid-cols-3 gap-2 text-xs">
+                <div className="mt-4 pt-3 border-t border-slate-200/80 grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Gaji Harian / Shift</span>
                     <span className="font-bold text-slate-800 font-mono">{formatRupiah(emp.dailyRate)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold">Tarif Lembur</span>
+                    <span className="text-[10px] text-slate-400 block font-semibold">Tarif Lembur per Shift</span>
                     <span className="font-bold text-indigo-700 font-mono">{formatRupiah(emp.overtimeRate)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold">Uang Makan / Hr</span>
-                    <span className="font-bold text-emerald-700 font-mono">{formatRupiah(emp.mealAllowanceDaily || 0)}</span>
                   </div>
                 </div>
 
@@ -1138,10 +1231,10 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                     <span className="font-mono font-semibold">+{formatRupiah(selectedSlipForPrint.overtimePay)}</span>
                   </div>
                 )}
-                {selectedSlipForPrint.mealAllowance > 0 && (
-                  <div className="flex justify-between text-slate-700">
-                    <span>Uang Makan / Kehadiran:</span>
-                    <span className="font-mono font-semibold">+{formatRupiah(selectedSlipForPrint.mealAllowance)}</span>
+                {Boolean(selectedSlipForPrint.bonusAllowance && selectedSlipForPrint.bonusAllowance > 0) && (
+                  <div className="flex justify-between text-emerald-700">
+                    <span>Bonus / Tunjangan Tambahan:</span>
+                    <span className="font-mono font-semibold">+{formatRupiah(selectedSlipForPrint.bonusAllowance || 0)}</span>
                   </div>
                 )}
               </div>
@@ -1527,9 +1620,9 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                 <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px] block">
                   Komponen Upah / Gaji:
                 </span>
-                <div className="grid grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-medium text-slate-600 mb-1 text-[11px]">Tarif Harian (Rp)</label>
+                    <label className="block font-medium text-slate-600 mb-1 text-[11px]">Tarif Gaji Harian (Rp)</label>
                     <input
                       type="number"
                       required
@@ -1541,7 +1634,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block font-medium text-slate-600 mb-1 text-[11px]">Lembur/Shift (Rp)</label>
+                    <label className="block font-medium text-slate-600 mb-1 text-[11px]">Tarif Lembur per Shift (Rp)</label>
                     <input
                       type="number"
                       required
@@ -1550,17 +1643,6 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                       value={empOvertimeRate}
                       onChange={(e) => setEmpOvertimeRate(parseFloat(e.target.value) || 0)}
                       className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-indigo-700"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-medium text-slate-600 mb-1 text-[11px]">Uang Makan/Hari</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={empMealAllowance}
-                      onChange={(e) => setEmpMealAllowance(parseFloat(e.target.value) || 0)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-emerald-700"
                     />
                   </div>
                 </div>
@@ -1666,9 +1748,22 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
                   <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                     <span className="text-slate-600 font-medium">Gaji Bersih / Take Home Pay:</span>
-                    <span className="text-base font-black font-mono text-emerald-700">
-                      {formatRupiah(payingPayrollModal.netSalary)}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-base font-black font-mono text-emerald-700 block">
+                        {formatRupiah(payingPayrollModal.netSalary)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = payingPayrollModal;
+                          setPayingPayrollModal(null);
+                          handleOpenEditPayroll(target);
+                        }}
+                        className="text-[11px] text-amber-700 hover:text-amber-800 font-semibold underline cursor-pointer"
+                      >
+                        Edit Rincian Nominal
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1776,6 +1871,268 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   >
                     <Check className="w-4 h-4" />
                     <span>Konfirmasi Bayar {formatRupiah(payingPayrollModal.netSalary)}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ===================== MODAL: EDIT NOMINAL GAJI ===================== */}
+      {(() => {
+        if (!editingPayroll) return null;
+
+        const calculatedGross = editBasicSalary + editOvertimePay + editBonusAllowance;
+        const calculatedDeductions = editKasbonDeduction + editPenaltyDeduction + editOtherDeductions;
+        const calculatedNet = Math.max(0, calculatedGross - calculatedDeductions);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-amber-50/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
+                    <Edit2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-base">
+                      Edit Rincian & Nominal Gaji
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      {editingPayroll.employeeName} • <span className="font-mono font-semibold text-amber-800">{editingPayroll.payrollNumber}</span> ({formatMonthYear(editingPayroll.month)})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingPayroll(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-white rounded-xl transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <form onSubmit={handleSaveEditPayrollSubmit} className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 text-xs">
+                {editingPayroll.paymentStatus === 'DIBAYAR' && (
+                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2 text-amber-900 text-xs">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold">Perhatian: Slip Gaji Ini Sudah Berstatus Lunas</strong>
+                      <span>Perubahan nominal di sini akan langsung memperbarui nilai rekap slip gaji dan laporan.</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Kehadiran & Rekap Dasar */}
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rekap Kehadiran Bulan Ini</span>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="font-bold text-slate-800 font-mono text-xs">
+                        {editTotalHadir} Hari Kerja
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="font-bold text-indigo-700 font-mono text-xs">
+                        {editTotalLemburShifts} Shift Lembur
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetToFormula}
+                    className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-[11px] font-semibold shadow-2xs flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+                    title="Hitung ulang otomatis berdasarkan tarif harian dan tarif lembur master"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Reset Hitungan Tarif</span>
+                  </button>
+                </div>
+
+                {/* Komponen Penghasilan */}
+                <div className="space-y-2.5">
+                  <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px] block">
+                    1. Komponen Pendapatan:
+                  </span>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        Gaji Pokok Kehadiran (Rp)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <input
+                          type="number"
+                          required
+                          min={0}
+                          step={1000}
+                          value={editBasicSalary}
+                          onChange={(e) => setEditBasicSalary(parseFloat(e.target.value) || 0)}
+                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                        Tarif: {editTotalHadir} hari × {formatRupiah(editDailyRate)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        Upah Lembur (Rp)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <input
+                          type="number"
+                          required
+                          min={0}
+                          step={1000}
+                          value={editOvertimePay}
+                          onChange={(e) => setEditOvertimePay(parseFloat(e.target.value) || 0)}
+                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-indigo-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                        Tarif: {editTotalLemburShifts} shift × {formatRupiah(editOvertimeRate)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Bonus / Insentif / Tunjangan Tambahan (Rp)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1000}
+                        value={editBonusAllowance}
+                        onChange={(e) => setEditBonusAllowance(parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Tambahan nominal di luar gaji pokok & lembur (misal: reward omset, insentif kehadiran)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Komponen Potongan */}
+                <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                  <span className="font-bold text-rose-800 uppercase tracking-wider text-[10px] block">
+                    2. Komponen Potongan:
+                  </span>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        Potongan Kasbon (Rp)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={editKasbonDeduction}
+                          onChange={(e) => setEditKasbonDeduction(parseFloat(e.target.value) || 0)}
+                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-rose-700 focus:ring-2 focus:ring-rose-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        Denda / Terlambat (Rp)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={editPenaltyDeduction}
+                          onChange={(e) => setEditPenaltyDeduction(parseFloat(e.target.value) || 0)}
+                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-rose-700 focus:ring-2 focus:ring-rose-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        Potongan Lain (Rp)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={editOtherDeductions}
+                          onChange={(e) => setEditOtherDeductions(parseFloat(e.target.value) || 0)}
+                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-rose-700 focus:ring-2 focus:ring-rose-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ringkasan Kalkulasi Live */}
+                <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 rounded-2xl shadow-lg space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-300 pb-1.5 border-b border-slate-700/60">
+                    <span>Total Pendapatan Kotor (Gross):</span>
+                    <span className="font-mono font-bold text-white">{formatRupiah(calculatedGross)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-rose-300 pb-1.5 border-b border-slate-700/60">
+                    <span>Total Potongan:</span>
+                    <span className="font-mono font-bold">-{formatRupiah(calculatedDeductions)}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <div>
+                      <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">Gaji Bersih Diterima (THP):</span>
+                      <span className="text-[10px] text-slate-400">Nominal yang akan dibayarkan ke karyawan</span>
+                    </div>
+                    <span className="text-xl font-black font-mono text-emerald-400">
+                      {formatRupiah(calculatedNet)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Catatan Slip */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Catatan / Keterangan Penyesuaian:
+                  </label>
+                  <input
+                    type="text"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Contoh: Penyesuaian shift lembur tanggal 15 & bonus operasional"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPayroll(null)}
+                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Simpan Perubahan Nominal</span>
                   </button>
                 </div>
               </form>
