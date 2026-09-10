@@ -10,6 +10,7 @@ import {
   Employee,
   AttendanceRecord,
   PayrollRecord,
+  PertashopBackupData,
 } from '../types';
 import {
   INITIAL_PERTASHOP_PROFILE,
@@ -132,5 +133,101 @@ export const StorageService = {
         localStorage.removeItem(k);
       } catch (e) {}
     });
+  },
+
+  createBackupData: (customProfile?: PertashopProfile): PertashopBackupData => {
+    const prof = customProfile || StorageService.getProfile();
+    const now = new Date();
+    const isoString = now.toISOString();
+    const dateFormatted = new Intl.DateTimeFormat('id-ID', {
+      dateStyle: 'full',
+      timeStyle: 'medium',
+    }).format(now);
+
+    return {
+      appName: 'Sistem Manajemen & Laporan Pertashop',
+      schemaVersion: 1,
+      backupDate: isoString,
+      backupDateFormatted: dateFormatted,
+      sourceCode: prof.pertashopCode || '4P.633.08',
+      sourcePertashopName: prof.pertashopName || 'Pertashop Pertamina',
+      profile: prof,
+      products: StorageService.getProducts(),
+      tank: StorageService.getTankConfig(),
+      priceHistory: StorageService.getPriceHistory(),
+      sales: StorageService.getSales(),
+      purchases: StorageService.getPurchases(),
+      soundings: StorageService.getSoundings(),
+      expenses: StorageService.getExpenses(),
+      employees: StorageService.getEmployees(),
+      attendance: StorageService.getAttendance(),
+      payrolls: StorageService.getPayrolls(),
+      lastSalesDate: StorageService.getLastSalesDate(),
+      lastPoDate: StorageService.getLastPoDate(),
+    };
+  },
+
+  downloadBackupJSON: (customProfile?: PertashopProfile): void => {
+    const backup = StorageService.createBackupData(customProfile);
+    const jsonStr = JSON.stringify(backup, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeCode = (backup.sourceCode || 'pertashop').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `backup_pertashop_${safeCode}_${dateStamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  validateAndParseBackup: (jsonString: string): PertashopBackupData => {
+    const parsed = JSON.parse(jsonString);
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('Format file tidak valid (bukan objek JSON).');
+    }
+    // Basic verification of required arrays/objects
+    if (!parsed.profile || !Array.isArray(parsed.products) || !parsed.tank) {
+      throw new Error('Struktur file backup tidak sesuai (field profil/produk/tangki tidak ditemukan).');
+    }
+    return {
+      appName: parsed.appName || 'Sistem Manajemen & Laporan Pertashop',
+      schemaVersion: parsed.schemaVersion || 1,
+      backupDate: parsed.backupDate || new Date().toISOString(),
+      backupDateFormatted: parsed.backupDateFormatted || '',
+      sourceCode: parsed.sourceCode || parsed.profile?.pertashopCode || '',
+      sourcePertashopName: parsed.sourcePertashopName || parsed.profile?.pertashopName || '',
+      profile: parsed.profile,
+      products: parsed.products,
+      tank: parsed.tank,
+      priceHistory: Array.isArray(parsed.priceHistory) ? parsed.priceHistory : [],
+      sales: Array.isArray(parsed.sales) ? parsed.sales : [],
+      purchases: Array.isArray(parsed.purchases) ? parsed.purchases : [],
+      soundings: Array.isArray(parsed.soundings) ? parsed.soundings : [],
+      expenses: Array.isArray(parsed.expenses) ? parsed.expenses : [],
+      employees: Array.isArray(parsed.employees) ? parsed.employees : [],
+      attendance: Array.isArray(parsed.attendance) ? parsed.attendance : [],
+      payrolls: Array.isArray(parsed.payrolls) ? parsed.payrolls : [],
+      lastSalesDate: parsed.lastSalesDate || null,
+      lastPoDate: parsed.lastPoDate || null,
+    };
+  },
+
+  restoreAllData: (backup: PertashopBackupData): void => {
+    StorageService.setProfile(backup.profile);
+    StorageService.setProducts(backup.products);
+    StorageService.setTankConfig(backup.tank);
+    StorageService.setPriceHistory(backup.priceHistory);
+    StorageService.setSales(backup.sales);
+    StorageService.setPurchases(backup.purchases);
+    StorageService.setSoundings(backup.soundings);
+    StorageService.setExpenses(backup.expenses);
+    StorageService.setEmployees(backup.employees);
+    StorageService.setAttendance(backup.attendance);
+    StorageService.setPayrolls(backup.payrolls);
+    if (backup.lastSalesDate) StorageService.setLastSalesDate(backup.lastSalesDate);
+    if (backup.lastPoDate) StorageService.setLastPoDate(backup.lastPoDate);
   },
 };

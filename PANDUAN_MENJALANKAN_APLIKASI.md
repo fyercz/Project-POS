@@ -72,5 +72,26 @@ Aplikasi ini dapat dibuka oleh manager atau pengawas melalui HP/Tablet yang terh
 
 ---
 
+## 💾 Cara Mengamankan & Memindahkan Data (Fitur Backup & Restore)
+
+### Mengapa data transaksi tidak otomatis terbawa saat "Export Code"?
+Fitur **Export Code (ZIP / GitHub)** hanya mengunduh *source code* program aplikasi. Seluruh data transaksi penjualan harian, pemesanan DO BBM, absensi operator, dan sounding tangki yang Anda input tersimpan secara aman di **Penyimpanan Lokal Browser (LocalStorage)** perangkat Anda demi kecepatan kerja tanpa perlu koneksi internet (offline-first).
+
+### Langkah Memindahkan Data Saat Export Code atau Ganti Komputer:
+1. **Pencadangan (Backup)**:
+   - Pada aplikasi, klik tombol **"Backup & Restore"** pada sidebar kiri (atau di Pengaturan Profil).
+   - Pada tab **"1. Backup / Unduh Data"**, klik tombol **"Unduh File Backup (.json)"**.
+   - File JSON (contoh: `backup_pertashop_4P.633.08_2026-09-10.json`) akan tersimpan di komputer Anda. Simpan file ini di flashdisk atau Google Drive.
+2. **Export & Jalankan Aplikasi di Komputer Kasir**:
+   - Download ZIP dari menu AI Studio & ekstrak di komputer kasir.
+   - Jalankan `run.bat` di komputer kasir.
+3. **Pemulihan (Restore)**:
+   - Di aplikasi baru, buka menu **"Backup & Restore"**.
+   - Pilih tab **"2. Restore / Muat Data"**.
+   - Pilih atau seret file JSON backup Anda, lalu klik **"Terapkan & Pulihkan Data Ini Sekarang"**.
+   - Seluruh data transaksi, histori DO, profil, dan rekap penggajian Anda langsung aktif kembali 100%!
+
+---
+
 ## 🛑 Menghentikan Aplikasi
 - Pada jendela hitam/terminal (Command Prompt atau Terminal), tekan tombol kombinasi keyboard **`Ctrl + C`**.

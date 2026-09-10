@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Building2, Check, Fuel, Trash2 } from 'lucide-react';
+import { X, Building2, Check, Fuel, Trash2, Database } from 'lucide-react';
 import { PertashopProfile, TankConfig } from '../types';
 
 interface PertashopProfileModalProps {
@@ -9,6 +9,7 @@ interface PertashopProfileModalProps {
   tank: TankConfig;
   onSaveProfile: (profile: PertashopProfile, tank: TankConfig) => void;
   onResetAllData?: () => void;
+  onOpenBackupModal?: () => void;
 }
 
 export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
@@ -18,6 +19,7 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
   tank,
   onSaveProfile,
   onResetAllData,
+  onOpenBackupModal,
 }) => {
   const [formData, setFormData] = useState<PertashopProfile>(profile);
   const [tankData, setTankData] = useState<TankConfig>(tank);
@@ -187,6 +189,34 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Backup & Restore Database Section */}
+          <div className="pt-3 border-t border-slate-200">
+            <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-600 text-white rounded-lg shrink-0">
+                  <Database className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-800 block text-xs">Pencadangan Database (.JSON)</span>
+                  <span className="text-[10px] text-slate-500 block">Amankan data sebelum Export Code atau pulihkan file backup</span>
+                </div>
+              </div>
+              {onOpenBackupModal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenBackupModal();
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Buka Backup & Restore</span>
+                </button>
+              )}
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Fuel, Truck, Gauge, TrendingUp, Settings, FileText, X, Receipt, CalendarDays, Users } from 'lucide-react';
+import { Fuel, Truck, Gauge, TrendingUp, Settings, FileText, X, Receipt, CalendarDays, Users, Database } from 'lucide-react';
 import { PertashopProfile, TankConfig } from '../types';
 
 interface SidebarProps {
@@ -11,6 +11,7 @@ interface SidebarProps {
   onCloseMobile: () => void;
   onOpenProfileModal: () => void;
   onOpenPrintReportModal: () => void;
+  onOpenBackupModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -22,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onOpenProfileModal,
   onOpenPrintReportModal,
+  onOpenBackupModal,
 }) => {
   const isCritical = tank.currentStockLiters <= tank.criticalThresholdLiters;
   const isWarning = tank.currentStockLiters <= tank.warningThresholdLiters;
@@ -199,6 +201,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-[10px] text-slate-400 block">Cetak Laporan Harian</span>
               </div>
             </button>
+
+            {onOpenBackupModal && (
+              <button
+                id="nav-backup-restore-btn"
+                type="button"
+                onClick={() => {
+                  onOpenBackupModal();
+                  onCloseMobile();
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40 border border-emerald-900/50 transition-all mt-1"
+                title="Backup & Restore Data JSON"
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <Database className="w-4 h-4 text-emerald-400" />
+                  <div>
+                    <span className="text-sm block font-bold text-emerald-300">Backup & Restore</span>
+                    <span className="text-[10px] text-emerald-500/90 block">Amankan Data / Export JSON</span>
+                  </div>
+                </div>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono font-bold">
+                  JSON
+                </span>
+              </button>
+            )}
           </nav>
         </div>
 

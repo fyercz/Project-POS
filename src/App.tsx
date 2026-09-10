@@ -21,6 +21,7 @@ import { ExpenseEntryModal } from './components/ExpenseEntryModal';
 import { ImportSalesModal } from './components/ImportSalesModal';
 import { AttendancePayrollView } from './components/AttendancePayrollView';
 import { ConfirmModal } from './components/ConfirmModal';
+import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { StorageService } from './utils/storage';
 import { syncSalesToAttendance, recalculateMonthlyPayrolls } from './utils/attendanceSync';
 import { recalculateSaleWithPrice, recalculatePurchaseWithPrice, formatMonthYearId } from './utils/pricing';
@@ -38,6 +39,7 @@ import {
   Employee,
   AttendanceRecord,
   PayrollRecord,
+  PertashopBackupData,
 } from './types';
 import { getTodayDateString, getCurrentTimeString, getShiftCategory } from './utils/formatters';
 import { Gauge, Plus, Pencil, Trash2 } from 'lucide-react';
@@ -81,6 +83,7 @@ export default function App() {
 
   const [isPrintReportModalOpen, setIsPrintReportModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState<boolean>(false);
 
   // Summary Report Modal State
   const [isPrintSummaryModalOpen, setIsPrintSummaryModalOpen] = useState<boolean>(false);
@@ -696,6 +699,20 @@ export default function App() {
     });
   };
 
+  const handleRestoreSuccess = (restoredData: PertashopBackupData) => {
+    setProfile(restoredData.profile);
+    setProducts(restoredData.products);
+    setTank(restoredData.tank);
+    setPriceHistory(restoredData.priceHistory);
+    setSales(restoredData.sales);
+    setPurchases(restoredData.purchases);
+    setSoundings(restoredData.soundings);
+    setExpenses(restoredData.expenses);
+    setEmployees(restoredData.employees);
+    setAttendance(restoredData.attendance);
+    setPayrolls(restoredData.payrolls);
+  };
+
   // Expense Handlers
   const handleOpenAddExpense = (cat?: ExpenseCategoryType) => {
     setEditingExpense(null);
@@ -858,6 +875,7 @@ export default function App() {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenPrintReportModal={() => setIsPrintReportModalOpen(true)}
+        onOpenBackupModal={() => setIsBackupModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -1242,6 +1260,23 @@ export default function App() {
         tank={tank}
         onSaveProfile={handleSaveProfile}
         onResetAllData={handleResetAllData}
+        onOpenBackupModal={() => setIsBackupModalOpen(true)}
+      />
+
+      <BackupRestoreModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+        profile={profile}
+        stats={{
+          totalSales: sales.length,
+          totalPurchases: purchases.length,
+          totalSoundings: soundings.length,
+          totalExpenses: expenses.length,
+          totalEmployees: employees.length,
+          totalAttendance: attendance.length,
+          totalPayrolls: payrolls.length,
+        }}
+        onRestoreSuccess={handleRestoreSuccess}
       />
 
       <ConfirmModal

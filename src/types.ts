@@ -266,4 +266,26 @@ export interface PayrollRecord {
   createdAt: string;
 }
 
+export interface PertashopBackupData {
+  appName: string;
+  schemaVersion: number;
+  backupDate: string;
+  backupDateFormatted: string;
+  sourceCode: string;
+  sourcePertashopName: string;
+  profile: PertashopProfile;
+  products: Product[];
+  tank: TankConfig;
+  priceHistory: PriceHistory[];
+  sales: SaleRecord[];
+  purchases: PurchaseOrder[];
+  soundings: SoundingRecord[];
+  expenses: ExpenseRecord[];
+  employees: Employee[];
+  attendance: AttendanceRecord[];
+  payrolls: PayrollRecord[];
+  lastSalesDate?: string | null;
+  lastPoDate?: string | null;
+}
+
 
