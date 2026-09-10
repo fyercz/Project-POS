@@ -1,6 +1,6 @@
 {
-  "name": "Sistem Laporan Pertashop",
-  "description": "Aplikasi pencatatan laporan penjualan harian Pertashop, penyesuaian harga Pertamax harian, tracking stok tangki & pemesanan DO (1, 2, 3 KL), penghitungan pengeluaran operasional (gaji operator, lembur, listrik PLN, PDAM, maintenance), serta summary bulanan dan tahunan lengkap dengan laporan laba rugi resmi.",
+  "name": "Sistem Manajemen & Laporan Pertashop",
+  "description": "Aplikasi pencatatan laporan penjualan harian Pertashop, penyesuaian harga Pertamax harian, tracking stok tangki & pemesanan DO, penghitungan pengeluaran operasional, absensi bulanan, serta summary laporan laba rugi resmi.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
