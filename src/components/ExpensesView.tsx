@@ -16,6 +16,7 @@ import {
   Wallet,
   Building2,
   TrendingDown,
+  TrendingUp,
   Download,
   AlertCircle,
   Sparkles,
@@ -84,6 +85,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     .filter((e) => e.category === 'LOSSES_MINYAK')
     .reduce((acc, e) => acc + (e.fuelLossLiters || 0), 0);
 
+  const totalGainMinyak = expenses
+    .filter((e) => e.category === 'GAIN_MINYAK')
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const totalGainLiters = expenses
+    .filter((e) => e.category === 'GAIN_MINYAK')
+    .reduce((acc, e) => acc + (e.fuelLossLiters || 0), 0);
+
   const totalInternet = expenses
     .filter((e) => e.category === 'INTERNET_WIFI')
     .reduce((acc, e) => acc + e.amount, 0);
@@ -144,6 +153,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
             <Fuel className="w-3.5 h-3.5 text-rose-600" />
             Losses Minyak
+          </span>
+        );
+      case 'GAIN_MINYAK':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+            Surplus / Gain BBM
           </span>
         );
       case 'TOKEN_LISTRIK':
@@ -252,21 +268,29 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest block">
-                Losses Minyak
+                {totalGainMinyak > 0 ? 'Losses / Gain Minyak' : 'Losses Minyak'}
               </span>
               <div className="mt-1.5">
                 <span className="text-base sm:text-lg font-extrabold text-rose-700 font-mono tracking-tight">
                   {formatRupiah(totalLossesMinyak)}
                 </span>
+                {totalGainMinyak > 0 && (
+                  <span className="text-xs text-emerald-600 font-bold ml-1.5 font-mono">
+                    (+{formatRupiah(totalGainMinyak)})
+                  </span>
+                )}
               </div>
             </div>
             <div className="p-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
               <Fuel className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-2.5 pt-2.5 border-t border-rose-100 flex items-center justify-between text-[10px] text-rose-600">
-            <span>Susut Fisik:</span>
-            <span className="font-bold font-mono">{formatNumber(totalLossesLiters, 1)} L</span>
+          <div className="mt-2.5 pt-2.5 border-t border-rose-100 flex items-center justify-between text-[10px] text-slate-600">
+            <span>Susut / Gain:</span>
+            <span className="font-bold font-mono">
+              {totalLossesLiters > 0 ? `-${formatNumber(totalLossesLiters, 1)} L` : '0 L'}
+              {totalGainLiters > 0 ? ` | +${formatNumber(totalGainLiters, 1)} L` : ''}
+            </span>
           </div>
         </div>
 
@@ -521,6 +545,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               <option value="GAJI_OPERATOR">Gaji Operator (Rp 40.000/hari)</option>
               <option value="LEMBURAN">Uang Lemburan (Rp 30.000/shift)</option>
               <option value="LOSSES_MINYAK">Losses Minyak (Susut Fisik)</option>
+              <option value="GAIN_MINYAK">Surplus / Gain BBM</option>
               <option value="TOKEN_LISTRIK">Token Listrik PLN</option>
               <option value="PDAM">Tagihan PDAM Air</option>
               <option value="MAINTENANCE_ALAT">Maintenance & Servis</option>
@@ -603,6 +628,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
                     <td className="p-3 max-w-xs">
                       <div className="font-bold text-slate-900">{exp.title}</div>
+                      {exp.sourceType && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                            <Zap className="w-2.5 h-2.5 text-amber-600" />
+                            {exp.sourceType === 'PENERIMAAN_DO'
+                              ? 'Otomatis Penerimaan DO'
+                              : exp.sourceType === 'CLOSING_SHIFT'
+                              ? 'Otomatis Closing Shift'
+                              : 'Otomatis Sounding Tangki'}
+                          </span>
+                        </div>
+                      )}
                       {exp.notes && (
                         <div className="text-[11px] text-slate-500 italic mt-0.5 truncate">
                           {exp.notes}
@@ -627,14 +664,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         <span className="bg-rose-50 text-rose-900 px-2 py-0.5 rounded border border-rose-200">
                           {exp.fuelLossLiters || exp.quantity || 0} L × {formatRupiah(exp.fuelLossBuyPriceSnapshot || exp.unitRate || 0)}
                         </span>
+                      ) : exp.category === 'GAIN_MINYAK' ? (
+                        <span className="bg-emerald-50 text-emerald-900 px-2 py-0.5 rounded border border-emerald-200 font-bold">
+                          +{exp.fuelLossLiters || exp.quantity || 0} L × {formatRupiah(exp.fuelLossBuyPriceSnapshot || exp.unitRate || 0)}
+                        </span>
                       ) : (
                         <span className="text-slate-400">Fixed Rate</span>
                       )}
                     </td>
 
                     <td className="p-3 text-right whitespace-nowrap">
-                      <span className="font-mono font-bold text-sm text-rose-700">
-                        -{formatRupiah(exp.amount)}
+                      <span className={`font-mono font-bold text-sm ${exp.category === 'GAIN_MINYAK' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {exp.category === 'GAIN_MINYAK' ? `+${formatRupiah(exp.amount)}` : `-${formatRupiah(exp.amount)}`}
                       </span>
                     </td>
 

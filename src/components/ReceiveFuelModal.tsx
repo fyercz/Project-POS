@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Truck, CheckCircle2, Fuel, Gauge, AlertTriangle, ArrowRight } from 'lucide-react';
+import { X, Truck, CheckCircle2, Fuel, Gauge, AlertTriangle, ArrowRight, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PurchaseOrder, TankConfig } from '../types';
 import { formatLiter, formatRupiah, formatNumber, getTodayDateString } from '../utils/formatters';
@@ -282,6 +282,34 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Banner Otomatis Masuk Pembukuan Keuangan */}
+          {varianceLiters !== 0 && (
+            <div
+              className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+                varianceLiters < 0
+                  ? 'bg-rose-50/90 border-rose-200 text-rose-900'
+                  : 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
+              }`}
+            >
+              <Zap className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+              <div className="flex-1">
+                <div className="font-bold flex items-center justify-between">
+                  <span>
+                    {varianceLiters < 0
+                      ? '⚡ Otomatis Masuk Pembukuan: Beban Susut Bongkar DO'
+                      : '⚡ Otomatis Masuk Pembukuan: Surplus Penerimaan DO'}
+                  </span>
+                  <span className="font-mono font-black text-xs">
+                    {varianceLiters > 0 ? '+' : '-'}Rp {formatRupiah(Math.round(Math.abs(varianceLiters) * order.buyPricePerLiter))}
+                  </span>
+                </div>
+                <p className="text-[11px] opacity-80 mt-0.5">
+                  Selisih volume {varianceLiters > 0 ? `+${varianceLiters}` : varianceLiters} Liter @ Rp {formatRupiah(order.buyPricePerLiter)}/L akan otomatis dibukukan ke modul Pengeluaran/Beban Pertashop saat penerimaan diselesaikan.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* QC Parameter: Density & Temperature */}
           <div className="grid grid-cols-2 gap-3.5">

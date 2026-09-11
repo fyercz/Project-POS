@@ -111,7 +111,10 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
     .filter((e) => e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const totalMonthExpenses = monthExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalMonthExpenses = monthExpenses.reduce((acc, curr) => {
+    if (curr.category === 'GAIN_MINYAK') return acc - curr.amount;
+    return acc + curr.amount;
+  }, 0);
   const monthNetProfit = totalMonthGrossProfit - totalMonthExpenses;
   const totalMonthDORcv = monthPurchases
     .filter((p) => p.status === 'SELESAI')
@@ -147,7 +150,10 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
     const liters = mSales.reduce((acc, curr) => acc + curr.literSold, 0);
     const revenue = mSales.reduce((acc, curr) => acc + curr.totalRevenue, 0);
     const grossProfit = mSales.reduce((acc, curr) => acc + curr.totalProfit, 0);
-    const expTotal = mExp.reduce((acc, curr) => acc + curr.amount, 0);
+    const expTotal = mExp.reduce((acc, curr) => {
+      if (curr.category === 'GAIN_MINYAK') return acc - curr.amount;
+      return acc + curr.amount;
+    }, 0);
     const netProfit = grossProfit - expTotal;
     const doKL = mPurch.reduce((acc, curr) => acc + (curr.volumeKL || curr.volumeLiters / 1000), 0);
 
@@ -183,7 +189,10 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
   const totalYearLiters = yearSales.reduce((acc, curr) => acc + curr.literSold, 0);
   const totalYearRevenue = yearSales.reduce((acc, curr) => acc + curr.totalRevenue, 0);
   const totalYearGrossProfit = yearSales.reduce((acc, curr) => acc + curr.totalProfit, 0);
-  const totalYearExpenses = yearExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalYearExpenses = yearExpenses.reduce((acc, curr) => {
+    if (curr.category === 'GAIN_MINYAK') return acc - curr.amount;
+    return acc + curr.amount;
+  }, 0);
   const totalYearNetProfit = totalYearGrossProfit - totalYearExpenses;
   const totalYearDOKL = yearPurchases.reduce((acc, curr) => acc + (curr.volumeKL || curr.volumeLiters / 1000), 0);
   const totalYearLosses = yearExpenses

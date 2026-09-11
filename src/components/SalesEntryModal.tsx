@@ -30,6 +30,8 @@ import {
   getTodayDateString,
   getCurrentTimeString,
   getShiftCategory,
+  getShiftHoursInfo,
+  STANDARD_SHIFTS,
   addDays,
 } from '../utils/formatters';
 import { getEffectivePriceForDate, formatMonthYearId, getNextSalesInputDateAndShift } from '../utils/pricing';
@@ -226,7 +228,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
 
       setTransactionDate(targetDate);
       setDateSourceDesc(nextConfig.sourceDesc);
-      setTime(getCurrentTimeString());
+      const initialShiftHours = getShiftHoursInfo(nextConfig.targetShift);
+      setTime(nextConfig.targetTime || initialShiftHours.closingTime);
       setShift(nextConfig.targetShift);
       setOperatorName(nextConfig.suggestedOperator);
 
@@ -627,7 +630,12 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               </label>
               <select
                 value={shift}
-                onChange={(e) => setShift(e.target.value as any)}
+                onChange={(e) => {
+                  const newShift = e.target.value as any;
+                  setShift(newShift);
+                  const info = getShiftHoursInfo(newShift);
+                  setTime(info.closingTime);
+                }}
                 className={`w-full px-3 py-2 border rounded-xl text-sm font-medium focus:ring-2 outline-hidden transition-colors ${
                   isCurrentShiftTaken
                     ? 'bg-rose-50 border-rose-300 text-rose-900 focus:ring-rose-400'
@@ -645,8 +653,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 </option>
               </select>
 
-              {/* Status Helper Shift */}
-              <div className="mt-1 flex items-center gap-1 text-[10px]">
+              {/* Status Helper Shift & Synchronized Working Hours */}
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-1 text-[10px]">
                 {isCurrentShiftTaken ? (
                   <span className="text-rose-600 font-semibold flex items-center gap-1">
                     <Ban className="w-3 h-3 text-rose-600 shrink-0" />
@@ -658,6 +666,9 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     Shift tersedia.
                   </span>
                 )}
+                <span className="text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                  Jam Kerja: <strong className="text-slate-700 font-mono">{getShiftHoursInfo(shift).displayHours}</strong>
+                </span>
               </div>
             </div>
 
@@ -1258,6 +1269,16 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       </p>
                     </div>
                   </div>
+                  {soundingVariance !== 0 && (
+                    <div className="text-right shrink-0">
+                      <span className="font-mono font-black text-xs block text-slate-900">
+                        {soundingVariance > 0 ? '+' : '-'}Rp {formatRupiah(Math.round(Math.abs(soundingVariance) * buyPriceSnapshot))}
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                        ⚡ Otomatis Masuk Pembukuan
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-1">

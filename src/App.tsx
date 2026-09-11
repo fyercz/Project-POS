@@ -24,7 +24,7 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { StorageService } from './utils/storage';
 import { syncSalesToAttendance, recalculateMonthlyPayrolls } from './utils/attendanceSync';
-import { recalculateSaleWithPrice, recalculatePurchaseWithPrice, formatMonthYearId } from './utils/pricing';
+import { recalculateSaleWithPrice, recalculatePurchaseWithPrice, formatMonthYearId, getEffectivePriceForDate } from './utils/pricing';
 import {
   Product,
   PurchaseOrder,
@@ -41,7 +41,7 @@ import {
   PayrollRecord,
   PertashopBackupData,
 } from './types';
-import { getTodayDateString, getCurrentTimeString, getShiftCategory } from './utils/formatters';
+import { getTodayDateString, getCurrentTimeString, getShiftCategory, getShiftHoursInfo, STANDARD_SHIFTS, formatRupiah, formatNumber } from './utils/formatters';
 import { Gauge, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export default function App() {
@@ -158,6 +158,86 @@ export default function App() {
     StorageService.setPayrolls(payrolls);
   }, [payrolls]);
 
+  // Otomatis sinkronkan riwayat sounding & DO yang memiliki selisih ke pembukuan jika belum tercatat
+  useEffect(() => {
+    let hasChanges = false;
+    const reconciled = [...expenses];
+
+    soundings.forEach((snd) => {
+      if (Math.abs(snd.varianceLiters) > 0.001) {
+        const exists = reconciled.some((e) => e.sourceReferenceId === snd.id);
+        if (!exists) {
+          const absVar = Math.abs(snd.varianceLiters);
+          const isLoss = snd.varianceLiters < 0;
+          const eff = getEffectivePriceForDate('prod-pertamax-92', snd.date, products, priceHistory, sales);
+          const bp = eff.buyPrice || primaryProduct.buyPrice || 12100;
+          const amt = Math.round(absVar * bp);
+          reconciled.push({
+            id: `exp-fuel-${snd.id}`,
+            date: snd.date,
+            time: snd.time,
+            category: isLoss ? 'LOSSES_MINYAK' : 'GAIN_MINYAK',
+            title: isLoss
+              ? `Beban Losses Minyak Tangki (${formatNumber(absVar, 1)} L)`
+              : `Surplus / Gain Stok BBM Tangki (+${formatNumber(absVar, 1)} L)`,
+            amount: amt,
+            quantity: absVar,
+            unitRate: bp,
+            fuelLossLiters: absVar,
+            fuelLossBuyPriceSnapshot: bp,
+            personOrVendor: `Tera Stick Ukur Tangki (Op. ${snd.operatorName})`,
+            paymentSource: 'KAS_HARIAN',
+            notes: `Otomatis dari Tera Sounding Tangki Fisik (${snd.calculatedLiters} L vs Sistem ${snd.systemStockLiters} L). ${snd.notes || ''}`.trim(),
+            createdAt: `${snd.date} ${snd.time}`,
+            sourceReferenceId: snd.id,
+            sourceType: 'SOUNDING_TANGKI',
+            varianceType: isLoss ? 'LOSS' : 'GAIN',
+          });
+          hasChanges = true;
+        }
+      }
+    });
+
+    purchases.forEach((po) => {
+      if (po.status === 'SELESAI' && po.varianceLiters && Math.abs(po.varianceLiters) > 0.001) {
+        const exists = reconciled.some((e) => e.sourceReferenceId === po.id);
+        if (!exists) {
+          const absVar = Math.abs(po.varianceLiters);
+          const isLoss = po.varianceLiters < 0;
+          const bp = po.buyPricePerLiter || primaryProduct.buyPrice || 12100;
+          const amt = Math.round(absVar * bp);
+          reconciled.push({
+            id: `exp-fuel-${po.id}`,
+            date: po.actualDeliveryDate || po.orderDate,
+            time: '12:00',
+            category: isLoss ? 'LOSSES_MINYAK' : 'GAIN_MINYAK',
+            title: isLoss
+              ? `Beban Susut Bongkar DO ${po.poNumber} (${formatNumber(absVar, 1)} L)`
+              : `Surplus Penerimaan DO ${po.poNumber} (+${formatNumber(absVar, 1)} L)`,
+            amount: amt,
+            quantity: absVar,
+            unitRate: bp,
+            fuelLossLiters: absVar,
+            fuelLossBuyPriceSnapshot: bp,
+            personOrVendor: `Mobil Tangki Pertamina (${po.truckPlateNumber || po.supplyDepot || 'TBBM'})`,
+            paymentSource: 'KAS_HARIAN',
+            notes: `Selisih DO ${po.volumeLiters} L vs Diterima ${po.actualLitersReceived || po.volumeLiters} L. Supir: ${po.driverName || '-'}`.trim(),
+            createdAt: `${po.actualDeliveryDate || po.orderDate} 12:00`,
+            sourceReferenceId: po.id,
+            sourceType: 'PENERIMAAN_DO',
+            varianceType: isLoss ? 'LOSS' : 'GAIN',
+          });
+          hasChanges = true;
+        }
+      }
+    });
+
+    if (hasChanges) {
+      setExpenses(reconciled);
+      StorageService.setExpenses(reconciled);
+    }
+  }, []);
+
   // Primary product (Pertamax 92)
   const primaryProduct = products.find((p) => p.id === 'prod-pertamax-92') || products[0];
 
@@ -263,21 +343,34 @@ export default function App() {
         lastSoundingLiters: saleData.hasSounding && saleData.soundingCalculatedLiters !== undefined ? saleData.soundingCalculatedLiters : prev.lastSoundingLiters,
       }));
 
-      // If sounding was recorded and syncToSoundingLog is checked, add to sounding history
-      if (saleData.hasSounding && saleData.syncToSoundingLog && saleData.soundingCalculatedLiters !== undefined) {
+      // If sounding was recorded, add to sounding history and auto sync to bookkeeping
+      if (saleData.hasSounding && (saleData.syncToSoundingLog || (saleData.soundingVarianceLiters !== undefined && Math.abs(saleData.soundingVarianceLiters) > 0.001)) && saleData.soundingCalculatedLiters !== undefined) {
+        const sndId = `snd-shift-${Date.now()}`;
+        const sVariance = saleData.soundingVarianceLiters ?? (saleData.soundingCalculatedLiters - theoreticalStock);
         const newSoundingRecord: SoundingRecord = {
-          id: `snd-shift-${Date.now()}`,
+          id: sndId,
           date: saleData.transactionDate,
           time: saleData.time,
           operatorName: saleData.operatorName,
           stickDipCm: saleData.soundingStickCm || 0,
           calculatedLiters: saleData.soundingCalculatedLiters,
           systemStockLiters: saleData.soundingTheoreticalLiters ?? theoreticalStock,
-          varianceLiters: saleData.soundingVarianceLiters ?? (saleData.soundingCalculatedLiters - theoreticalStock),
+          varianceLiters: sVariance,
           waterBottomCm: saleData.soundingWaterCm || 0,
-          notes: `Sounding otomatis saat ${saleData.shift} (${saleData.operatorName}). ${saleData.notes || ''}`.trim(),
+          notes: `Sounding closing saat ${saleData.shift} (${saleData.operatorName}). ${saleData.notes || ''}`.trim(),
         };
         setSoundings((prev) => [newSoundingRecord, ...prev]);
+
+        // Otomatis catat selisih loss atau gain BBM ke dalam pembukuan keuangan
+        syncFuelVarianceToExpenses(
+          sndId,
+          'CLOSING_SHIFT',
+          saleData.transactionDate,
+          saleData.time,
+          sVariance,
+          `Sounding Shift (${saleData.operatorName})`,
+          `Sounding closing ${saleData.shift} (Fisik ${saleData.soundingCalculatedLiters} L vs Sistem ${saleData.soundingTheoreticalLiters ?? theoreticalStock} L)`
+        );
       }
     }
 
@@ -295,47 +388,45 @@ export default function App() {
           (a) => a.employeeId === matchedEmp.id && a.date === saleData.transactionDate
         );
 
-        const isOvertimeOrFull =
-          saleData.shift.toLowerCase().includes('full') ||
+        const shiftInfo = getShiftHoursInfo(saleData.shift);
+        const isExplicitLembur =
           saleData.shift.toLowerCase().includes('lembur') ||
           (saleData.notes || '').toLowerCase().includes('lembur') ||
-          (existingAtt && existingAtt.shift !== saleData.shift);
-
-        let checkIn = '05:30';
-        let checkOut = '13:30';
-        if (saleData.shift.includes('Shift 2') || saleData.shift.includes('13.30')) {
-          checkIn = '13:30';
-          checkOut = '19:30';
-        } else if (saleData.shift.includes('Full')) {
-          checkIn = '05:30';
-          checkOut = '19:30';
-        }
+          shiftInfo.isFull;
 
         if (existingAtt) {
-          // Update existing attendance to reflect full day / overtime if multiple shifts worked
+          const isExistingShift1 = existingAtt.shift.includes('Shift 1') || existingAtt.checkInTime === '05:30';
+          const isExistingShift2 = existingAtt.shift.includes('Shift 2') || existingAtt.checkInTime === '13:30';
+          const isMultiShift =
+            (isExistingShift1 && shiftInfo.isShift2) ||
+            (isExistingShift2 && shiftInfo.isShift1) ||
+            isExplicitLembur ||
+            (existingAtt.shift !== shiftInfo.shiftName && !existingAtt.shift.includes('Full'));
+
           const updatedAtt: AttendanceRecord = {
             ...existingAtt,
-            status: isOvertimeOrFull ? 'LEMBUR' : existingAtt.status,
-            overtimeShifts: isOvertimeOrFull ? Math.max(1, existingAtt.overtimeShifts || 1) : existingAtt.overtimeShifts,
-            shift: isOvertimeOrFull ? 'Full Day / Multiple Shift' : existingAtt.shift,
-            checkOutTime: saleData.shift.includes('Shift 2') || saleData.shift.includes('Full') ? '19:30' : existingAtt.checkOutTime,
+            status: isMultiShift ? 'LEMBUR' : existingAtt.status,
+            overtimeShifts: isMultiShift ? Math.max(1, (existingAtt.overtimeShifts || 0) + 1) : existingAtt.overtimeShifts,
+            shift: isMultiShift ? STANDARD_SHIFTS.FULL_SHIFT.name : shiftInfo.shiftName,
+            checkInTime: isMultiShift ? '05:30' : shiftInfo.checkIn,
+            checkOutTime: isMultiShift ? '19:30' : shiftInfo.checkOut,
             notes: `${existingAtt.notes || ''} | Catatan Penjualan: ${saleData.literSold} L (${saleData.shift})`.trim(),
           };
           setAttendance((prev) => prev.map((a) => (a.id === existingAtt.id ? updatedAtt : a)));
         } else {
-          // Create new attendance record
+          // Create new attendance record with perfectly synchronized hours
           const newAtt: AttendanceRecord = {
             id: `att-sale-${Date.now()}`,
             employeeId: matchedEmp.id,
             employeeName: matchedEmp.name,
             date: saleData.transactionDate,
-            shift: saleData.shift,
-            status: isOvertimeOrFull ? 'LEMBUR' : 'HADIR',
-            checkInTime: checkIn,
-            checkOutTime: checkOut,
-            overtimeShifts: isOvertimeOrFull ? 1 : 0,
+            shift: isExplicitLembur ? STANDARD_SHIFTS.FULL_SHIFT.name : shiftInfo.shiftName,
+            status: isExplicitLembur ? 'LEMBUR' : 'HADIR',
+            checkInTime: isExplicitLembur ? '05:30' : shiftInfo.checkIn,
+            checkOutTime: isExplicitLembur ? '19:30' : shiftInfo.checkOut,
+            overtimeShifts: isExplicitLembur ? 1 : 0,
             notes: `Otomatis sinkron dari penjualan shift (${saleData.literSold} L). ${saleData.notes || ''}`.trim(),
-            createdAt: `${saleData.transactionDate} ${saleData.time || '08:00'}`,
+            createdAt: `${saleData.transactionDate} ${saleData.time || shiftInfo.closingTime}`,
           };
           setAttendance((prev) => [newAtt, ...prev]);
         }
@@ -499,7 +590,89 @@ export default function App() {
       });
       setPurchases(updatedPurchases);
       StorageService.setPurchases(updatedPurchases);
+
+      // Update estimasi nilai kerugian BBM (losses minyak) & surplus gain BBM pada bulan tersebut
+      const updatedExpenses = expenses.map((exp) => {
+        if ((exp.category === 'LOSSES_MINYAK' || exp.category === 'GAIN_MINYAK') && exp.date.startsWith(targetMonth) && exp.fuelLossLiters) {
+          const recalculatedLossAmount = Math.round(exp.fuelLossLiters * priceData.newBuyPrice);
+          return {
+            ...exp,
+            amount: recalculatedLossAmount,
+            unitRate: priceData.newBuyPrice,
+            fuelLossBuyPriceSnapshot: priceData.newBuyPrice,
+            notes: `${exp.notes ? exp.notes + ' | ' : ''}Disesuaikan ke tarif tebus baru (${formatRupiah(priceData.newBuyPrice)}/L)`,
+          };
+        }
+        return exp;
+      });
+      setExpenses(updatedExpenses);
+      StorageService.setExpenses(updatedExpenses);
     }
+  };
+
+  // Helper fungsi untuk mencatat selisih loss atau gain BBM secara otomatis ke dalam pembukuan keuangan
+  const syncFuelVarianceToExpenses = (
+    sourceId: string,
+    sourceType: 'SOUNDING_TANGKI' | 'PENERIMAAN_DO' | 'CLOSING_SHIFT',
+    date: string,
+    time: string,
+    varianceLiters: number,
+    operatorOrVendor: string,
+    notes?: string,
+    explicitBuyPrice?: number
+  ) => {
+    // Jika selisih 0 L (presisi), bersihkan entri pembukuan terkait jika sebelumnya ada
+    if (Math.abs(varianceLiters) < 0.001) {
+      setExpenses((prev) => prev.filter((e) => e.sourceReferenceId !== sourceId));
+      return;
+    }
+
+    const absVariance = Math.abs(varianceLiters);
+    const eff = getEffectivePriceForDate('prod-pertamax-92', date, products, priceHistory, sales);
+    const buyPrice = explicitBuyPrice || eff.buyPrice || primaryProduct.buyPrice || 12100;
+    const totalAmount = Math.round(absVariance * buyPrice);
+    const isLoss = varianceLiters < 0;
+
+    const category: ExpenseCategoryType = isLoss ? 'LOSSES_MINYAK' : 'GAIN_MINYAK';
+    const title =
+      sourceType === 'PENERIMAAN_DO'
+        ? isLoss
+          ? `Beban Susut Bongkar DO Pertamina (${formatNumber(absVariance, 1)} L)`
+          : `Surplus Penerimaan DO Pertamina (+${formatNumber(absVariance, 1)} L)`
+        : isLoss
+        ? `Beban Losses Minyak Tangki (${formatNumber(absVariance, 1)} L)`
+        : `Surplus / Gain Stok BBM Tangki (+${formatNumber(absVariance, 1)} L)`;
+
+    setExpenses((prev) => {
+      const existingIndex = prev.findIndex((e) => e.sourceReferenceId === sourceId);
+      const expenseItem: ExpenseRecord = {
+        id: existingIndex >= 0 ? prev[existingIndex].id : `exp-fuel-${sourceId}`,
+        date,
+        time,
+        category,
+        title,
+        amount: totalAmount,
+        quantity: absVariance,
+        unitRate: buyPrice,
+        fuelLossLiters: absVariance,
+        fuelLossBuyPriceSnapshot: buyPrice,
+        personOrVendor: operatorOrVendor,
+        paymentSource: 'KAS_HARIAN',
+        notes: notes || `Otomatis dari selisih BBM (${varianceLiters > 0 ? `+${varianceLiters}` : varianceLiters} L)`,
+        createdAt: `${date} ${time}`,
+        sourceReferenceId: sourceId,
+        sourceType,
+        varianceType: isLoss ? 'LOSS' : 'GAIN',
+      };
+
+      if (existingIndex >= 0) {
+        const copy = [...prev];
+        copy[existingIndex] = expenseItem;
+        return copy;
+      } else {
+        return [expenseItem, ...prev];
+      }
+    });
   };
 
   const handleEditOrder = (order: PurchaseOrder) => {
@@ -574,6 +747,21 @@ export default function App() {
       lastSoundingDate: receivingData.actualDeliveryDate,
       lastSoundingLiters: receivingData.soundingAfterLiters,
     }));
+
+    // Otomatis sinkronisasi selisih volume DO (Loss / Gain) ke pembukuan beban operasional
+    const targetOrder = purchases.find((p) => p.id === orderId);
+    if (targetOrder) {
+      syncFuelVarianceToExpenses(
+        orderId,
+        'PENERIMAAN_DO',
+        receivingData.actualDeliveryDate,
+        getCurrentTimeString(),
+        receivingData.varianceLiters,
+        `Mobil Tangki Pertamina (${targetOrder.truckPlateNumber || targetOrder.supplyDepot || 'TBBM'})`,
+        `Verifikasi bongkar DO ${targetOrder.poNumber}. Supir: ${targetOrder.driverName || '-'}. ${receivingData.notes || ''}`.trim(),
+        targetOrder.buyPricePerLiter
+      );
+    }
   };
 
   const handleEditSounding = (sounding: SoundingRecord) => {
@@ -583,6 +771,8 @@ export default function App() {
 
   const handleSaveSounding = (recordData: Omit<SoundingRecord, 'id'>, newStockLiters: number, editingId?: string) => {
     const idToUpdate = editingId || editingSounding?.id;
+    const finalRecordId = idToUpdate || `snd-${Date.now()}`;
+
     if (idToUpdate) {
       const updated = soundings.map((s) =>
         s.id === idToUpdate ? { ...recordData, id: idToUpdate } : s
@@ -598,7 +788,7 @@ export default function App() {
     } else {
       const newRecord: SoundingRecord = {
         ...recordData,
-        id: `snd-${Date.now()}`,
+        id: finalRecordId,
       };
       setSoundings([newRecord, ...soundings]);
 
@@ -609,10 +799,23 @@ export default function App() {
         lastSoundingLiters: recordData.calculatedLiters,
       }));
     }
+
+    // Otomatis catat selisih loss atau gain sounding ke dalam pembukuan keuangan
+    syncFuelVarianceToExpenses(
+      finalRecordId,
+      'SOUNDING_TANGKI',
+      recordData.date,
+      recordData.time,
+      recordData.varianceLiters,
+      `Tera Stick Ukur Tangki (Op. ${recordData.operatorName})`,
+      `Tera fisik ${recordData.calculatedLiters} L vs stok sistem ${recordData.systemStockLiters} L. ${recordData.notes || ''}`.trim()
+    );
   };
 
   const handleDeleteSounding = (soundingId: string) => {
     setSoundings(soundings.filter((s) => s.id !== soundingId));
+    // Hapus juga catatan pembukuan otomatis yang terkait dengan sounding ini
+    setExpenses((prev) => prev.filter((e) => e.sourceReferenceId !== soundingId));
   };
 
   const handleDeleteAugustSoundings = () => {
@@ -641,6 +844,8 @@ export default function App() {
         const remaining = soundings.filter((s) => !s.date.startsWith('2026-08') && !s.date.includes('-08-'));
         setSoundings(remaining);
         StorageService.setSoundings(remaining);
+        // Hapus juga beban pembukuan selisih sounding bulan Agustus
+        setExpenses((prev) => prev.filter((e) => !(e.sourceType === 'SOUNDING_TANGKI' && (e.date.startsWith('2026-08') || e.date.includes('-08-')))));
         if (tank.lastSoundingDate && (tank.lastSoundingDate.startsWith('2026-08') || tank.lastSoundingDate.includes('-08-'))) {
           const updatedTank = {
             ...tank,
@@ -1213,6 +1418,7 @@ export default function App() {
         tank={tank}
         soundings={soundings}
         editingSounding={editingSounding}
+        buyPrice={primaryProduct.buyPrice}
         onSaveSounding={handleSaveSounding}
         onDeleteSounding={handleDeleteSounding}
         onDeleteAugustSoundings={handleDeleteAugustSoundings}

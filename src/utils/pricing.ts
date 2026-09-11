@@ -285,6 +285,7 @@ export function getNextSalesInputDateAndShift(
 ): {
   targetDate: string;
   targetShift: 'Shift 1 (05.30 - 13.30)' | 'Shift 2 (13.30 - 19.30)' | 'Full Day';
+  targetTime: string;
   suggestedOperator: string;
   sourceDesc: string;
 } {
@@ -315,6 +316,7 @@ export function getNextSalesInputDateAndShift(
     return {
       targetDate: getTodayDateString(),
       targetShift: 'Shift 1 (05.30 - 13.30)',
+      targetTime: '13:30',
       suggestedOperator: operatorList[0] || 'Daslam',
       sourceDesc: 'Tanggal saat ini (Belum ada riwayat input)',
     };
@@ -352,10 +354,12 @@ export function getNextSalesInputDateAndShift(
 
   const availableOp = operatorList.find((op) => !status.takenOps.includes(op.toLowerCase()));
   const finalOp = availableOp || operatorList[0] || 'Daslam';
+  const targetTime = finalShift.includes('Shift 2') || finalShift.includes('Full') ? '19:30' : '13:30';
 
   return {
     targetDate: finalDate,
     targetShift: finalShift,
+    targetTime,
     suggestedOperator: finalOp,
     sourceDesc,
   };
@@ -407,5 +411,135 @@ export function getNextPurchaseOrderDate(
     targetOrderDate: finalDate,
     sourceDesc,
   };
+}
+
+/**
+ * Mode keterkaitan variabel perubahan harga Pertashop:
+ * - LOCK_MARGIN: Kunci margin dealer (Harga jual naik -> harga tebus otomatis naik, menjaga margin tetap)
+ * - LOCK_BUY_PRICE: Kunci harga tebus Pertamina (Harga jual naik -> margin bertambah)
+ * - LOCK_SELLING_PRICE: Kunci harga jual konsumen (Harga tebus naik -> margin berkurang)
+ * - FREE: Input bebas tanpa penguncian kaku
+ */
+export type PriceLinkMode = 'LOCK_MARGIN' | 'LOCK_BUY_PRICE' | 'LOCK_SELLING_PRICE' | 'FREE';
+
+export interface InterconnectedPriceState {
+  sellingPrice: number;
+  buyPrice: number;
+  margin: number;
+  marginPercent: number;
+  linkMode: PriceLinkMode;
+}
+
+export const PERTASHOP_STANDARD_MARGINS = [
+  { label: 'Standar Pertamina', value: 850, desc: 'Penyalur Gold / Diamond (Rp 850/L)' },
+  { label: 'Skema Insentif', value: 1000, desc: 'Target pencapaian kuota (Rp 1.000/L)' },
+  { label: 'Target Tinggi', value: 1200, desc: 'Skema ekspansi operasional (Rp 1.200/L)' },
+];
+
+/**
+ * Menghitung kesinambungan antar ketiga variabel (Harga Jual, Harga Tebus, Margin)
+ * saat salah satu variabel diubah oleh pengguna.
+ */
+export function calculateInterconnectedPrices(
+  changedField: 'sellingPrice' | 'buyPrice' | 'margin',
+  value: number,
+  currentState: { sellingPrice: number; buyPrice: number; margin: number; linkMode: PriceLinkMode }
+): { sellingPrice: number; buyPrice: number; margin: number; marginPercent: number } {
+  let { sellingPrice, buyPrice, margin, linkMode } = currentState;
+  const numVal = Math.max(0, value);
+
+  if (changedField === 'sellingPrice') {
+    sellingPrice = numVal;
+    if (linkMode === 'LOCK_MARGIN') {
+      // Margin tetap -> sesuaikan harga tebus
+      buyPrice = Math.max(0, sellingPrice - margin);
+    } else {
+      // Harga tebus tetap -> sesuaikan margin
+      margin = sellingPrice - buyPrice;
+    }
+  } else if (changedField === 'buyPrice') {
+    buyPrice = numVal;
+    if (linkMode === 'LOCK_MARGIN') {
+      // Margin tetap -> sesuaikan harga jual
+      sellingPrice = buyPrice + margin;
+    } else {
+      // Harga jual tetap -> sesuaikan margin
+      margin = sellingPrice - buyPrice;
+    }
+  } else if (changedField === 'margin') {
+    margin = numVal;
+    if (linkMode === 'LOCK_SELLING_PRICE') {
+      // Harga jual tetap -> sesuaikan harga tebus
+      buyPrice = Math.max(0, sellingPrice - margin);
+    } else {
+      // Default: Harga tebus tetap -> sesuaikan harga jual ke atas
+      sellingPrice = buyPrice + margin;
+    }
+  }
+
+  const marginPercent = sellingPrice > 0 ? (margin / sellingPrice) * 100 : 0;
+
+  return {
+    sellingPrice,
+    buyPrice,
+    margin,
+    marginPercent,
+  };
+}
+
+/**
+ * Menerapkan penyesuaian delta serentak secara berkesinambungan (misal +Rp 500 atau -Rp 300)
+ */
+export function applyPriceDelta(
+  delta: number,
+  currentState: { sellingPrice: number; buyPrice: number; margin: number; linkMode: PriceLinkMode }
+): { sellingPrice: number; buyPrice: number; margin: number; marginPercent: number } {
+  const { sellingPrice, buyPrice, margin, linkMode } = currentState;
+
+  if (linkMode === 'LOCK_MARGIN') {
+    // Keduanya naik/turun bersamaan, margin tetap persis sama
+    const nextSelling = Math.max(1000, sellingPrice + delta);
+    const nextBuy = Math.max(500, buyPrice + delta);
+    const nextMargin = nextSelling - nextBuy;
+    const marginPercent = nextSelling > 0 ? (nextMargin / nextSelling) * 100 : 0;
+    return {
+      sellingPrice: nextSelling,
+      buyPrice: nextBuy,
+      margin: nextMargin,
+      marginPercent,
+    };
+  } else if (linkMode === 'LOCK_BUY_PRICE') {
+    const nextSelling = Math.max(1000, sellingPrice + delta);
+    const nextMargin = nextSelling - buyPrice;
+    const marginPercent = nextSelling > 0 ? (nextMargin / nextSelling) * 100 : 0;
+    return {
+      sellingPrice: nextSelling,
+      buyPrice,
+      margin: nextMargin,
+      marginPercent,
+    };
+  } else if (linkMode === 'LOCK_SELLING_PRICE') {
+    const nextBuy = Math.max(500, buyPrice + delta);
+    const nextMargin = sellingPrice - nextBuy;
+    const marginPercent = sellingPrice > 0 ? (nextMargin / sellingPrice) * 100 : 0;
+    return {
+      sellingPrice,
+      buyPrice: nextBuy,
+      margin: nextMargin,
+      marginPercent,
+    };
+  } else {
+    // FREE: Naikkan harga jual dan harga tebus bersamaan
+    const nextSelling = Math.max(1000, sellingPrice + delta);
+    const nextBuy = Math.max(500, buyPrice + delta);
+    const nextMargin = nextSelling - nextBuy;
+    const marginPercent = nextSelling > 0 ? (nextMargin / nextSelling) * 100 : 0;
+    return {
+      sellingPrice: nextSelling,
+      buyPrice: nextBuy,
+      margin: nextMargin,
+      marginPercent,
+    };
+  }
 }
 

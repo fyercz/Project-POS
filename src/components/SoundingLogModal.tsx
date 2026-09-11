@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Gauge, Check, AlertCircle, Droplet, History, Pencil, Trash2 } from 'lucide-react';
+import { X, Gauge, Check, AlertCircle, Droplet, History, Pencil, Trash2, Zap } from 'lucide-react';
 import { TankConfig, SoundingRecord } from '../types';
-import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString, addDays } from '../utils/formatters';
+import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString, addDays, formatRupiah } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 
 interface SoundingLogModalProps {
@@ -10,6 +10,7 @@ interface SoundingLogModalProps {
   tank: TankConfig;
   soundings: SoundingRecord[];
   editingSounding?: SoundingRecord | null;
+  buyPrice?: number;
   onSaveSounding: (record: Omit<SoundingRecord, 'id'>, newStockLiters: number, editingId?: string) => void;
   onDeleteSounding?: (id: string) => void;
   onDeleteAugustSoundings?: () => void;
@@ -21,6 +22,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
   tank,
   soundings,
   editingSounding,
+  buyPrice = 12100,
   onSaveSounding,
   onDeleteSounding,
   onDeleteAugustSoundings,
@@ -338,6 +340,42 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
               </div>
             </div>
 
+            {/* Indikator Otomatis Masuk Pembukuan */}
+            <div
+              className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+                variance < 0
+                  ? 'bg-rose-50/90 border-rose-200 text-rose-900'
+                  : variance > 0
+                  ? 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
+                  : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+            >
+              <Zap className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+              <div className="flex-1">
+                <div className="font-bold flex items-center justify-between">
+                  <span>
+                    {variance < 0
+                      ? '⚡ Otomatis Masuk Pembukuan: Beban Losses BBM'
+                      : variance > 0
+                      ? '⚡ Otomatis Masuk Pembukuan: Surplus / Gain Stok BBM'
+                      : '⚡ Pembukuan: Stok Fisik & Sistem Sesuai Presisi (0 L)'}
+                  </span>
+                  {variance !== 0 && (
+                    <span className="font-mono font-black text-xs">
+                      {variance > 0 ? '+' : '-'}Rp {formatRupiah(Math.round(Math.abs(variance) * buyPrice))}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] opacity-80 mt-0.5">
+                  {variance < 0
+                    ? `Selisih susut fisik ${Math.abs(variance)} L dinilai dari harga tebus (Rp ${formatRupiah(buyPrice)}/L) dan otomatis dicatat ke Laporan Beban/Pengeluaran.`
+                    : variance > 0
+                    ? `Surplus fisik +${variance} L dinilai dari harga tebus (Rp ${formatRupiah(buyPrice)}/L) dan otomatis dicatat ke pembukuan (Kategori Gain Minyak).`
+                    : 'Tidak ada deviasi antara stok fisik dan stok sistem buku.'}
+                </p>
+              </div>
+            </div>
+
             {/* Sync checkbox */}
             <label className="flex items-center gap-2 text-xs text-slate-700 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
               <input
@@ -424,6 +462,13 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     <div className="text-[11px] text-slate-500">
                       Selisih: {s.varianceLiters > 0 ? `+${s.varianceLiters}` : s.varianceLiters} L
                     </div>
+                    {s.varianceLiters !== 0 && (
+                      <div className="text-[10px] font-sans font-bold flex items-center justify-end gap-1 mt-0.5">
+                        <span className={`px-1.5 py-0.5 rounded ${s.varianceLiters < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {s.varianceLiters > 0 ? '+' : '-'}Rp {formatRupiah(Math.round(Math.abs(s.varianceLiters) * buyPrice))} (Buku)
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
                     <button

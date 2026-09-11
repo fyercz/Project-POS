@@ -149,11 +149,139 @@ export function getCurrentTimeString(): string {
 
 export type ShiftCategory = 'shift1' | 'shift2' | 'fullday' | 'other';
 
+export const STANDARD_SHIFTS = {
+  SHIFT_1: {
+    name: 'Shift 1 (05.30 - 13.30)',
+    checkIn: '05:30',
+    checkOut: '13:30',
+    closingTime: '13:30',
+    displayHours: '05:30 - 13:30',
+    description: 'Shift 1 Pagi (05:30 s/d 13:30)',
+  },
+  SHIFT_2: {
+    name: 'Shift 2 (13.30 - 19.30)',
+    checkIn: '13:30',
+    checkOut: '19:30',
+    closingTime: '19:30',
+    displayHours: '13:30 - 19:30',
+    description: 'Shift 2 Siang / Sore (13:30 s/d 19:30)',
+  },
+  FULL_SHIFT: {
+    name: 'Full Shift (05.30 - 19.30)',
+    checkIn: '05:30',
+    checkOut: '19:30',
+    closingTime: '19:30',
+    displayHours: '05:30 - 19:30',
+    description: 'Full Day Operasional Penuh (05:30 s/d 19:30)',
+  },
+  OFF: {
+    name: 'Non-Shift / Off',
+    checkIn: '-',
+    checkOut: '-',
+    closingTime: '00:00',
+    displayHours: 'Libur / Off',
+    description: 'Libur / Tidak Bertugas',
+  },
+} as const;
+
+export interface ShiftHoursInfo {
+  shiftName: string;
+  checkIn: string;
+  checkOut: string;
+  closingTime: string;
+  displayHours: string;
+  isShift1: boolean;
+  isShift2: boolean;
+  isFull: boolean;
+  isOff: boolean;
+}
+
+export function getShiftHoursInfo(shiftStr: string): ShiftHoursInfo {
+  const s = (shiftStr || '').toLowerCase();
+  if (
+    s.includes('shift 2') ||
+    s.includes('shift2') ||
+    s.includes('13.30 - 19.30') ||
+    s.includes('13.30-19.30') ||
+    (s.includes('13.30') && !s.includes('05.30')) ||
+    s.includes('sore') ||
+    s.includes('siang')
+  ) {
+    return {
+      shiftName: STANDARD_SHIFTS.SHIFT_2.name,
+      checkIn: '13:30',
+      checkOut: '19:30',
+      closingTime: '19:30',
+      displayHours: '13:30 - 19:30',
+      isShift1: false,
+      isShift2: true,
+      isFull: false,
+      isOff: false,
+    };
+  }
+  if (
+    s.includes('full') ||
+    s.includes('lembur') ||
+    (s.includes('05.30') && s.includes('19.30')) ||
+    s.includes('multiple shift')
+  ) {
+    return {
+      shiftName: STANDARD_SHIFTS.FULL_SHIFT.name,
+      checkIn: '05:30',
+      checkOut: '19:30',
+      closingTime: '19:30',
+      displayHours: '05:30 - 19:30',
+      isShift1: false,
+      isShift2: false,
+      isFull: true,
+      isOff: false,
+    };
+  }
+  if (s.includes('off') || s.includes('libur') || s.includes('non-shift')) {
+    return {
+      shiftName: STANDARD_SHIFTS.OFF.name,
+      checkIn: '-',
+      checkOut: '-',
+      closingTime: '00:00',
+      displayHours: 'Libur / Off',
+      isShift1: false,
+      isShift2: false,
+      isFull: false,
+      isOff: true,
+    };
+  }
+  // Default is Shift 1
+  return {
+    shiftName: STANDARD_SHIFTS.SHIFT_1.name,
+    checkIn: '05:30',
+    checkOut: '13:30',
+    closingTime: '13:30',
+    displayHours: '05:30 - 13:30',
+    isShift1: true,
+    isShift2: false,
+    isFull: false,
+    isOff: false,
+  };
+}
+
+export function isHoursShiftMismatched(
+  shiftStr: string,
+  checkIn?: string,
+  checkOut?: string
+): boolean {
+  const info = getShiftHoursInfo(shiftStr);
+  if (info.isOff) return false;
+  if (!checkIn || !checkOut || checkIn === '-' || checkOut === '-') return true;
+
+  // Check if checkIn or checkOut deviates from standard shift hours
+  return checkIn !== info.checkIn || checkOut !== info.checkOut;
+}
+
 export function getShiftCategory(shiftStr: string): ShiftCategory {
   const s = (shiftStr || '').toLowerCase();
   if (s.includes('shift 1') || s.includes('shift1')) return 'shift1';
   if (s.includes('shift 2') || s.includes('shift2')) return 'shift2';
-  if (s.includes('full day') || s.includes('fullday')) return 'fullday';
+  if (s.includes('full') || s.includes('fullday')) return 'fullday';
   return 'other';
 }
 

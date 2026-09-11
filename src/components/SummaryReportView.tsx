@@ -184,7 +184,21 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
     [currentMonthExpenses]
   );
   const monthLossesRecords = useMemo(
-    () => currentMonthExpenses.filter((e) => e.category === 'LOSSES_MINYAK'),
+    () => currentMonthExpenses.filter((e) => e.category === 'LOSSES_MINYAK' || e.category === 'GAIN_MINYAK'),
+    [currentMonthExpenses]
+  );
+  const monthExpensesGain = useMemo(
+    () =>
+      currentMonthExpenses
+        .filter((e) => e.category === 'GAIN_MINYAK')
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [currentMonthExpenses]
+  );
+  const monthGainLiters = useMemo(
+    () =>
+      currentMonthExpenses
+        .filter((e) => e.category === 'GAIN_MINYAK')
+        .reduce((acc, curr) => acc + (curr.fuelLossLiters || 0), 0),
     [currentMonthExpenses]
   );
   const monthLossesPercent = useMemo(
@@ -239,7 +253,13 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
   );
 
   const monthTotalExpenses = useMemo(
-    () => currentMonthExpenses.reduce((acc, curr) => acc + curr.amount, 0),
+    () =>
+      currentMonthExpenses.reduce((acc, curr) => {
+        if (curr.category === 'GAIN_MINYAK') {
+          return acc - curr.amount; // Surplus BBM mengurangi beban operasional
+        }
+        return acc + curr.amount;
+      }, 0),
     [currentMonthExpenses]
   );
 
@@ -357,7 +377,10 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
       const liters = mSales.reduce((acc, curr) => acc + curr.literSold, 0);
       const revenue = mSales.reduce((acc, curr) => acc + curr.totalRevenue, 0);
       const grossProfit = mSales.reduce((acc, curr) => acc + curr.totalProfit, 0);
-      const expTotal = mExp.reduce((acc, curr) => acc + curr.amount, 0);
+      const expTotal = mExp.reduce((acc, curr) => {
+        if (curr.category === 'GAIN_MINYAK') return acc - curr.amount;
+        return acc + curr.amount;
+      }, 0);
       const netProfit = grossProfit - expTotal;
       const doKL = mPurch.reduce((acc, curr) => acc + (curr.volumeKL || curr.volumeLiters / 1000), 0);
 
@@ -419,7 +442,11 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
     [currentYearSales]
   );
   const yearTotalExpenses = useMemo(
-    () => currentYearExpenses.reduce((acc, curr) => acc + curr.amount, 0),
+    () =>
+      currentYearExpenses.reduce((acc, curr) => {
+        if (curr.category === 'GAIN_MINYAK') return acc - curr.amount;
+        return acc + curr.amount;
+      }, 0),
     [currentYearExpenses]
   );
   const yearTotalNetProfit = yearTotalGrossProfit - yearTotalExpenses;
@@ -964,6 +991,29 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                       />
                     </div>
                   </div>
+
+                  {/* Surplus / Gain BBM */}
+                  {monthExpensesGain > 0 && (
+                    <div>
+                      <div className="flex justify-between text-xs font-medium mb-1">
+                        <span className="flex items-center space-x-1.5 text-slate-700">
+                          <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Surplus / Gain BBM (+{formatNumber(monthGainLiters, 1)} L)</span>
+                        </span>
+                        <span className="font-mono font-bold text-emerald-700">
+                          +{formatRupiah(monthExpensesGain)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5">
+                        <div
+                          className="bg-emerald-500 h-1.5 rounded-full"
+                          style={{
+                            width: `${monthTotalExpenses > 0 ? (monthExpensesGain / monthTotalExpenses) * 100 : 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Listrik PLN */}
                   <div>

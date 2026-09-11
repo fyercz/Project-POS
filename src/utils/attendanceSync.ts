@@ -1,9 +1,10 @@
 import { AttendanceRecord, Employee, PayrollRecord, SaleRecord } from '../types';
+import { getShiftHoursInfo, STANDARD_SHIFTS } from './formatters';
 
 /**
  * Synchronize sales shift entries into employee attendance records.
  * Keeps manual edits intact while ensuring every recorded sale shift has a corresponding
- * presence / overtime attendance entry for the assigned operator.
+ * presence / overtime attendance entry for the assigned operator with synchronized working hours.
  */
 export function syncSalesToAttendance(
   sales: SaleRecord[],
@@ -50,6 +51,7 @@ export function syncSalesToAttendance(
     const key = `${matchedEmp.id}_${sale.transactionDate}`;
     const existing = attendanceMap.get(key);
 
+    const shiftInfo = getShiftHoursInfo(sale.shift);
     const shiftLower = sale.shift.toLowerCase();
     const notesLower = (sale.notes || '').toLowerCase();
     const opLower = opName.toLowerCase();
@@ -59,28 +61,27 @@ export function syncSalesToAttendance(
       opLower.includes('lembur') ||
       notesLower.includes('lembur');
 
-    let defaultCheckIn = '05:30';
-    let defaultCheckOut = '13:30';
-
-    if (shiftLower.includes('shift 2') || shiftLower.includes('13.30')) {
-      defaultCheckIn = '13:30';
-      defaultCheckOut = '19:30';
-    } else if (isExplicitLembur || shiftLower.includes('full')) {
-      defaultCheckIn = '05:30';
-      defaultCheckOut = '19:30';
-    }
+    const standardCheckIn = isExplicitLembur ? '05:30' : shiftInfo.checkIn;
+    const standardCheckOut = isExplicitLembur ? '19:30' : shiftInfo.checkOut;
+    const standardShiftName = isExplicitLembur ? STANDARD_SHIFTS.FULL_SHIFT.name : shiftInfo.shiftName;
 
     if (existing) {
       // Check if this is a secondary distinct shift on the same day (Operator worked Shift 1 and also Shift 2)
-      const isDifferentShift =
-        (existing.shift.includes('Shift 1') && shiftLower.includes('shift 2')) ||
-        (existing.shift.includes('Shift 2') && shiftLower.includes('shift 1')) ||
-        isExplicitLembur;
+      const isExistingShift1 = existing.shift.includes('Shift 1') || existing.checkInTime === '05:30';
+      const isNewShift2 = shiftInfo.isShift2;
+      const isExistingShift2 = existing.shift.includes('Shift 2') || existing.checkInTime === '13:30';
+      const isNewShift1 = shiftInfo.isShift1;
 
-      if (isDifferentShift) {
+      const isMultiShift =
+        (isExistingShift1 && isNewShift2) ||
+        (isExistingShift2 && isNewShift1) ||
+        isExplicitLembur ||
+        shiftInfo.isFull;
+
+      if (isMultiShift) {
         existing.status = 'LEMBUR';
         existing.overtimeShifts = Math.max(1, (existing.overtimeShifts || 0) + 1);
-        existing.shift = 'Full Shift (05.30 - 19.30)';
+        existing.shift = STANDARD_SHIFTS.FULL_SHIFT.name;
         existing.checkInTime = '05:30';
         existing.checkOutTime = '19:30';
         if (!existing.notes?.includes(`${sale.literSold} L`)) {
@@ -88,9 +89,25 @@ export function syncSalesToAttendance(
         }
         updatedCount++;
       } else {
-        // Just refresh notes / liter info if needed
+        // Single shift: verify and synchronize shift and working hours if they were mismatched
+        let modified = false;
+        if (existing.shift !== standardShiftName) {
+          existing.shift = standardShiftName;
+          modified = true;
+        }
+        if (existing.checkInTime !== standardCheckIn) {
+          existing.checkInTime = standardCheckIn;
+          modified = true;
+        }
+        if (existing.checkOutTime !== standardCheckOut) {
+          existing.checkOutTime = standardCheckOut;
+          modified = true;
+        }
         if (!existing.notes?.includes(`${sale.literSold} L`)) {
           existing.notes = `${existing.notes || ''} | Penjualan: ${sale.literSold} L`.trim();
+          modified = true;
+        }
+        if (modified) {
           updatedCount++;
         }
       }
@@ -101,13 +118,13 @@ export function syncSalesToAttendance(
         employeeId: matchedEmp.id,
         employeeName: matchedEmp.name,
         date: sale.transactionDate,
-        shift: isExplicitLembur ? 'Full Shift (05.30 - 19.30)' : sale.shift,
+        shift: standardShiftName,
         status: isExplicitLembur ? 'LEMBUR' : 'HADIR',
-        checkInTime: defaultCheckIn,
-        checkOutTime: defaultCheckOut,
+        checkInTime: standardCheckIn,
+        checkOutTime: standardCheckOut,
         overtimeShifts: isExplicitLembur ? 1 : 0,
         notes: `Sinkron penjualan shift (${sale.literSold} L - ${sale.shift}). ${sale.notes || ''}`.trim(),
-        createdAt: `${sale.transactionDate} ${sale.time || defaultCheckIn}`,
+        createdAt: `${sale.transactionDate} ${sale.time || standardCheckIn}`,
       };
 
       attendanceMap.set(key, newRec);
@@ -120,6 +137,75 @@ export function syncSalesToAttendance(
   );
 
   return { updatedAttendance, addedCount, updatedCount };
+}
+
+/**
+ * Checks whether an attendance record has mismatched working hours (checkIn/checkOut) vs shift assignment
+ */
+export function isAttendanceHoursMismatch(rec: AttendanceRecord): boolean {
+  if (rec.status === 'IZIN' || rec.status === 'SAKIT' || rec.status === 'ALPA' || rec.status === 'LIBUR') {
+    return false;
+  }
+  const info = getShiftHoursInfo(rec.shift);
+  if (info.isOff) return false;
+
+  const currentCheckIn = rec.checkInTime || '';
+  const currentCheckOut = rec.checkOutTime || '';
+
+  return currentCheckIn !== info.checkIn || currentCheckOut !== info.checkOut || rec.shift !== info.shiftName;
+}
+
+/**
+ * Automatically audits and synchronizes working hours (checkInTime & checkOutTime)
+ * with duty shift (shift) for all attendance records.
+ */
+export function synchronizeAllAttendanceHours(
+  attendance: AttendanceRecord[]
+): { updatedAttendance: AttendanceRecord[]; fixedCount: number } {
+  let fixedCount = 0;
+
+  const updatedAttendance = attendance.map((rec) => {
+    if (rec.status === 'IZIN' || rec.status === 'SAKIT' || rec.status === 'ALPA' || rec.status === 'LIBUR') {
+      return rec;
+    }
+
+    const info = getShiftHoursInfo(rec.shift);
+    if (info.isOff) return rec;
+
+    let needsFix = false;
+    let newShift = rec.shift;
+    let newCheckIn = rec.checkInTime;
+    let newCheckOut = rec.checkOutTime;
+
+    if (rec.shift !== info.shiftName) {
+      newShift = info.shiftName;
+      needsFix = true;
+    }
+
+    if (rec.checkInTime !== info.checkIn) {
+      newCheckIn = info.checkIn;
+      needsFix = true;
+    }
+
+    if (rec.checkOutTime !== info.checkOut) {
+      newCheckOut = info.checkOut;
+      needsFix = true;
+    }
+
+    if (needsFix) {
+      fixedCount++;
+      return {
+        ...rec,
+        shift: newShift,
+        checkInTime: newCheckIn,
+        checkOutTime: newCheckOut,
+      };
+    }
+
+    return rec;
+  });
+
+  return { updatedAttendance, fixedCount };
 }
 
 /**

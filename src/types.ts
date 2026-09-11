@@ -158,6 +158,7 @@ export type ExpenseCategoryType =
   | 'PDAM'
   | 'MAINTENANCE_ALAT'
   | 'LOSSES_MINYAK'
+  | 'GAIN_MINYAK'
   | 'INTERNET_WIFI'
   | 'DIVIDEN_OWNER'
   | 'LAINNYA';
@@ -171,13 +172,16 @@ export interface ExpenseRecord {
   amount: number;
   quantity?: number; // e.g. 1 hari, 2 shift, atau volume loss (L)
   unitRate?: number; // e.g. 40000 (gaji/hari), 30000 (lembur/shift), atau harga beli/L
-  fuelLossLiters?: number; // Volume susut/losses minyak dalam Liter
-  fuelLossBuyPriceSnapshot?: number; // Harga tebus Pertamina/L saat terjadi losses
+  fuelLossLiters?: number; // Volume susut/losses atau surplus/gain minyak dalam Liter
+  fuelLossBuyPriceSnapshot?: number; // Harga tebus Pertamina/L saat terjadi losses/gain
   personOrVendor?: string; // e.g. "Ahmad Fauzi", "PLN Token", "PDAM Tirta", "Teknisi Nozzle", "Susut Penguapan / Tera"
   shift?: 'Shift 1 (05.30 - 13.30)' | 'Shift 2 (13.30 - 19.30)' | 'Full Day' | 'Non-Shift' | string;
   paymentSource: 'KAS_HARIAN' | 'REKENING_BANK';
   notes?: string;
   createdAt: string;
+  sourceReferenceId?: string; // ID referensi unik (ID Sounding / ID PO Penerimaan DO / ID Shift)
+  sourceType?: 'SOUNDING_TANGKI' | 'PENERIMAAN_DO' | 'CLOSING_SHIFT' | 'MANUAL';
+  varianceType?: 'LOSS' | 'GAIN';
 }
 
 export const EXPENSE_RATES = {

@@ -42,8 +42,15 @@ import {
   MONTH_NAMES_INDO,
   getTodayDateString,
   getCurrentTimeString,
+  getShiftHoursInfo,
+  STANDARD_SHIFTS,
 } from '../utils/formatters';
-import { syncSalesToAttendance, recalculateMonthlyPayrolls } from '../utils/attendanceSync';
+import {
+  syncSalesToAttendance,
+  recalculateMonthlyPayrolls,
+  isAttendanceHoursMismatch,
+  synchronizeAllAttendanceHours,
+} from '../utils/attendanceSync';
 import { ConfirmModal } from './ConfirmModal';
 import * as XLSX from 'xlsx';
 
@@ -170,6 +177,10 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   const totalSalaryPayout = monthPayrolls.reduce((sum, p) => sum + p.netSalary, 0);
   const totalPaidSalary = monthPayrolls.filter((p) => p.paymentStatus === 'DIBAYAR').reduce((sum, p) => sum + p.netSalary, 0);
   const totalUnpaidSalary = monthPayrolls.filter((p) => p.paymentStatus !== 'DIBAYAR').reduce((sum, p) => sum + p.netSalary, 0);
+
+  // Mismatched working hours vs shift assignment
+  const mismatchedMonthAttendance = monthAttendance.filter(isAttendanceHoursMismatch);
+  const totalMismatchedAttendance = attendance.filter(isAttendanceHoursMismatch);
 
   // Handlers for Salary Payment
   const handleOpenPaySalaryModal = (payroll: PayrollRecord) => {
@@ -383,10 +394,11 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
     setEditingAttendance(null);
     setAttEmployeeId(employees[0]?.id || '');
     setAttDate(getTodayDateString());
-    setAttShift('Shift 1 (05.30 - 13.30)');
+    const shiftInfo = getShiftHoursInfo(STANDARD_SHIFTS.SHIFT_1.name);
+    setAttShift(shiftInfo.shiftName);
     setAttStatus('HADIR');
-    setAttCheckIn('05:30');
-    setAttCheckOut('13:30');
+    setAttCheckIn(shiftInfo.checkIn);
+    setAttCheckOut(shiftInfo.checkOut);
     setAttOvertimeShifts(0);
     setAttNotes('');
     setIsAttendanceModalOpen(true);
@@ -396,10 +408,11 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
     setEditingAttendance(record);
     setAttEmployeeId(record.employeeId);
     setAttDate(record.date);
-    setAttShift(record.shift);
+    const shiftInfo = getShiftHoursInfo(record.shift);
+    setAttShift(shiftInfo.shiftName);
     setAttStatus(record.status);
-    setAttCheckIn(record.checkInTime || '05:30');
-    setAttCheckOut(record.checkOutTime || '13:30');
+    setAttCheckIn(record.checkInTime || shiftInfo.checkIn);
+    setAttCheckOut(record.checkOutTime || shiftInfo.checkOut);
     setAttOvertimeShifts(record.overtimeShifts || 0);
     setAttNotes(record.notes || '');
     setIsAttendanceModalOpen(true);
@@ -412,19 +425,22 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
     // Strict rule: Overtime shifts count only when status is LEMBUR. When status is HADIR/IZIN/SAKIT/ALPA, overtime is 0.
     const finalOvertime = attStatus === 'LEMBUR' ? (attOvertimeShifts > 0 ? attOvertimeShifts : 1) : 0;
+    const shiftInfo = getShiftHoursInfo(attShift);
+    const finalCheckIn = attCheckIn || shiftInfo.checkIn;
+    const finalCheckOut = attCheckOut || shiftInfo.checkOut;
 
     const record: AttendanceRecord = {
       id: editingAttendance ? editingAttendance.id : `att-${Date.now()}`,
       employeeId: emp.id,
       employeeName: emp.name,
       date: attDate,
-      shift: attShift,
+      shift: shiftInfo.shiftName,
       status: attStatus,
-      checkInTime: attCheckIn,
-      checkOutTime: attCheckOut,
+      checkInTime: finalCheckIn,
+      checkOutTime: finalCheckOut,
       overtimeShifts: finalOvertime,
       notes: attNotes.trim(),
-      createdAt: editingAttendance ? editingAttendance.createdAt : `${attDate} ${attCheckIn}`,
+      createdAt: editingAttendance ? editingAttendance.createdAt : `${attDate} ${finalCheckIn}`,
     };
 
     onSaveAttendance(record);
@@ -528,6 +544,53 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
     setToastMessage({
       text: `Sinkronisasi Absensi Selesai (${formatMonthYear(selectedMonth)}): ${addedCount} baru, ${updatedCount} diperbarui. Slip gaji otomatis tersinkron.`,
+      type: 'success',
+    });
+  };
+
+  // Synchronize all attendance records with standard shift working hours
+  const handleSynchronizeAllHours = () => {
+    const { updatedAttendance, fixedCount } = synchronizeAllAttendanceHours(attendance);
+    if (fixedCount === 0) {
+      setToastMessage({
+        text: 'Semua jam kerja sudah sinkron sempurna dengan shift tugas!',
+        type: 'info',
+      });
+      return;
+    }
+
+    if (onBatchSyncAttendance) {
+      onBatchSyncAttendance(updatedAttendance);
+    } else {
+      updatedAttendance.forEach((rec) => onSaveAttendance(rec));
+    }
+
+    // Auto update payrolls for selected month
+    const updatedPayrolls = recalculateMonthlyPayrolls(updatedAttendance, employees, payrolls, selectedMonth);
+    updatedPayrolls.forEach((p) => {
+      if (p.month === selectedMonth) {
+        onSavePayroll(p);
+      }
+    });
+
+    setToastMessage({
+      text: `Berhasil menyinkronkan jam kerja & shift tugas untuk ${fixedCount} data absensi! Jam kerja kini presisi sesuai shift tugas.`,
+      type: 'success',
+    });
+  };
+
+  // Synchronize a single record's hours to its standard shift
+  const handleFixSingleRecordHours = (rec: AttendanceRecord) => {
+    const info = getShiftHoursInfo(rec.shift);
+    const updated: AttendanceRecord = {
+      ...rec,
+      shift: info.shiftName,
+      checkInTime: info.checkIn,
+      checkOutTime: info.checkOut,
+    };
+    onSaveAttendance(updated);
+    setToastMessage({
+      text: `Jam kerja ${rec.employeeName} (${rec.date}) telah disinkronkan ke jam standar ${info.displayHours}.`,
       type: 'success',
     });
   };
@@ -970,12 +1033,67 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   Catatan Presensi Operator ({formatMonthYear(selectedMonth)})
                 </h3>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">
-                  Total: <strong className="text-slate-800">{monthAttendance.length}</strong> log kehadiran tercatat
-                </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSynchronizeAllHours}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs ${
+                    mismatchedMonthAttendance.length > 0
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
+                      : 'bg-white border border-slate-300 hover:bg-slate-50 text-slate-700'
+                  }`}
+                  title="Sinkronkan jam datang & pulang agar presisi sesuai shift tugas"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Sinkronkan Jam & Shift</span>
+                  {mismatchedMonthAttendance.length > 0 && (
+                    <span className="bg-white text-amber-800 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold">
+                      {mismatchedMonthAttendance.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSyncFromShiftSales}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition-all flex items-center gap-1.5 shadow-2xs"
+                  title="Tarik data shift penjualan untuk otomatis mengisi absensi & lembur"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Tarik Data Penjualan</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddAttendance}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all flex items-center gap-1.5 shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Catat Presensi</span>
+                </button>
               </div>
             </div>
+
+            {/* Mismatch Warning Alert Banner */}
+            {mismatchedMonthAttendance.length > 0 && (
+              <div className="mx-4 sm:mx-5 my-3 p-3.5 bg-amber-50 border border-amber-300/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 shadow-2xs">
+                <div className="flex items-start sm:items-center gap-2.5">
+                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                  <div className="text-xs">
+                    <strong className="block sm:inline font-bold">Jam Kerja Tidak Sinkron: </strong>
+                    <span>Ditemukan <strong>{mismatchedMonthAttendance.length}</strong> catatan absensi di bulan {formatMonthYear(selectedMonth)} dengan jam kerja tidak sesuai standar shift tugas.</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSynchronizeAllHours}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Sinkronkan Sekarang</span>
+                </button>
+              </div>
+            )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -1000,77 +1118,107 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  monthAttendance.map((rec) => (
-                    <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-4 font-medium text-slate-900 whitespace-nowrap">
-                        <div className="font-semibold">{formatDateIndo(rec.date)}</div>
-                        <span className="text-[10px] text-slate-400 font-mono">{rec.date}</span>
-                      </td>
+                  monthAttendance.map((rec) => {
+                    const isMismatched = isAttendanceHoursMismatch(rec);
+                    const shiftInfo = getShiftHoursInfo(rec.shift);
 
-                      <td className="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">
-                        {rec.employeeName}
-                      </td>
+                    return (
+                      <tr key={rec.id} className={`transition-colors ${isMismatched ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-slate-50/70'}`}>
+                        <td className="py-3 px-4 font-medium text-slate-900 whitespace-nowrap">
+                          <div className="font-semibold">{formatDateIndo(rec.date)}</div>
+                          <span className="text-[10px] text-slate-400 font-mono">{rec.date}</span>
+                        </td>
 
-                      <td className="py-3 px-4 whitespace-nowrap text-slate-700">
-                        {rec.shift}
-                      </td>
+                        <td className="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">
+                          {rec.employeeName}
+                        </td>
 
-                      <td className="py-3 px-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                        {rec.checkInTime || '-'} s/d {rec.checkOutTime || '-'}
-                      </td>
+                        <td className="py-3 px-4 whitespace-nowrap text-slate-700">
+                          <span className="font-medium">{rec.shift}</span>
+                        </td>
 
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                            rec.status === 'HADIR'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                              : rec.status === 'LEMBUR'
-                              ? 'bg-indigo-100 text-indigo-800 border border-indigo-300'
-                              : rec.status === 'IZIN'
-                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                              : 'bg-rose-100 text-rose-800 border border-rose-300'
-                          }`}
-                        >
-                          {rec.status}
-                        </span>
-                      </td>
+                        <td className="py-3 px-3 text-center font-mono text-slate-600 whitespace-nowrap">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="font-bold text-slate-800">
+                              {rec.checkInTime || '-'} s/d {rec.checkOutTime || '-'}
+                            </span>
+                            {isMismatched && (
+                              <button
+                                type="button"
+                                onClick={() => handleFixSingleRecordHours(rec)}
+                                title={`Jam kerja tidak sinkron dengan ${rec.shift}. Klik untuk sesuaikan ke ${shiftInfo.displayHours}`}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans font-bold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+                              >
+                                <RefreshCw className="w-3 h-3 text-amber-700 shrink-0" />
+                                <span>Sinkronkan ({shiftInfo.displayHours})</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
 
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        {rec.overtimeShifts > 0 ? (
-                          <span className="font-bold text-indigo-700 font-mono">
-                            +{rec.overtimeShifts} Shift
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              rec.status === 'HADIR'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : rec.status === 'LEMBUR'
+                                ? 'bg-indigo-100 text-indigo-800 border border-indigo-300'
+                                : rec.status === 'IZIN'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : 'bg-rose-100 text-rose-800 border border-rose-300'
+                            }`}
+                          >
+                            {rec.status}
                           </span>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
-                        {rec.notes || '-'}
-                      </td>
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          {rec.overtimeShifts > 0 ? (
+                            <span className="font-bold text-indigo-700 font-mono">
+                              +{rec.overtimeShifts} Shift
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </td>
 
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleEditAttendance(rec)}
-                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Edit Catatan Absensi"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setAttendanceToDelete(rec)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Hapus Absensi"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
+                          {rec.notes || '-'}
+                        </td>
+
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1">
+                            {isMismatched && (
+                              <button
+                                type="button"
+                                onClick={() => handleFixSingleRecordHours(rec)}
+                                className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                                title={`Sinkronkan jam kerja ke ${shiftInfo.displayHours}`}
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleEditAttendance(rec)}
+                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Edit Catatan Absensi"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAttendanceToDelete(rec)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Hapus Absensi"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1417,29 +1565,22 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Pilihan Shift</label>
+                  <label className="block font-bold text-slate-700 mb-1">Pilihan Shift Tugas</label>
                   <select
                     value={attShift}
                     onChange={(e) => {
                       const newShift = e.target.value;
-                      setAttShift(newShift);
-                      if (newShift.includes('Shift 1')) {
-                        setAttCheckIn('05:30');
-                        setAttCheckOut('13:30');
-                      } else if (newShift.includes('Shift 2')) {
-                        setAttCheckIn('13:30');
-                        setAttCheckOut('19:30');
-                      } else if (newShift.includes('Full')) {
-                        setAttCheckIn('05:30');
-                        setAttCheckOut('19:30');
-                      }
+                      const info = getShiftHoursInfo(newShift);
+                      setAttShift(info.shiftName);
+                      setAttCheckIn(info.checkIn);
+                      setAttCheckOut(info.checkOut);
                     }}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
                   >
-                    <option value="Shift 1 (05.30 - 13.30)">Shift 1 (05.30 - 13.30)</option>
-                    <option value="Shift 2 (13.30 - 19.30)">Shift 2 (13.30 - 19.30)</option>
-                    <option value="Full Shift (05.30 - 19.30)">Full Shift (05.30 - 19.30)</option>
-                    <option value="Non-Shift / Off">Non-Shift / Off</option>
+                    <option value={STANDARD_SHIFTS.SHIFT_1.name}>{STANDARD_SHIFTS.SHIFT_1.name}</option>
+                    <option value={STANDARD_SHIFTS.SHIFT_2.name}>{STANDARD_SHIFTS.SHIFT_2.name}</option>
+                    <option value={STANDARD_SHIFTS.FULL_SHIFT.name}>{STANDARD_SHIFTS.FULL_SHIFT.name}</option>
+                    <option value={STANDARD_SHIFTS.OFF.name}>{STANDARD_SHIFTS.OFF.name}</option>
                   </select>
                 </div>
 
@@ -1504,6 +1645,39 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Standard Hours Info & Auto Sync Button */}
+              {(() => {
+                const info = getShiftHoursInfo(attShift);
+                const isHoursDifferent = (attCheckIn && attCheckIn !== info.checkIn) || (attCheckOut && attCheckOut !== info.checkOut);
+                return (
+                  <div className={`p-2.5 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs transition-colors ${
+                    isHoursDifferent
+                      ? 'bg-amber-50 border-amber-300 text-amber-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span>
+                        Jam Standar {info.shiftName}: <strong className="font-mono text-slate-900">{info.displayHours}</strong>
+                      </span>
+                    </div>
+                    {isHoursDifferent && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttCheckIn(info.checkIn);
+                          setAttCheckOut(info.checkOut);
+                        }}
+                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] transition-colors flex items-center gap-1 shadow-2xs"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>Terapkan Jam Standar</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div>
                 <label className="block font-semibold text-slate-600 mb-1">Keterangan / Catatan</label>
