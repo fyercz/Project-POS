@@ -81,17 +81,17 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   // Input Mode: 'payment' (Utama - Isi Pembayaran Dahulu), 'meter' (Stand Meter Dispenser), 'direct' (Manual Liter)
   const [inputMode, setInputMode] = useState<'payment' | 'meter' | 'direct'>('payment');
 
-  // Payments (Metode Pembayaran)
-  const [paymentCash, setPaymentCash] = useState<number>(2590000);
+  // Payments (Metode Pembayaran) - Default 0 rupiah
+  const [paymentCash, setPaymentCash] = useState<number>(0);
   const [paymentQris, setPaymentQris] = useState<number>(0);
   const [paymentEdc, setPaymentEdc] = useState<number>(0);
-  const [actualCashInHand, setActualCashInHand] = useState<number>(2590000);
+  const [actualCashInHand, setActualCashInHand] = useState<number>(0);
   const [showCashReconciliation, setShowCashReconciliation] = useState<boolean>(false);
 
   // Metering & Direct
   const [meterAwal, setMeterAwal] = useState<number>(lastMeterReading);
-  const [meterAkhir, setMeterAkhir] = useState<number>(lastMeterReading + 200);
-  const [directLiters, setDirectLiters] = useState<number>(200);
+  const [meterAkhir, setMeterAkhir] = useState<number>(lastMeterReading);
+  const [directLiters, setDirectLiters] = useState<number>(0);
 
   // Unit Price
   const [unitPrice, setUnitPrice] = useState<number>(currentPrice);
@@ -108,6 +108,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   const [soundingWaterCm, setSoundingWaterCm] = useState<number>(0);
   const [syncToSoundingLog, setSyncToSoundingLog] = useState<boolean>(true);
   const [syncToAttendance, setSyncToAttendance] = useState<boolean>(true);
+  const [isSoundingTouched, setIsSoundingTouched] = useState<boolean>(false);
 
   // Operator List
   const operatorList = useMemo(() => {
@@ -221,6 +222,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
 
       setSyncToAttendance(editingSale.syncToAttendance ?? true);
       setNotes(editingSale.notes || '');
+      setIsSoundingTouched(true);
     } else if (isOpen) {
       // Sesuai aturan: sesuaikan dengan tanggal terakhir yang telah diinput setelahnya, bukan tanggal saat ini
       const nextConfig = getNextSalesInputDateAndShift(sales, lastInputtedDate, operatorList);
@@ -238,25 +240,22 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       const eff = getEffectivePriceForDate(firstProdId, targetDate, products, priceHistory, sales);
       setUnitPrice(eff.sellingPrice);
 
-      // Default payment (default to 200 liter rounded sales)
-      const defaultLtr = 200;
-      const initialCash = defaultLtr * eff.sellingPrice;
+      // Default pembayaran: 0 rupiah (sesuai permintaan user)
       setInputMode('payment');
-      setPaymentCash(initialCash);
+      setPaymentCash(0);
       setPaymentQris(0);
       setPaymentEdc(0);
-      setActualCashInHand(initialCash);
+      setActualCashInHand(0);
       setShowCashReconciliation(false);
 
       setMeterAwal(lastMeterReading);
-      setMeterAkhir(lastMeterReading + defaultLtr);
-      setDirectLiters(defaultLtr);
+      setMeterAkhir(lastMeterReading);
+      setDirectLiters(0);
 
       setTeraTestLiters(5);
 
-      // Sounding
-      const expectedRem = Math.max(0, currentStockLiters - defaultLtr);
-      const defaultCm = Math.round((expectedRem / LITERS_PER_CM) * 10) / 10;
+      // Sounding awal tangki
+      const defaultCm = Math.round((currentStockLiters / LITERS_PER_CM) * 10) / 10;
       setHasSounding(true);
       setSoundingStickCm(defaultCm);
       setSoundingCalculatedLiters(Math.round(defaultCm * LITERS_PER_CM));
@@ -264,8 +263,9 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       setSyncToSoundingLog(true);
       setSyncToAttendance(true);
       setNotes('');
+      setIsSoundingTouched(false);
     }
-  }, [editingSale, isOpen, lastInputtedDate]);
+  }, [editingSale, isOpen, lastInputtedDate, currentStockLiters]);
 
   // Synchronize unit price when transactionDate or selectedProductId changes
   useEffect(() => {
@@ -357,17 +357,29 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   // Theoretical remaining stock after this shift
   const theoreticalRemainingStock = Math.max(0, currentStockLiters - calculatedLiters);
 
+  // Auto-sync sounding dengan sisa stok teoritis sebelum diubah manual oleh operator
+  useEffect(() => {
+    if (!isSoundingTouched && !editingSale && isOpen) {
+      const expectedRem = Math.max(0, currentStockLiters - calculatedLiters);
+      const cm = Math.round((expectedRem / LITERS_PER_CM) * 10) / 10;
+      setSoundingStickCm(cm);
+      setSoundingCalculatedLiters(Math.round(cm * LITERS_PER_CM));
+    }
+  }, [calculatedLiters, currentStockLiters, isSoundingTouched, editingSale, isOpen]);
+
   // Sounding variance
   const soundingVariance = soundingCalculatedLiters - theoreticalRemainingStock;
 
   // Sounding handlers
   const handleSoundingStickChange = (cm: number) => {
+    setIsSoundingTouched(true);
     setSoundingStickCm(cm);
     const liters = Math.min(tankCapacity, Math.round(cm * LITERS_PER_CM));
     setSoundingCalculatedLiters(liters);
   };
 
   const handleSoundingLitersChange = (liters: number) => {
+    setIsSoundingTouched(true);
     const ltr = Math.min(tankCapacity, liters);
     setSoundingCalculatedLiters(ltr);
     setSoundingStickCm(Math.round((ltr / LITERS_PER_CM) * 10) / 10);
@@ -880,6 +892,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     min={0}
                     step={1000}
                     value={paymentCash}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value) || 0;
                       setPaymentCash(val);
@@ -914,7 +927,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     }}
                     className="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
                   >
-                    Reset
+                    Reset (0)
                   </button>
                 </div>
               </div>
@@ -934,6 +947,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     min={0}
                     step={1000}
                     value={paymentQris}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => setPaymentQris(parseFloat(e.target.value) || 0)}
                     className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
                   />
@@ -954,7 +968,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     onClick={() => setPaymentQris(0)}
                     className="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
                   >
-                    Reset
+                    Reset (0)
                   </button>
                 </div>
               </div>
@@ -974,6 +988,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     min={0}
                     step={1000}
                     value={paymentEdc}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => setPaymentEdc(parseFloat(e.target.value) || 0)}
                     className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-hidden"
                   />
@@ -994,7 +1009,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     onClick={() => setPaymentEdc(0)}
                     className="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
                   >
-                    Reset
+                    Reset (0)
                   </button>
                 </div>
               </div>
@@ -1034,6 +1049,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       min={0}
                       step={1000}
                       value={actualCashInHand}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => setActualCashInHand(parseFloat(e.target.value) || 0)}
                       className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-hidden"
                     />
@@ -1267,6 +1283,21 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       <p className="text-[11px] opacity-80">
                         Fisik stik: {formatNumber(soundingCalculatedLiters)} L | Buku teoritis: {formatNumber(theoreticalRemainingStock)} L
                       </p>
+                      {soundingVariance !== 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSoundingTouched(false);
+                            const expectedRem = Math.max(0, currentStockLiters - calculatedLiters);
+                            const cm = Math.round((expectedRem / LITERS_PER_CM) * 10) / 10;
+                            setSoundingStickCm(cm);
+                            setSoundingCalculatedLiters(Math.round(cm * LITERS_PER_CM));
+                          }}
+                          className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-semibold mt-0.5 cursor-pointer block"
+                        >
+                          Samakan dengan sisa buku ({formatNumber(theoreticalRemainingStock)} L)
+                        </button>
+                      )}
                     </div>
                   </div>
                   {soundingVariance !== 0 && (

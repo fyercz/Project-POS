@@ -724,44 +724,119 @@ export default function App() {
       notes?: string;
     }
   ) => {
+    const targetOrder = purchases.find((p) => p.id === orderId);
+    if (!targetOrder) return;
+
+    const isAlreadyCompleted = targetOrder.status === 'SELESAI';
+    const previousReceived = isAlreadyCompleted
+      ? targetOrder.actualLitersReceived || targetOrder.volumeLiters || 0
+      : 0;
+    const diffReceived = receivingData.actualLitersReceived - previousReceived;
+
     const updatedOrders = purchases.map((order) => {
       if (order.id === orderId) {
         return {
           ...order,
           ...receivingData,
           status: 'SELESAI' as const,
-          completedAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
+          completedAt: order.completedAt || `${getTodayDateString()} ${getCurrentTimeString()}`,
         };
       }
       return order;
     });
     setPurchases(updatedOrders);
 
-    // Add fuel to tank stock
+    // Update fuel in tank stock (clamped at totalCapacityLiters and min 0 to prevent overflow stuck)
     setTank((prev) => ({
       ...prev,
-      currentStockLiters: Math.min(
-        prev.totalCapacityLiters,
-        prev.currentStockLiters + receivingData.actualLitersReceived
+      currentStockLiters: Math.max(
+        0,
+        Math.min(
+          prev.totalCapacityLiters,
+          prev.currentStockLiters + diffReceived
+        )
       ),
       lastSoundingDate: receivingData.actualDeliveryDate,
-      lastSoundingLiters: receivingData.soundingAfterLiters,
+      lastSoundingLiters: Math.min(prev.totalCapacityLiters, receivingData.soundingAfterLiters),
     }));
 
     // Otomatis sinkronisasi selisih volume DO (Loss / Gain) ke pembukuan beban operasional
+    syncFuelVarianceToExpenses(
+      orderId,
+      'PENERIMAAN_DO',
+      receivingData.actualDeliveryDate,
+      getCurrentTimeString(),
+      receivingData.varianceLiters,
+      `Mobil Tangki Pertamina (${targetOrder.truckPlateNumber || targetOrder.supplyDepot || 'TBBM'})`,
+      `Verifikasi bongkar DO ${targetOrder.poNumber}. Supir: ${targetOrder.driverName || '-'}. ${receivingData.notes || ''}`.trim(),
+      targetOrder.buyPricePerLiter
+    );
+  };
+
+  // Batalkan penerimaan DO & kembalikan stok fisik tangki pendam
+  const handleRevertReceiving = (orderId: string) => {
     const targetOrder = purchases.find((p) => p.id === orderId);
-    if (targetOrder) {
-      syncFuelVarianceToExpenses(
-        orderId,
-        'PENERIMAAN_DO',
-        receivingData.actualDeliveryDate,
-        getCurrentTimeString(),
-        receivingData.varianceLiters,
-        `Mobil Tangki Pertamina (${targetOrder.truckPlateNumber || targetOrder.supplyDepot || 'TBBM'})`,
-        `Verifikasi bongkar DO ${targetOrder.poNumber}. Supir: ${targetOrder.driverName || '-'}. ${receivingData.notes || ''}`.trim(),
-        targetOrder.buyPricePerLiter
-      );
+    if (!targetOrder || targetOrder.status !== 'SELESAI') return;
+
+    const receivedLiters = targetOrder.actualLitersReceived || targetOrder.volumeLiters || 0;
+
+    // 1. Kurangi stok tangki sebesar yang pernah dibongkar
+    setTank((prev) => ({
+      ...prev,
+      currentStockLiters: Math.max(0, prev.currentStockLiters - receivedLiters),
+    }));
+
+    // 2. Kembalikan status DO ke DIPESAN dan bersihkan data penerimaan
+    const updatedOrders = purchases.map((order) => {
+      if (order.id === orderId) {
+        return {
+          ...order,
+          status: 'DIPESAN' as const,
+          actualDeliveryDate: undefined,
+          soundingBeforeCm: undefined,
+          soundingBeforeLiters: undefined,
+          soundingAfterCm: undefined,
+          soundingAfterLiters: undefined,
+          actualLitersReceived: undefined,
+          varianceLiters: undefined,
+          density: undefined,
+          temperature: undefined,
+          completedAt: undefined,
+        };
+      }
+      return order;
+    });
+    setPurchases(updatedOrders);
+
+    // 3. Bersihkan biaya selisih BBM di pembukuan
+    setExpenses((prev) => prev.filter((e) => e.sourceReferenceId !== orderId));
+  };
+
+  // Hapus catatan DO & otomatis rollback stok tangki jika sudah selesai dibongkar
+  const handleDeletePurchaseOrder = (orderId: string) => {
+    const targetOrder = purchases.find((p) => p.id === orderId);
+    if (!targetOrder) return;
+
+    // Jika DO sudah dibongkar ke tangki (SELESAI), kurangi stok tangki agar tidak nyangkut/stuck!
+    if (targetOrder.status === 'SELESAI') {
+      const receivedLiters = targetOrder.actualLitersReceived || targetOrder.volumeLiters || 0;
+      setTank((prev) => ({
+        ...prev,
+        currentStockLiters: Math.max(0, prev.currentStockLiters - receivedLiters),
+      }));
+
+      // Bersihkan pembukuan biaya selisih
+      setExpenses((prev) => prev.filter((e) => e.sourceReferenceId !== orderId));
     }
+
+    setPurchases((prev) => prev.filter((p) => p.id !== orderId));
+  };
+
+  const handleDirectAdjustTank = (newStockLiters: number) => {
+    setTank((prev) => ({
+      ...prev,
+      currentStockLiters: Math.min(prev.totalCapacityLiters, Math.max(0, newStockLiters)),
+    }));
   };
 
   const handleEditSounding = (sounding: SoundingRecord) => {
@@ -1148,10 +1223,13 @@ export default function App() {
           {activeTab === 'purchases' && (
             <PurchaseHistoryTable
               orders={purchases}
+              tank={tank}
               onOpenNewOrderModal={() => handleQuickOrder(2)}
               onOpenReceiveModal={handleOpenReceiveModal}
               onEditOrder={handleEditOrder}
-              onDeleteOrder={(id) => setPurchases(purchases.filter((p) => p.id !== id))}
+              onDeleteOrder={handleDeletePurchaseOrder}
+              onRevertReceiving={handleRevertReceiving}
+              onDirectAdjustTank={handleDirectAdjustTank}
             />
           )}
 

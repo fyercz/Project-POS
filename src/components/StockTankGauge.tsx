@@ -18,15 +18,18 @@ export const StockTankGauge: React.FC<StockTankGaugeProps> = ({
 }) => {
   const current = tank.currentStockLiters;
   const capacity = tank.totalCapacityLiters;
+  const isOverflow = current > capacity;
+  const overflowLiters = isOverflow ? current - capacity : 0;
   const percentage = Math.min(100, Math.max(0, (current / capacity) * 100));
+  const rawPercentage = (current / capacity) * 100;
   const usableStock = Math.max(0, current - tank.deadStockLiters);
   const ullageLiters = Math.max(0, capacity - current);
   const ullageKL = (ullageLiters / 1000).toFixed(1);
 
   // Thresholds
-  const isCritical = current <= tank.criticalThresholdLiters;
-  const isWarning = current <= tank.warningThresholdLiters && !isCritical;
-  const isSafe = !isCritical && !isWarning;
+  const isCritical = current <= tank.criticalThresholdLiters && !isOverflow;
+  const isWarning = current <= tank.warningThresholdLiters && !isCritical && !isOverflow;
+  const isSafe = !isCritical && !isWarning && !isOverflow;
 
   return (
     <div
@@ -62,24 +65,55 @@ export const StockTankGauge: React.FC<StockTankGaugeProps> = ({
 
             <span
               className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 border ${
-                isCritical
+                isOverflow
+                  ? 'bg-rose-500/25 text-rose-300 border-rose-500/40 animate-pulse'
+                  : isCritical
                   ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
                   : isWarning
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                   : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
               }`}
             >
-              {isCritical ? (
+              {isOverflow ? (
+                <AlertCircle className="w-3 h-3 text-rose-400" />
+              ) : isCritical ? (
                 <AlertCircle className="w-3 h-3 text-rose-400" />
               ) : isWarning ? (
                 <AlertTriangle className="w-3 h-3 text-amber-400" />
               ) : (
                 <CheckCircle2 className="w-3 h-3 text-emerald-400" />
               )}
-              <span>{isCritical ? 'KRITIS' : isWarning ? 'SIAGA ORDER' : 'STOK AMAN'}</span>
+              <span>
+                {isOverflow
+                  ? `OVERFLOW (+${formatNumber(overflowLiters)} L)`
+                  : isCritical
+                  ? 'KRITIS'
+                  : isWarning
+                  ? 'SIAGA ORDER'
+                  : 'STOK AMAN'}
+              </span>
             </span>
           </div>
         </div>
+
+        {/* Overflow Alert Ribbon */}
+        {isOverflow && (
+          <div className="mt-3 p-3 bg-rose-500/20 border border-rose-500/40 rounded-xl flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-rose-200">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>
+                Stok minyak melebihi kapasitas fisik tangki sebesar <strong>{formatLiter(overflowLiters)}</strong>.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenSoundingModal}
+              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold shrink-0 transition-colors"
+            >
+              Kalibrasi Sounding
+            </button>
+          </div>
+        )}
 
         {/* Stock Liter Large Counter */}
         <div className="mt-5 flex items-baseline justify-between">
