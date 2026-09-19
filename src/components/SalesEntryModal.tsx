@@ -21,6 +21,7 @@ import {
   Receipt,
   RotateCcw,
   Layers,
+  Tag,
 } from 'lucide-react';
 import { Product, SaleRecord, PriceHistory, Employee } from '../types';
 import {
@@ -93,8 +94,9 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   const [meterAkhir, setMeterAkhir] = useState<number>(lastMeterReading);
   const [directLiters, setDirectLiters] = useState<number>(0);
 
-  // Unit Price
+  // Unit Price & Buy Price (Otomatis dari master tarif acuan)
   const [unitPrice, setUnitPrice] = useState<number>(currentPrice);
+  const [buyPrice, setBuyPrice] = useState<number>(12100);
 
   // Uji Tera & Catatan
   const [teraTestLiters, setTeraTestLiters] = useState<number>(5);
@@ -192,6 +194,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       setOperatorName(editingSale.operatorName || 'Daslam');
       setSelectedProductId(editingSale.productId);
       setUnitPrice(editingSale.unitPrice);
+      setBuyPrice(editingSale.buyPriceSnapshot || effectivePriceForDate.buyPrice);
 
       setPaymentCash(editingSale.paymentCash || 0);
       setPaymentQris(editingSale.paymentQris || 0);
@@ -239,6 +242,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       setSelectedProductId(firstProdId);
       const eff = getEffectivePriceForDate(firstProdId, targetDate, products, priceHistory, sales);
       setUnitPrice(eff.sellingPrice);
+      setBuyPrice(eff.buyPrice);
 
       // Default pembayaran: 0 rupiah (sesuai permintaan user)
       setInputMode('payment');
@@ -267,12 +271,13 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
     }
   }, [editingSale, isOpen, lastInputtedDate, currentStockLiters]);
 
-  // Synchronize unit price when transactionDate or selectedProductId changes
+  // Synchronize unit price and buy price when transactionDate or selectedProductId changes
   useEffect(() => {
     if (selectedProduct && transactionDate && isOpen) {
       if (!editingSale || editingSale.transactionDate !== transactionDate) {
         const eff = getEffectivePriceForDate(selectedProductId, transactionDate, products, priceHistory, sales);
         setUnitPrice(eff.sellingPrice);
+        setBuyPrice(eff.buyPrice);
       }
     }
   }, [selectedProductId, selectedProduct, transactionDate, editingSale, priceHistory, products, sales, isOpen]);
@@ -283,6 +288,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
     if (newDate && selectedProduct) {
       const eff = getEffectivePriceForDate(selectedProductId, newDate, products, priceHistory, sales);
       setUnitPrice(eff.sellingPrice);
+      setBuyPrice(eff.buyPrice);
     }
 
     const salesOnNewDate = sales.filter((s) => {
@@ -327,6 +333,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
     if (transactionDate) {
       const eff = getEffectivePriceForDate(newProdId, transactionDate, products, priceHistory, sales);
       setUnitPrice(eff.sellingPrice);
+      setBuyPrice(eff.buyPrice);
     }
   };
 
@@ -349,7 +356,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
 
   // Nilai Omset & Profit BBM
   const totalRevenue = calculatedLiters * unitPrice;
-  const totalProfit = calculatedLiters * (unitPrice - buyPriceSnapshot);
+  const totalProfit = Math.round(calculatedLiters * (unitPrice - buyPrice));
 
   // Selisih nilai pembayaran dengan nilai omset liter bulat (jika ada pembulatan kas)
   const paymentDifference = totalPayment - totalRevenue;
@@ -447,7 +454,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       meterAkhir: inputMode === 'meter' || meterAwal !== undefined ? meterAwal + calculatedLiters : undefined,
       literSold: calculatedLiters, // Angka bulat
       unitPrice,
-      buyPriceSnapshot,
+      buyPriceSnapshot: buyPrice,
       totalRevenue,
       totalProfit,
       paymentCash: paymentCash || 0,
@@ -506,7 +513,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[82vh] overflow-y-auto">
+        <form noValidate onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[82vh] overflow-y-auto">
           {errorMessage && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -763,56 +770,38 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
             </div>
           </div>
 
-          {/* Produk BBM & Harga Satuan */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-blue-50/50 p-3.5 rounded-xl border border-blue-100">
-            <div>
-              <label className="block text-xs font-semibold text-blue-900 mb-1">
-                Produk BBM
-              </label>
-              <select
-                value={selectedProductId}
-                onChange={(e) => handleProductChange(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-hidden"
-              >
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} (RON {p.ron})
-                  </option>
-                ))}
-              </select>
+          {/* Produk BBM (Tarif Otomatis dari Master Harga) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+            <div className="flex items-center gap-2">
+              <Tag className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="font-semibold text-slate-700">Produk BBM:</span>
+              {products.length > 1 ? (
+                <select
+                  value={selectedProductId}
+                  onChange={(e) => handleProductChange(e.target.value)}
+                  className="font-bold text-slate-900 bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs focus:ring-2 focus:ring-blue-500 outline-hidden"
+                >
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (RON {p.ron})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="font-bold text-slate-900">
+                  {selectedProduct?.name} (RON {selectedProduct?.ron})
+                </span>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-blue-900 mb-1 flex items-center justify-between">
-                <span>Harga Satuan (Rp / Liter)</span>
-                <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded">
-                  {effectivePriceForDate.sourceDesc || `Tarif ${formatMonthYearId(transactionDate.substring(0, 7))}`}
-                </span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2 text-sm font-bold text-slate-400">Rp</span>
-                <input
-                  type="number"
-                  required
-                  min={1000}
-                  step={50}
-                  value={unitPrice}
-                  onChange={(e) => setUnitPrice(parseFloat(e.target.value) || 0)}
-                  className="w-full pl-10 pr-3 py-2 bg-white border border-blue-200 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-hidden"
-                />
-              </div>
-              {unitPrice !== effectivePriceForDate.sellingPrice && (
-                <div className="mt-1 flex items-center justify-between text-[11px]">
-                  <span className="text-amber-700 font-medium">Harga diubah manual</span>
-                  <button
-                    type="button"
-                    onClick={() => setUnitPrice(effectivePriceForDate.sellingPrice)}
-                    className="text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer"
-                  >
-                    Gunakan Rp {formatRupiah(effectivePriceForDate.sellingPrice)}
-                  </button>
-                </div>
-              )}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-500 font-medium">Tarif Resmi:</span>
+              <span className="font-mono font-bold text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                Rp {formatRupiah(unitPrice)}/L
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                ({effectivePriceForDate.sourceDesc || `Tarif ${formatMonthYearId(transactionDate.substring(0, 7))}`})
+              </span>
             </div>
           </div>
 
@@ -891,7 +880,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     type="number"
                     min={0}
                     step={1000}
-                    value={paymentCash}
+                    placeholder="0"
+                    value={paymentCash === 0 ? '' : paymentCash}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value) || 0;
@@ -946,7 +936,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     type="number"
                     min={0}
                     step={1000}
-                    value={paymentQris}
+                    placeholder="0"
+                    value={paymentQris === 0 ? '' : paymentQris}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => setPaymentQris(parseFloat(e.target.value) || 0)}
                     className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-hidden"
@@ -987,7 +978,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     type="number"
                     min={0}
                     step={1000}
-                    value={paymentEdc}
+                    placeholder="0"
+                    value={paymentEdc === 0 ? '' : paymentEdc}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => setPaymentEdc(parseFloat(e.target.value) || 0)}
                     className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-hidden"
@@ -1048,7 +1040,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       type="number"
                       min={0}
                       step={1000}
-                      value={actualCashInHand}
+                      placeholder="0"
+                      value={actualCashInHand === 0 ? '' : actualCashInHand}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => setActualCashInHand(parseFloat(e.target.value) || 0)}
                       className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-hidden"
@@ -1116,16 +1109,13 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     Rp {formatRupiah(totalRevenue)}
                   </span>
                 </div>
-                <div className="mt-1.5 flex flex-col gap-0.5 text-[11px]">
-                  <span className="text-emerald-200">
-                    Estimasi Margin Dealer: <strong>Rp {formatRupiah(totalProfit)}</strong>
-                  </span>
-                  {inputMode === 'payment' && paymentDifference !== 0 && (
+                {inputMode === 'payment' && paymentDifference !== 0 && (
+                  <div className="mt-1.5 text-[11px]">
                     <span className="text-amber-300 font-mono">
                       Pembulatan Kas: {paymentDifference > 0 ? `+Rp ${formatRupiah(paymentDifference)}` : `-Rp ${formatRupiah(Math.abs(paymentDifference))}`}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1302,11 +1292,11 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   </div>
                   {soundingVariance !== 0 && (
                     <div className="text-right shrink-0">
-                      <span className="font-mono font-black text-xs block text-slate-900">
-                        {soundingVariance > 0 ? '+' : '-'}Rp {formatRupiah(Math.round(Math.abs(soundingVariance) * buyPriceSnapshot))}
+                      <span className={`font-mono font-black text-xs block ${soundingVariance < 0 ? 'text-amber-700' : 'text-blue-700'}`}>
+                        {soundingVariance > 0 ? `+${formatLiter(soundingVariance)}` : formatLiter(soundingVariance)}
                       </span>
                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                        ⚡ Otomatis Masuk Pembukuan
+                        ⚡ Selisih Stok
                       </span>
                     </div>
                   )}

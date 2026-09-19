@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Product, SaleRecord, TankConfig, ExpenseRecord, EXPENSE_RATES } from '../types';
 import { formatRupiah, formatNumber, formatLiter, formatShortDate } from '../utils/formatters';
+import { DailySalesTrendChart, ShiftFilterOption } from './DailySalesTrendChart';
 
 interface AnalyticsViewProps {
   sales: SaleRecord[];
@@ -36,6 +37,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   expenses = [],
 }) => {
   const pertamax = products.find((p) => p.id === 'prod-pertamax-92') || products[0];
+  const [chartShiftFilter, setChartShiftFilter] = useState<ShiftFilterOption>('all');
   const [simulatedSalesVolume, setSimulatedSalesVolume] = useState<number>(1000); // 1.000 L / hari
   const [simulatedMargin, setSimulatedMargin] = useState<number>(pertamax?.marginPerLiter || 850);
   const [simOperatorsCount, setSimOperatorsCount] = useState<number>(2); // 2 operator shift
@@ -43,20 +45,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const [simElectricityCost, setSimElectricityCost] = useState<number>(300000); // Rp 300k listrik / bln
   const [simPdamCost, setSimPdamCost] = useState<number>(80000); // Rp 80k pdam / bln
   const [simMaintenanceCost, setSimMaintenanceCost] = useState<number>(150000); // Rp 150k maintenance / bln
-
-  // Group sales by date for daily trend
-  const salesByDate: Record<string, { liters: number; revenue: number; profit: number }> = {};
-  sales.forEach((s) => {
-    if (!salesByDate[s.transactionDate]) {
-      salesByDate[s.transactionDate] = { liters: 0, revenue: 0, profit: 0 };
-    }
-    salesByDate[s.transactionDate].liters += s.literSold;
-    salesByDate[s.transactionDate].revenue += s.totalRevenue;
-    salesByDate[s.transactionDate].profit += s.totalProfit;
-  });
-
-  const datesList = Object.keys(salesByDate).sort().slice(-7);
-  const maxDailyLiter = Math.max(...datesList.map((d) => salesByDate[d].liters), 1);
 
   // Total Gross Revenue & Margin from Sales
   const totalVolumeSold = sales.reduce((acc, s) => acc + s.literSold, 0);
@@ -317,58 +305,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Daily Volume Trend Visualizer (Pure CSS bar chart) */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 sm:p-6">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
-              Tren Penjualan Harian (7 Hari Terakhir)
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Grafik pergerakan liter Pertamax yang terjual per hari
-            </p>
-          </div>
-        </div>
-
-        <div className="pt-6">
-          {datesList.length === 0 ? (
-            <div className="text-center py-8 text-slate-400 text-xs">Belum ada data transaksi.</div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-7 gap-2 sm:gap-4 items-end h-44 pb-2 border-b border-slate-200">
-                {datesList.map((dateKey) => {
-                  const data = salesByDate[dateKey];
-                  const heightPercent = Math.max(12, (data.liters / maxDailyLiter) * 100);
-
-                  return (
-                    <div key={dateKey} className="flex flex-col items-center h-full justify-end group">
-                      <div className="text-[10px] font-mono font-bold text-slate-600 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {formatNumber(data.liters)} L
-                      </div>
-                      <div
-                        className="w-full max-w-[40px] bg-gradient-to-t from-blue-700 to-cyan-500 rounded-t-xl group-hover:from-blue-600 group-hover:to-cyan-400 transition-all relative cursor-pointer"
-                        style={{ height: `${heightPercent}%` }}
-                        title={`${formatShortDate(dateKey)}: ${formatNumber(data.liters)} L (${formatRupiah(data.revenue)})`}
-                      >
-                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 rounded-t-xl" />
-                      </div>
-                      <div className="text-[11px] font-medium text-slate-500 mt-2 whitespace-nowrap">
-                        {formatShortDate(dateKey)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-between items-center text-xs text-slate-500 pt-1">
-                <span>0 L</span>
-                <span>Maks: {formatNumber(maxDailyLiter)} L/hari</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* 3. Daily Volume Trend Visualizer (30-Day Recharts Component with Shift Filter) */}
+      <DailySalesTrendChart
+        sales={sales}
+        selectedShift={chartShiftFilter}
+        onShiftChange={setChartShiftFilter}
+      />
 
       {/* 4. Payment Methods Breakdown & Comprehensive Profit Simulator */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart, Truck, AlertCircle, Check, Fuel, Building2, Calendar, FileCheck, Layers, History, CheckCircle2 } from 'lucide-react';
+import { X, ShoppingCart, Truck, AlertCircle, Check, Fuel, Building2, Calendar, FileCheck, Layers, History, CheckCircle2, Zap } from 'lucide-react';
 import { Product, PurchaseOrder, TankConfig, OrderVolumePecahan, PriceHistory, SaleRecord } from '../types';
 import { formatRupiah, formatNumber, formatLiter, formatShortDate, getTodayDateString, addDays } from '../utils/formatters';
-import { getEffectivePriceForDate, formatMonthYearId, getLatestPurchaseBuyPrice, getNextPurchaseOrderDate } from '../utils/pricing';
+import {
+  getEffectivePriceForDate,
+  formatMonthYearId,
+  getLatestPurchaseBuyPrice,
+  getNextPurchaseOrderDate,
+  getMidMonthPriceChanges,
+} from '../utils/pricing';
 import { ConfirmModal } from './ConfirmModal';
 
 interface PurchaseOrderModalProps {
@@ -89,9 +95,9 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
       setOrderDateSourceDesc(nextDateConfig.sourceDesc);
       setEstimatedDeliveryDate(addDays(nextDateConfig.targetOrderDate, 1));
 
-      // Harga Beli: Mengikuti history terakhir pembelian
-      const historyPrice = getLatestPurchaseBuyPrice(firstProdId, purchases, firstProd?.buyPrice || 12100);
-      setBuyPricePerLiter(historyPrice.buyPrice);
+      // Harga Beli: Prioritaskan tarif efektif Pertamina per tanggal order (mendukung penyesuaian pertengahan bulan)
+      const eff = getEffectivePriceForDate(firstProdId, nextDateConfig.targetOrderDate, products, priceHistory, sales);
+      setBuyPricePerLiter(eff.buyPrice);
 
       setSoPertaminaNumber(`SO-PTM-${randomSuffix}`);
       setDoPertaminaNumber(`DO-PTM-${randomSuffix + 100}`);
@@ -105,26 +111,22 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   const handleOrderDateChange = (newDate: string) => {
     setOrderDate(newDate);
     setEstimatedDeliveryDate(addDays(newDate, 1));
-
-    // Jika belum ada riwayat pembelian terdahulu, gunakan effectivePriceForDate
-    if (!latestPurchaseInfo.hasHistory && selectedProduct) {
-      const eff = getEffectivePriceForDate(selectedProductId, newDate, products, priceHistory, sales);
-      setBuyPricePerLiter(eff.buyPrice);
-    }
+    // Otomatis sinkronkan tarif tebus per tanggal DO (termasuk jika melewati tanggal perubahan pertengahan bulan)
+    const eff = getEffectivePriceForDate(selectedProductId, newDate, products, priceHistory, sales);
+    setBuyPricePerLiter(eff.buyPrice);
   };
 
   const handleProductChange = (newProdId: string) => {
     setSelectedProductId(newProdId);
-    const prod = products.find((p) => p.id === newProdId);
-    // Harga Beli: Selalu prioritaskan history terakhir pembelian
-    const historyPrice = getLatestPurchaseBuyPrice(newProdId, purchases, prod?.buyPrice || 12100);
-    setBuyPricePerLiter(historyPrice.buyPrice);
+    const eff = getEffectivePriceForDate(newProdId, orderDate, products, priceHistory, sales);
+    setBuyPricePerLiter(eff.buyPrice);
   };
 
 
   if (!isOpen) return null;
 
   const effectivePriceForDate = getEffectivePriceForDate(selectedProductId, orderDate, products, priceHistory, sales);
+  const midMonthChanges = getMidMonthPriceChanges(selectedProductId, orderDate.substring(0, 7), priceHistory);
   const volumeLiters = volumeKL * 1000;
   const totalAmount = volumeLiters * buyPricePerLiter;
   const ullageLiters = tank.totalCapacityLiters - tank.currentStockLiters;
@@ -215,7 +217,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+        <form noValidate onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
           {errorMessage && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -385,72 +387,69 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
                 <span>Harga Tebus Pertamina (Rp / Liter)</span>
-                {latestPurchaseInfo.hasHistory ? (
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-                    <History className="w-3 h-3 text-emerald-700" />
-                    History Terakhir
-                  </span>
-                ) : (
-                  <span className="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded">
-                    {effectivePriceForDate.sourceDesc || `Tarif ${formatMonthYearId(orderDate.substring(0, 7))}`}
-                  </span>
-                )}
+                <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded">
+                  {effectivePriceForDate.sourceDesc || `Tarif ${formatMonthYearId(orderDate.substring(0, 7))}`}
+                </span>
               </label>
+
+              {/* Mid-Month Price Change Alert for DO */}
+              {midMonthChanges.length > 0 && (
+                <div className="mb-2 p-2 bg-blue-50/90 border border-blue-200 rounded-lg text-[11px] text-blue-900 flex items-start gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Penyesuaian Tarif DO Pertamina di Pertengahan Bulan:</span>
+                    <span className="block text-blue-800">
+                      Berlaku mulai <strong>{formatShortDate(midMonthChanges[0].effectiveDate.substring(0, 10))}</strong> (Rp {formatRupiah(midMonthChanges[0].newBuyPrice)}/L).
+                      Tarif per tgl DO ({formatShortDate(orderDate)}):{' '}
+                      <strong className="font-mono text-blue-950">Rp {formatRupiah(effectivePriceForDate.buyPrice)}/L</strong>.
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="relative">
                 <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">Rp</span>
                 <input
                   type="number"
                   required
-                  min={1000}
-                  step="0.001"
+                  min={1}
+                  step="any"
                   value={buyPricePerLiter}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setBuyPricePerLiter(parseFloat(e.target.value) || 0)}
                   className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
                   placeholder="Contoh: 15046.375"
                 />
               </div>
 
-              {/* Status History Pembelian */}
-              {latestPurchaseInfo.hasHistory ? (
-                <div className="mt-1.5 text-[11px] bg-emerald-50 text-emerald-800 p-2 rounded-lg border border-emerald-200 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>
-                      Mengikuti history PO terakhir (<strong>{latestPurchaseInfo.lastPoNumber}</strong> tgl {formatShortDate(latestPurchaseInfo.lastPoDate || '')}):{' '}
-                      <strong className="font-mono text-emerald-950">Rp {formatRupiah(latestPurchaseInfo.buyPrice)}/L</strong>
-                    </span>
+              {/* Price options: PO Terakhir vs Tarif Resmi Per Tanggal DO */}
+              <div className="mt-2 space-y-1 text-[11px]">
+                {buyPricePerLiter !== effectivePriceForDate.buyPrice && (
+                  <div className="flex items-center justify-between text-amber-800 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                    <span>Harga berbeda dari tarif per tgl DO ({formatRupiah(effectivePriceForDate.buyPrice)}/L)</span>
+                    <button
+                      type="button"
+                      onClick={() => setBuyPricePerLiter(effectivePriceForDate.buyPrice)}
+                      className="text-blue-700 hover:text-blue-950 font-bold underline cursor-pointer"
+                    >
+                      Gunakan Rp {formatRupiah(effectivePriceForDate.buyPrice)}
+                    </button>
                   </div>
-                  {buyPricePerLiter !== latestPurchaseInfo.buyPrice && (
-                    <div className="pt-0.5 flex items-center justify-between">
-                      <span className="text-amber-700 font-medium">Harga diubah manual</span>
-                      <button
-                        type="button"
-                        onClick={() => setBuyPricePerLiter(latestPurchaseInfo.buyPrice)}
-                        className="text-emerald-700 hover:text-emerald-950 font-bold underline cursor-pointer"
-                      >
-                        Gunakan Rp {formatRupiah(latestPurchaseInfo.buyPrice)} (PO Terakhir)
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-1 text-[11px] text-slate-500">
-                  {buyPricePerLiter !== effectivePriceForDate.buyPrice ? (
-                    <div className="flex items-center justify-between">
-                      <span className="text-amber-700 font-medium">Harga diubah manual</span>
-                      <button
-                        type="button"
-                        onClick={() => setBuyPricePerLiter(effectivePriceForDate.buyPrice)}
-                        className="text-red-600 hover:text-red-800 font-bold underline cursor-pointer"
-                      >
-                        Gunakan Rp {effectivePriceForDate.buyPrice.toLocaleString('id-ID')}
-                      </button>
-                    </div>
-                  ) : (
-                    <span>Tarif dasar produk: Rp {effectivePriceForDate.buyPrice.toLocaleString('id-ID')}/L</span>
-                  )}
-                </div>
-              )}
+                )}
+
+                {latestPurchaseInfo.hasHistory && latestPurchaseInfo.buyPrice !== buyPricePerLiter && (
+                  <div className="flex items-center justify-between text-slate-600 bg-slate-100/80 px-2 py-1 rounded-lg">
+                    <span>PO Terakhir: <strong>{latestPurchaseInfo.lastPoNumber}</strong> ({formatRupiah(latestPurchaseInfo.buyPrice)}/L)</span>
+                    <button
+                      type="button"
+                      onClick={() => setBuyPricePerLiter(latestPurchaseInfo.buyPrice)}
+                      className="text-emerald-700 hover:text-emerald-950 font-bold underline cursor-pointer"
+                    >
+                      Gunakan PO Terakhir
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

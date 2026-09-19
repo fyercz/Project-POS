@@ -107,6 +107,7 @@ export interface PurchaseOrder {
   soundingAfterCm?: number;
   soundingAfterLiters?: number;
   actualLitersReceived?: number;
+  effectiveStockAdded?: number; // Volume riil yang masuk ke tangki (dibatasi kapasitas maksimal)
   varianceLiters?: number; // Selisih DO vs Diterima
   density?: number; // g/ml (e.g. 0.745)
   temperature?: number; // °C (e.g. 29.5)

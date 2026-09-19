@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Truck, CheckCircle2, Fuel, Gauge, AlertTriangle, ArrowRight, Zap, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
+import { X, Truck, CheckCircle2, Fuel, Gauge, AlertTriangle, ArrowRight, Zap, RefreshCw, AlertCircle, Sparkles, RotateCcw, Trash2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PurchaseOrder, TankConfig } from '../types';
 import { formatLiter, formatRupiah, formatNumber, getTodayDateString } from '../utils/formatters';
@@ -25,6 +25,8 @@ interface ReceiveFuelModalProps {
       notes?: string;
     }
   ) => void;
+  onRevertReceiving?: (orderId: string) => void;
+  onDeleteOrder?: (orderId: string) => void;
 }
 
 export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
@@ -33,6 +35,8 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
   order,
   tank,
   onCompleteReceiving,
+  onRevertReceiving,
+  onDeleteOrder,
 }) => {
   if (!isOpen || !order) return null;
 
@@ -41,8 +45,8 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
 
   // Base stock calculation
   const defaultBeforeLiters = isEditingCompleted
-    ? (order.soundingBeforeLiters ?? Math.max(0, tank.currentStockLiters - (order.actualLitersReceived || order.volumeLiters)))
-    : tank.currentStockLiters;
+    ? (order.soundingBeforeLiters ?? Math.max(0, Math.min(tank.totalCapacityLiters, tank.currentStockLiters - (order.effectiveStockAdded || order.actualLitersReceived || order.volumeLiters))))
+    : Math.min(tank.totalCapacityLiters, tank.currentStockLiters);
 
   const [actualDeliveryDate, setActualDeliveryDate] = useState<string>(
     order.actualDeliveryDate || getTodayDateString()
@@ -155,7 +159,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
     setSoundingAfterCm(Math.round((newAfter / LITERS_PER_CM) * 10) / 10);
   };
 
-  const executeCompleteReceiving = () => {
+  const executeCompleteReceiving = (overrideReceived?: number) => {
     try {
       confetti({
         particleCount: 80,
@@ -166,14 +170,18 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
       // ignore
     }
 
+    const finalReceived = overrideReceived !== undefined ? overrideReceived : actualLitersReceived;
+    const finalAfter = Math.min(tank.totalCapacityLiters, soundingBeforeLiters + finalReceived);
+    const finalVariance = finalReceived - order.volumeLiters;
+
     onCompleteReceiving(order.id, {
       actualDeliveryDate,
       soundingBeforeCm,
       soundingBeforeLiters,
-      soundingAfterCm,
-      soundingAfterLiters,
-      actualLitersReceived,
-      varianceLiters,
+      soundingAfterCm: Math.round((finalAfter / LITERS_PER_CM) * 10) / 10,
+      soundingAfterLiters: finalAfter,
+      actualLitersReceived: finalReceived,
+      varianceLiters: finalVariance,
       density,
       temperature,
       notes: notes.trim(),
@@ -236,7 +244,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
           </div>
 
           {/* Body */}
-          <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+          <form noValidate onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
             {/* Order Snapshot */}
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2">
               <div className="flex justify-between items-center">
@@ -540,33 +548,71 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
             </div>
 
             {/* Action buttons */}
-            <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
-              >
-                Batal
-              </button>
+            <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {isEditingCompleted && onRevertReceiving && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Batalkan penerimaan DO #${order.poNumber} dan kembalikan stok tangki ke kondisi sebelum dibongkar?`)) {
+                        onRevertReceiving(order.id);
+                        onClose();
+                      }
+                    }}
+                    className="px-3 py-2 text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-colors flex items-center gap-1.5"
+                    title="Batalkan penerimaan dan pulihkan stok tangki ke kondisi sebelum dibongkar"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Batal Bongkar (Rollback)</span>
+                  </button>
+                )}
 
-              <button
-                id="confirm-receive-fuel-btn"
-                type="submit"
-                className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-md transition-colors flex items-center gap-2 ${
-                  isOverflow
-                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
-                    : isEditingCompleted
-                    ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'
-                    : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
-                }`}
-              >
-                {isEditingCompleted ? <RefreshCw className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                <span>
-                  {isEditingCompleted
-                    ? `Simpan Perubahan & Kalibrasi Tangki (${formatNumber(actualLitersReceived)} L)`
-                    : `Konfirmasi & Masukkan ke Stok Tangki (+${formatNumber(actualLitersReceived)} L)`}
-                </span>
-              </button>
+                {isEditingCompleted && onDeleteOrder && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Hapus data DO #${order.poNumber} dan pulihkan stok tangki?`)) {
+                        onDeleteOrder(order.id);
+                        onClose();
+                      }
+                    }}
+                    className="px-3 py-2 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors flex items-center gap-1.5"
+                    title="Hapus riwayat DO ini"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus DO</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Batal
+                </button>
+
+                <button
+                  id="confirm-receive-fuel-btn"
+                  type="submit"
+                  className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-md transition-colors flex items-center gap-2 ${
+                    isOverflow
+                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
+                      : isEditingCompleted
+                      ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'
+                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+                  }`}
+                >
+                  {isEditingCompleted ? <RefreshCw className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                  <span>
+                    {isEditingCompleted
+                      ? `Simpan Perubahan & Kalibrasi Tangki (${formatNumber(actualLitersReceived)} L)`
+                      : `Konfirmasi & Masukkan ke Stok Tangki (+${formatNumber(actualLitersReceived)} L)`}
+                  </span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -582,19 +628,21 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
               Total volume BBM yang Anda masukkan ({formatNumber(resultingStock)} L) melebihi kapasitas tangki pendam ({formatNumber(tank.totalCapacityLiters)} L) sebesar {formatNumber(overflowAmount)} Liter.
             </p>
             <p>
-              Jika Anda tetap menyimpan, stok tangki akan otomatis dibatasi maksimal <strong>{formatLiter(tank.totalCapacityLiters)}</strong> agar volume sistem tidak error/stuck.
+              Jika Anda memilih Simpan & Sesuaikan, sistem akan otomatis menyesuaikan penerimaan pas dengan sisa ruang muat <strong>{formatLiter(availableSpace)}</strong> sehingga stok tangki aman terisi maksimal <strong>{formatLiter(tank.totalCapacityLiters)}</strong> dan tidak stuck.
             </p>
-            <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-amber-900">
-              <strong>Saran Operasional:</strong> Gunakan tombol <em>"Sesuaikan Pas Kapasitas"</em> untuk membongkar pas sesuai ruang kosong tangki ({formatLiter(availableSpace)}).
-            </div>
           </div>
         }
-        confirmLabel="Tetap Simpan (Batasi Pas Kapasitas)"
-        cancelLabel="Batal & Sesuaikan Dulu"
+        confirmLabel="Simpan & Sesuaikan Pas Batas Tangki"
+        cancelLabel="Batal & Ubah Manual"
         isDestructive={false}
         onConfirm={() => {
           setShowOverflowConfirm(false);
-          executeCompleteReceiving();
+          const safeVolume = availableSpace;
+          setActualLitersReceived(safeVolume);
+          const newAfter = Math.min(tank.totalCapacityLiters, soundingBeforeLiters + safeVolume);
+          setSoundingAfterLiters(newAfter);
+          setSoundingAfterCm(Math.round((newAfter / LITERS_PER_CM) * 10) / 10);
+          executeCompleteReceiving(safeVolume);
         }}
         onClose={() => setShowOverflowConfirm(false)}
       />

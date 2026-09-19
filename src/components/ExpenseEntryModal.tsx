@@ -240,7 +240,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+        <form noValidate onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
           {/* Quick Category Buttons */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-2">

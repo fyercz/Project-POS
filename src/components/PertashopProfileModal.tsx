@@ -57,7 +57,7 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 text-xs">
+        <form noValidate onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Kode Pertashop</label>
@@ -127,8 +127,8 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                 <label className="block text-slate-600 mb-1">Kapasitas (L)</label>
                 <input
                   type="number"
-                  min={1000}
-                  step={500}
+                  min={0}
+                  step="any"
                   required
                   value={tankData.totalCapacityLiters}
                   onChange={(e) =>
@@ -143,8 +143,7 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                 <input
                   type="number"
                   min={0}
-                  max={tankData.totalCapacityLiters}
-                  step={10}
+                  step="any"
                   required
                   value={tankData.currentStockLiters}
                   onChange={(e) =>
@@ -158,8 +157,8 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                 <label className="block text-slate-600 mb-1">Batas Siaga (L)</label>
                 <input
                   type="number"
-                  min={100}
-                  step={100}
+                  min={0}
+                  step="any"
                   required
                   value={tankData.warningThresholdLiters}
                   onChange={(e) =>
@@ -176,8 +175,8 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                 <label className="block text-slate-600 mb-1">Batas Kritis (L)</label>
                 <input
                   type="number"
-                  min={100}
-                  step={100}
+                  min={0}
+                  step="any"
                   required
                   value={tankData.criticalThresholdLiters}
                   onChange={(e) =>

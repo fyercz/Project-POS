@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Gauge, Check, AlertCircle, Droplet, History, Pencil, Trash2, Zap } from 'lucide-react';
 import { TankConfig, SoundingRecord } from '../types';
-import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString, addDays, formatRupiah } from '../utils/formatters';
+import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString, addDays } from '../utils/formatters';
 import { ConfirmModal } from './ConfirmModal';
 
 interface SoundingLogModalProps {
@@ -173,7 +173,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
         </div>
 
         {activeTab === 'form' ? (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+          <form noValidate onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
             {/* Tanggal, Jam, Operator */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
@@ -340,7 +340,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
               </div>
             </div>
 
-            {/* Indikator Otomatis Masuk Pembukuan */}
+            {/* Indikator Rekonsiliasi Fisik vs Buku */}
             <div
               className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
                 variance < 0
@@ -355,23 +355,23 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                 <div className="font-bold flex items-center justify-between">
                   <span>
                     {variance < 0
-                      ? '⚡ Otomatis Masuk Pembukuan: Beban Losses BBM'
+                      ? '⚡ Status Rekonsiliasi: Susut / Losses Fisik'
                       : variance > 0
-                      ? '⚡ Otomatis Masuk Pembukuan: Surplus / Gain Stok BBM'
-                      : '⚡ Pembukuan: Stok Fisik & Sistem Sesuai Presisi (0 L)'}
+                      ? '⚡ Status Rekonsiliasi: Surplus / Lebih Stok Fisik'
+                      : '⚡ Status Rekonsiliasi: Stok Fisik & Sistem Sesuai Presisi (0 L)'}
                   </span>
                   {variance !== 0 && (
                     <span className="font-mono font-black text-xs">
-                      {variance > 0 ? '+' : '-'}Rp {formatRupiah(Math.round(Math.abs(variance) * buyPrice))}
+                      {variance > 0 ? `+${formatLiter(variance)}` : formatLiter(variance)}
                     </span>
                   )}
                 </div>
                 <p className="text-[11px] opacity-80 mt-0.5">
                   {variance < 0
-                    ? `Selisih susut fisik ${Math.abs(variance)} L dinilai dari harga tebus (Rp ${formatRupiah(buyPrice)}/L) dan otomatis dicatat ke Laporan Beban/Pengeluaran.`
+                    ? `Hasil stik ukur menunjukkan volume fisik ${Math.abs(variance)} Liter lebih rendah dari stok buku sistem.`
                     : variance > 0
-                    ? `Surplus fisik +${variance} L dinilai dari harga tebus (Rp ${formatRupiah(buyPrice)}/L) dan otomatis dicatat ke pembukuan (Kategori Gain Minyak).`
-                    : 'Tidak ada deviasi antara stok fisik dan stok sistem buku.'}
+                    ? `Hasil stik ukur menunjukkan volume fisik ${variance} Liter lebih tinggi dari stok buku sistem.`
+                    : 'Tidak ada deviasi antara stok fisik stik ukur dan stok sistem buku.'}
                 </p>
               </div>
             </div>
@@ -465,7 +465,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     {s.varianceLiters !== 0 && (
                       <div className="text-[10px] font-sans font-bold flex items-center justify-end gap-1 mt-0.5">
                         <span className={`px-1.5 py-0.5 rounded ${s.varianceLiters < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                          {s.varianceLiters > 0 ? '+' : '-'}Rp {formatRupiah(Math.round(Math.abs(s.varianceLiters) * buyPrice))} (Buku)
+                          {s.varianceLiters < 0 ? `Loss ${Math.abs(s.varianceLiters)} L` : `Surplus +${s.varianceLiters} L`}
                         </span>
                       </div>
                     )}

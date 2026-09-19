@@ -41,7 +41,7 @@ import {
   PayrollRecord,
   PertashopBackupData,
 } from './types';
-import { getTodayDateString, getCurrentTimeString, getShiftCategory, getShiftHoursInfo, STANDARD_SHIFTS, formatRupiah, formatNumber } from './utils/formatters';
+import { getTodayDateString, getCurrentTimeString, getShiftCategory, getShiftHoursInfo, STANDARD_SHIFTS, formatRupiah, formatNumber, formatShortDate } from './utils/formatters';
 import { Gauge, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export default function App() {
@@ -507,6 +507,7 @@ export default function App() {
     referenceDoc?: string;
     notes?: string;
     autoUpdateMonthSales?: boolean;
+    syncScope?: 'FROM_EFFECTIVE_DATE' | 'FULL_MONTH' | 'NONE';
   }) => {
     const targetProduct = products.find((p) => p.id === priceData.productId);
     if (!targetProduct) return;
@@ -515,8 +516,10 @@ export default function App() {
     const oldBuyPrice = targetProduct.buyPrice;
     const newMargin = priceData.newPrice - priceData.newBuyPrice;
     const targetMonth = priceData.effectiveDate.substring(0, 7);
+    const effectiveDateOnly = priceData.effectiveDate.substring(0, 10);
+    const syncScope = priceData.syncScope || (priceData.autoUpdateMonthSales === false ? 'NONE' : 'FROM_EFFECTIVE_DATE');
 
-    // 1. Update Product
+    // 1. Update Product Master
     const updatedProducts = products.map((p) => {
       if (p.id === priceData.productId) {
         return {
@@ -531,9 +534,9 @@ export default function App() {
     setProducts(updatedProducts);
     StorageService.setProducts(updatedProducts);
 
-    // 2. Add / Update Price History
+    // 2. Add / Update Price History (by exact date to preserve early-month and mid-month entries)
     const existingHistIdx = priceHistory.findIndex(
-      (h) => h.productId === priceData.productId && h.effectiveDate.startsWith(targetMonth)
+      (h) => h.productId === priceData.productId && h.effectiveDate.substring(0, 10) === effectiveDateOnly
     );
 
     const newHistoryEntry: PriceHistory = {
@@ -546,7 +549,7 @@ export default function App() {
       newBuyPrice: priceData.newBuyPrice,
       marginPerLiter: newMargin,
       referenceDoc: priceData.referenceDoc,
-      notes: priceData.notes || `Penyesuaian tarif ${formatMonthYearId(targetMonth)}`,
+      notes: priceData.notes || `Penyesuaian tarif ${formatMonthYearId(targetMonth)} (${formatShortDate(effectiveDateOnly)})`,
       updatedBy: 'Admin Pertashop',
       updatedAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
     };
@@ -557,14 +560,25 @@ export default function App() {
     } else {
       updatedHistory = [newHistoryEntry, ...priceHistory];
     }
+    // Urutkan histori dari tanggal paling baru
+    updatedHistory.sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
     setPriceHistory(updatedHistory);
     StorageService.setPriceHistory(updatedHistory);
 
-    // 3. Otomatis sinkronisasi seluruh penjualan & DO pada bulan tersebut jika diaktifkan
-    if (priceData.autoUpdateMonthSales !== false) {
-      // Update penjualan pada bulan tersebut
+    // 3. Sinkronisasi penjualan & DO BBM sesuai cakupan (syncScope)
+    if (syncScope !== 'NONE') {
+      const isRecordEligible = (dateStr: string) => {
+        if (!dateStr) return false;
+        if (syncScope === 'FULL_MONTH') {
+          return dateStr.startsWith(targetMonth);
+        }
+        // FROM_EFFECTIVE_DATE: hanya transaksi pada atau setelah tanggal efektif dalam bulan tersebut
+        return dateStr >= effectiveDateOnly && dateStr.startsWith(targetMonth);
+      };
+
+      // Update penjualan yang memenuhi syarat
       const updatedSales = sales.map((sale) => {
-        if (sale.productId === priceData.productId && sale.transactionDate.startsWith(targetMonth)) {
+        if (sale.productId === priceData.productId && isRecordEligible(sale.transactionDate)) {
           return recalculateSaleWithPrice(sale, priceData.newPrice, priceData.newBuyPrice);
         }
         return sale;
@@ -581,9 +595,9 @@ export default function App() {
       setPayrolls(updatedPayrolls);
       StorageService.setPayrolls(updatedPayrolls);
 
-      // Update DO BBM (pembelian) pada bulan tersebut
+      // Update DO BBM (pembelian) yang memenuhi syarat
       const updatedPurchases = purchases.map((po) => {
-        if (po.productId === priceData.productId && po.orderDate.startsWith(targetMonth)) {
+        if (po.productId === priceData.productId && isRecordEligible(po.orderDate)) {
           return recalculatePurchaseWithPrice(po, priceData.newBuyPrice);
         }
         return po;
@@ -591,9 +605,13 @@ export default function App() {
       setPurchases(updatedPurchases);
       StorageService.setPurchases(updatedPurchases);
 
-      // Update estimasi nilai kerugian BBM (losses minyak) & surplus gain BBM pada bulan tersebut
+      // Update estimasi nilai kerugian BBM (losses minyak) & surplus gain BBM
       const updatedExpenses = expenses.map((exp) => {
-        if ((exp.category === 'LOSSES_MINYAK' || exp.category === 'GAIN_MINYAK') && exp.date.startsWith(targetMonth) && exp.fuelLossLiters) {
+        if (
+          (exp.category === 'LOSSES_MINYAK' || exp.category === 'GAIN_MINYAK') &&
+          isRecordEligible(exp.date) &&
+          exp.fuelLossLiters
+        ) {
           const recalculatedLossAmount = Math.round(exp.fuelLossLiters * priceData.newBuyPrice);
           return {
             ...exp,
@@ -688,10 +706,31 @@ export default function App() {
     if (editingOrder) {
       const updated = purchases.map((p) =>
         p.id === editingOrder.id
-          ? { ...poData, id: editingOrder.id, createdAt: editingOrder.createdAt, status: editingOrder.status }
+          ? {
+              ...editingOrder,
+              ...poData,
+              id: editingOrder.id,
+              createdAt: editingOrder.createdAt,
+              status: editingOrder.status,
+            }
           : p
       );
       setPurchases(updated);
+
+      // Sinkronisasi ulang beban selisih BBM jika DO yang diedit sudah SELESAI
+      if (editingOrder.status === 'SELESAI' && editingOrder.varianceLiters !== undefined) {
+        syncFuelVarianceToExpenses(
+          editingOrder.id,
+          'PENERIMAAN_DO',
+          editingOrder.actualDeliveryDate || poData.orderDate,
+          getCurrentTimeString(),
+          editingOrder.varianceLiters,
+          `Mobil Tangki Pertamina (${poData.truckPlateNumber || poData.supplyDepot || 'TBBM'})`,
+          `Verifikasi bongkar DO ${poData.poNumber}. Supir: ${poData.driverName || '-'}. ${poData.notes || ''}`.trim(),
+          poData.buyPricePerLiter
+        );
+      }
+
       setEditingOrder(null);
     } else {
       const newPO: PurchaseOrder = {
@@ -727,17 +766,21 @@ export default function App() {
     const targetOrder = purchases.find((p) => p.id === orderId);
     if (!targetOrder) return;
 
-    const isAlreadyCompleted = targetOrder.status === 'SELESAI';
-    const previousReceived = isAlreadyCompleted
-      ? targetOrder.actualLitersReceived || targetOrder.volumeLiters || 0
-      : 0;
-    const diffReceived = receivingData.actualLitersReceived - previousReceived;
+    // Hitung volume riil yang masuk ke tangki dengan proteksi batas kapasitas maksimal
+    const stockBefore = receivingData.soundingBeforeLiters !== undefined
+      ? receivingData.soundingBeforeLiters
+      : tank.currentStockLiters;
+    const maxCapacity = tank.totalCapacityLiters;
+    const availableSpace = Math.max(0, maxCapacity - stockBefore);
+    const effectiveStockAdded = Math.min(availableSpace, receivingData.actualLitersReceived);
+    const safeResultingStock = Math.min(maxCapacity, Math.max(0, stockBefore + effectiveStockAdded));
 
     const updatedOrders = purchases.map((order) => {
       if (order.id === orderId) {
         return {
           ...order,
           ...receivingData,
+          effectiveStockAdded,
           status: 'SELESAI' as const,
           completedAt: order.completedAt || `${getTodayDateString()} ${getCurrentTimeString()}`,
         };
@@ -746,18 +789,12 @@ export default function App() {
     });
     setPurchases(updatedOrders);
 
-    // Update fuel in tank stock (clamped at totalCapacityLiters and min 0 to prevent overflow stuck)
+    // Update fuel in tank stock (terlindungi agar volume tidak pernah jebol / stuck melebihi kapasitas)
     setTank((prev) => ({
       ...prev,
-      currentStockLiters: Math.max(
-        0,
-        Math.min(
-          prev.totalCapacityLiters,
-          prev.currentStockLiters + diffReceived
-        )
-      ),
+      currentStockLiters: safeResultingStock,
       lastSoundingDate: receivingData.actualDeliveryDate,
-      lastSoundingLiters: Math.min(prev.totalCapacityLiters, receivingData.soundingAfterLiters),
+      lastSoundingLiters: safeResultingStock,
     }));
 
     // Otomatis sinkronisasi selisih volume DO (Loss / Gain) ke pembukuan beban operasional
@@ -773,18 +810,26 @@ export default function App() {
     );
   };
 
-  // Batalkan penerimaan DO & kembalikan stok fisik tangki pendam
+  // Batalkan penerimaan DO & kembalikan stok fisik tangki pendam secara presisi
   const handleRevertReceiving = (orderId: string) => {
     const targetOrder = purchases.find((p) => p.id === orderId);
     if (!targetOrder || targetOrder.status !== 'SELESAI') return;
 
-    const receivedLiters = targetOrder.actualLitersReceived || targetOrder.volumeLiters || 0;
-
-    // 1. Kurangi stok tangki sebesar yang pernah dibongkar
-    setTank((prev) => ({
-      ...prev,
-      currentStockLiters: Math.max(0, prev.currentStockLiters - receivedLiters),
-    }));
+    // 1. Pulihkan stok tangki ke kondisi sebelum bongkar
+    setTank((prev) => {
+      let revertedStock: number;
+      if (targetOrder.soundingBeforeLiters !== undefined && targetOrder.soundingBeforeLiters >= 0) {
+        revertedStock = Math.min(prev.totalCapacityLiters, Math.max(0, targetOrder.soundingBeforeLiters));
+      } else {
+        const added = targetOrder.effectiveStockAdded ?? targetOrder.actualLitersReceived ?? targetOrder.volumeLiters ?? 0;
+        revertedStock = Math.max(0, prev.currentStockLiters - added);
+      }
+      return {
+        ...prev,
+        currentStockLiters: revertedStock,
+        lastSoundingLiters: revertedStock,
+      };
+    });
 
     // 2. Kembalikan status DO ke DIPESAN dan bersihkan data penerimaan
     const updatedOrders = purchases.map((order) => {
@@ -798,6 +843,7 @@ export default function App() {
           soundingAfterCm: undefined,
           soundingAfterLiters: undefined,
           actualLitersReceived: undefined,
+          effectiveStockAdded: undefined,
           varianceLiters: undefined,
           density: undefined,
           temperature: undefined,
@@ -817,13 +863,22 @@ export default function App() {
     const targetOrder = purchases.find((p) => p.id === orderId);
     if (!targetOrder) return;
 
-    // Jika DO sudah dibongkar ke tangki (SELESAI), kurangi stok tangki agar tidak nyangkut/stuck!
+    // Jika DO sudah dibongkar ke tangki (SELESAI), pulihkan stok tangki agar tidak nyangkut/stuck!
     if (targetOrder.status === 'SELESAI') {
-      const receivedLiters = targetOrder.actualLitersReceived || targetOrder.volumeLiters || 0;
-      setTank((prev) => ({
-        ...prev,
-        currentStockLiters: Math.max(0, prev.currentStockLiters - receivedLiters),
-      }));
+      setTank((prev) => {
+        let revertedStock: number;
+        if (targetOrder.soundingBeforeLiters !== undefined && targetOrder.soundingBeforeLiters >= 0) {
+          revertedStock = Math.min(prev.totalCapacityLiters, Math.max(0, targetOrder.soundingBeforeLiters));
+        } else {
+          const added = targetOrder.effectiveStockAdded ?? targetOrder.actualLitersReceived ?? targetOrder.volumeLiters ?? 0;
+          revertedStock = Math.max(0, prev.currentStockLiters - added);
+        }
+        return {
+          ...prev,
+          currentStockLiters: revertedStock,
+          lastSoundingLiters: revertedStock,
+        };
+      });
 
       // Bersihkan pembukuan biaya selisih
       setExpenses((prev) => prev.filter((e) => e.sourceReferenceId !== orderId));
@@ -833,10 +888,14 @@ export default function App() {
   };
 
   const handleDirectAdjustTank = (newStockLiters: number) => {
-    setTank((prev) => ({
-      ...prev,
-      currentStockLiters: Math.min(prev.totalCapacityLiters, Math.max(0, newStockLiters)),
-    }));
+    setTank((prev) => {
+      const clamped = Math.min(prev.totalCapacityLiters, Math.max(0, newStockLiters));
+      return {
+        ...prev,
+        currentStockLiters: clamped,
+        lastSoundingLiters: clamped,
+      };
+    });
   };
 
   const handleEditSounding = (sounding: SoundingRecord) => {
@@ -1485,6 +1544,8 @@ export default function App() {
         order={activeReceivingOrder}
         tank={tank}
         onCompleteReceiving={handleCompleteReceiving}
+        onRevertReceiving={handleRevertReceiving}
+        onDeleteOrder={handleDeletePurchaseOrder}
       />
 
       <SoundingLogModal
