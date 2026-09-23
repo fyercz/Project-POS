@@ -46,7 +46,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   stats,
   onRestoreSuccess,
 }) => {
-  const [activeTab, setActiveTab] = useState<'backup' | 'restore' | 'guide'>('backup');
+  const [activeTab, setActiveTab] = useState<'backup' | 'restore' | 'rescue' | 'guide'>('backup');
+  const [scannedResults, setScannedResults] = useState<ReturnType<typeof StorageService.scanBrowserMemory>>([]);
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -204,6 +205,23 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
           >
             <Upload className="w-3.5 h-3.5" />
             <span>2. Restore / Muat Data</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('rescue');
+              setErrorMsg(null);
+              setScannedResults(StorageService.scanBrowserMemory());
+            }}
+            className={`pb-2.5 px-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
+              activeTab === 'rescue'
+                ? 'border-indigo-600 text-indigo-600 font-bold'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>3. Pindai Memori Browser</span>
           </button>
 
           <button
@@ -507,7 +525,108 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: PANDUAN EXPORT CODE */}
+          {/* TAB 3: RESCUE / DEEP SCAN MEMORI BROWSER */}
+          {activeTab === 'rescue' && (
+            <div className="space-y-4">
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-start gap-3">
+                <RefreshCw className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-indigo-950 text-sm">Pindai Memori & Riwayat Browser</h4>
+                  <p className="text-indigo-900 mt-1 leading-relaxed text-xs">
+                    Fitur ini memindai seluruh penyimpanan lokal peramban (LocalStorage) di komputer Anda untuk mendeteksi data penjualan atau backup versi sebelumnya. Anda dapat memulihkannya langsung ke layar aktif dengan 1 klik.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700">
+                  Hasil Pemindaian Penyimpanan Komputer ({scannedResults.length} Dataset Ditemukan)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const res = StorageService.scanBrowserMemory();
+                    setScannedResults(res);
+                    setSuccessMsg(`Pemindaian selesai: Ditemukan ${res.length} dataset tersimpan.`);
+                    setTimeout(() => setSuccessMsg(null), 3000);
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Pindai Ulang</span>
+                </button>
+              </div>
+
+              {scannedResults.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl">
+                  <Database className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                  <p className="font-semibold text-slate-700">Tidak ada arsip data lain di memori browser ini</p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Jika Anda memiliki berkas cadangan di komputer, gunakan tab <strong>"2. Restore / Muat Data"</strong> untuk mengunggah file <code>.json</code>.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {scannedResults.map((item, idx) => (
+                    <div
+                      key={`${item.key}_${idx}`}
+                      className="p-3.5 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-indigo-300 transition-colors shadow-2xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                            {item.category}
+                          </span>
+                          <span className="font-mono text-[11px] text-slate-500">{item.key}</span>
+                        </div>
+                        <p className="text-slate-800 font-semibold text-xs">{item.description}</p>
+                        {item.sampleDate && (
+                          <span className="text-[10px] text-slate-400 block">Waktu Terakhir: {item.sampleDate}</span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.category === 'Arsip Backup Lengkap') {
+                            try {
+                              const raw = localStorage.getItem(item.key);
+                              if (raw) {
+                                const parsed = StorageService.validateAndParseBackup(raw);
+                                StorageService.restoreAllData(parsed);
+                                onRestoreSuccess(parsed);
+                                setSuccessMsg('Seluruh data berhasil dipulihkan dari cadangan memori!');
+                                setTimeout(() => setSuccessMsg(null), 3000);
+                              }
+                            } catch (e: any) {
+                              setErrorMsg(e.message || 'Gagal memulihkan backup');
+                            }
+                          } else {
+                            const restored = StorageService.restoreSalesFromKey(item.key);
+                            if (restored.length > 0) {
+                              const currentBackup = StorageService.createBackupData(profile);
+                              currentBackup.sales = restored;
+                              onRestoreSuccess(currentBackup);
+                              setSuccessMsg(`Berhasil memulihkan ${restored.length} transaksi penjualan!`);
+                              setTimeout(() => setSuccessMsg(null), 3000);
+                            } else {
+                              setErrorMsg('Gagal memulihkan data dari kunci tersebut.');
+                            }
+                          }
+                        }}
+                        className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shrink-0 transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Pulihkan Data Ini</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: PANDUAN EXPORT CODE */}
           {activeTab === 'guide' && (
             <div className="space-y-4">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">

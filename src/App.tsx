@@ -45,18 +45,18 @@ import { getTodayDateString, getCurrentTimeString, getShiftCategory, getShiftHou
 import { Gauge, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export default function App() {
-  // State from Storage
-  const [profile, setProfile] = useState<PertashopProfile>(StorageService.getProfile());
-  const [products, setProducts] = useState<Product[]>(StorageService.getProducts());
-  const [tank, setTank] = useState<TankConfig>(StorageService.getTankConfig());
-  const [priceHistory, setPriceHistory] = useState<PriceHistory[]>(StorageService.getPriceHistory());
-  const [sales, setSales] = useState<SaleRecord[]>(StorageService.getSales());
-  const [purchases, setPurchases] = useState<PurchaseOrder[]>(StorageService.getPurchases());
-  const [soundings, setSoundings] = useState<SoundingRecord[]>(StorageService.getSoundings());
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(StorageService.getExpenses());
-  const [employees, setEmployees] = useState<Employee[]>(StorageService.getEmployees());
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>(StorageService.getAttendance());
-  const [payrolls, setPayrolls] = useState<PayrollRecord[]>(StorageService.getPayrolls());
+  // State from Storage with lazy initializer & auto-rescue
+  const [profile, setProfile] = useState<PertashopProfile>(() => StorageService.getProfile());
+  const [products, setProducts] = useState<Product[]>(() => StorageService.getProducts());
+  const [tank, setTank] = useState<TankConfig>(() => StorageService.getTankConfig());
+  const [priceHistory, setPriceHistory] = useState<PriceHistory[]>(() => StorageService.getPriceHistory());
+  const [sales, setSales] = useState<SaleRecord[]>(() => StorageService.getSales());
+  const [purchases, setPurchases] = useState<PurchaseOrder[]>(() => StorageService.getPurchases());
+  const [soundings, setSoundings] = useState<SoundingRecord[]>(() => StorageService.getSoundings());
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => StorageService.getExpenses());
+  const [employees, setEmployees] = useState<Employee[]>(() => StorageService.getEmployees());
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => StorageService.getAttendance());
+  const [payrolls, setPayrolls] = useState<PayrollRecord[]>(() => StorageService.getPayrolls());
 
   // Navigation Tab & Mobile Drawer State
   const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'soundings' | 'expenses' | 'attendance' | 'summary' | 'analytics'>('sales');
@@ -112,8 +112,7 @@ export default function App() {
     onConfirm: () => {},
   });
 
-
-  // Sync to localStorage
+  // Sync to localStorage with Data Loss Prevention Safeguards
   useEffect(() => {
     StorageService.setProfile(profile);
   }, [profile]);
@@ -131,22 +130,58 @@ export default function App() {
   }, [priceHistory]);
 
   useEffect(() => {
+    // Safety check: if state is empty, ensure we don't accidentally overwrite non-empty storage
+    if (sales.length === 0) {
+      const stored = StorageService.getSales();
+      if (stored && stored.length > 0) {
+        setSales(stored);
+        return;
+      }
+    }
     StorageService.setSales(sales);
   }, [sales]);
 
   useEffect(() => {
+    if (purchases.length === 0) {
+      const stored = StorageService.getPurchases();
+      if (stored && stored.length > 0) {
+        setPurchases(stored);
+        return;
+      }
+    }
     StorageService.setPurchases(purchases);
   }, [purchases]);
 
   useEffect(() => {
+    if (soundings.length === 0) {
+      const stored = StorageService.getSoundings();
+      if (stored && stored.length > 0) {
+        setSoundings(stored);
+        return;
+      }
+    }
     StorageService.setSoundings(soundings);
   }, [soundings]);
 
   useEffect(() => {
+    if (expenses.length === 0) {
+      const stored = StorageService.getExpenses();
+      if (stored && stored.length > 0) {
+        setExpenses(stored);
+        return;
+      }
+    }
     StorageService.setExpenses(expenses);
   }, [expenses]);
 
   useEffect(() => {
+    if (employees.length === 0) {
+      const stored = StorageService.getEmployees();
+      if (stored && stored.length > 0) {
+        setEmployees(stored);
+        return;
+      }
+    }
     StorageService.setEmployees(employees);
   }, [employees]);
 
@@ -1276,6 +1311,7 @@ export default function App() {
               onOpenNewSaleModal={handleOpenAddSale}
               onOpenPrintReportModal={() => setIsPrintReportModalOpen(true)}
               onOpenImportModal={() => setIsImportSalesModalOpen(true)}
+              onOpenBackupModal={() => setIsBackupModalOpen(true)}
             />
           )}
 

@@ -17,6 +17,7 @@ import {
   Calendar,
   SlidersHorizontal,
   RotateCcw,
+  RefreshCw,
   Check,
   CreditCard,
   Banknote,
@@ -95,6 +96,7 @@ interface SalesTableProps {
   onOpenNewSaleModal: () => void;
   onOpenPrintReportModal: () => void;
   onOpenImportModal: () => void;
+  onOpenBackupModal?: () => void;
 }
 
 export const SalesTable: React.FC<SalesTableProps> = ({
@@ -104,6 +106,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   onOpenNewSaleModal,
   onOpenPrintReportModal,
   onOpenImportModal,
+  onOpenBackupModal,
 }) => {
   const [saleToDelete, setSaleToDelete] = useState<SaleRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -777,22 +780,51 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             {filteredSales.length === 0 ? (
               <tr>
                 <td colSpan={activeColumnsCount || 1} className="py-12 text-center text-slate-400">
-                  <Fuel className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                  <p className="font-semibold text-slate-600">Tidak ada catatan penjualan ditemukan.</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    {isDateFiltered
-                      ? 'Coba ubah atau reset filter rentang tanggal di atas.'
-                      : 'Klik "+ Catat Shift" untuk membuat laporan penjualan baru.'}
-                  </p>
-                  {isDateFiltered && (
-                    <button
-                      type="button"
-                      onClick={handleResetDateFilter}
-                      className="mt-3 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      Reset Filter Periode
-                    </button>
+                  <Fuel className="w-9 h-9 mx-auto text-slate-300 mb-2.5" />
+                  {sales.length > 0 ? (
+                    <div className="max-w-md mx-auto space-y-2">
+                      <p className="font-bold text-slate-800 text-sm">
+                        Ditemukan {sales.length} data penjualan di memori, namun tersembunyi karena filter.
+                      </p>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        {isDateFiltered ? '• Filter rentang tanggal aktif. ' : ''}
+                        {selectedShift !== 'ALL' ? `• Filter shift ${selectedShift} aktif. ` : ''}
+                        {searchTerm ? `• Pencarian kata "${searchTerm}" aktif.` : ''}
+                      </p>
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleResetDateFilter();
+                            setSelectedShift('ALL');
+                            setSearchTerm('');
+                          }}
+                          className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Tampilkan Semua Data ({sales.length} Transaksi)</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="max-w-md mx-auto space-y-2">
+                      <p className="font-bold text-slate-700 text-sm">Belum ada catatan penjualan di layar ini.</p>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Klik <strong>"+ Catat Shift"</strong> untuk membuat input baru, atau lakukan pemindaian jika data transaksi sebelumnya tersimpan di sesi peramban lain.
+                      </p>
+                      {onOpenBackupModal && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={onOpenBackupModal}
+                            className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Pindai Memori Browser / Cadangan</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </td>
               </tr>
