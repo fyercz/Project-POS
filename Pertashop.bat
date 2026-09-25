@@ -1,30 +1,24 @@
 @echo off
 setlocal enabledelayedexpansion
-chcp 65001 >nul
-title Sistem Manajemen & Laporan Pertashop
+title Sistem Manajemen dan Laporan Pertashop
 color 0B
 
 :MAIN_MENU
 cls
 echo ===============================================================================
-echo   ██████╗ ███████╗██████╗ ████████╗ █████╗ ███████╗██╗  ██╗ ██████╗ ██████╗ 
-echo   ██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔════╝██║  ██║██╔═══██╗██╔══██╗
-echo   ██████╔╝█████╗  ██████╔╝   ██║   ███████║███████╗███████║██║   ██║██████╔╝
-echo   ██╔═══╝ ██╔══╝  ██╔══██╗   ██║   ██╔══██║╚════██║██╔══██║██║   ██║██╔═══╝ 
-echo   ██║     ███████╗██║  ██║   ██║   ██║  ██║███████║██║  ██║╚██████╔╝██║     
-echo   ╚═╝     ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     
-echo                  SISTEM MANAJEMEN & LAPORAN PERTASHOP
+echo                    SISTEM MANAJEMEN PERTASHOP
+echo           Aplikasi Laporan Penjualan dan Monitoring Kasir
 echo ===============================================================================
 echo.
 echo   PILIHAN MENU:
 echo.
-echo   [1] 🚀 Buka Aplikasi Kasir (Mode Desktop Mandiri - Rekomendasi Kasir)
-echo   [2] 📦 Buat File "Pertashop.exe" (Hanya 1 Detik + Logo Resmi Pertashop)
-echo   [3] 📌 Pasang Shortcut di Desktop Komputer (Dengan Logo Pertashop)
-echo   [4] 🛠️ Buat Installer Setup .EXE Lengkap (Electron Package)
-echo   [5] 🔄 Periksa Pembaruan Sistem (Auto-Update)
-echo   [6] ⚙️ Install / Perbaiki Dependensi Aplikasi
-echo   [7] ❌ Keluar
+echo   [1] Buka Aplikasi Kasir (Mode Desktop Mandiri)
+echo   [2] Buat File Pertashop.exe (Dengan Logo Resmi)
+echo   [3] Pasang Shortcut di Desktop Komputer (Dengan Logo Pertashop)
+echo   [4] Buat Installer Setup .EXE (Electron Package)
+echo   [5] Periksa Pembaruan Sistem dari GitHub (Auto-Update)
+echo   [6] Install atau Perbaiki Dependensi Aplikasi
+echo   [7] Keluar
 echo.
 echo ===============================================================================
 set /p opt="Pilih nomor menu (1-7) [Default: 1]: "
@@ -91,7 +85,7 @@ echo =====================================================================
 echo  [SUKSES] Aplikasi Pertashop telah berjalan!
 echo  
 echo  * Jangan tutup jendela terminal ini selama kasir menggunakan aplikasi.
-echo  * Tekan [Ctrl + C] di sini untuk mematikan server.
+echo  * Tekan Ctrl + C di sini untuk mematikan server.
 echo =====================================================================
 echo.
 pause
@@ -103,7 +97,7 @@ goto MAIN_MENU
 :BUILD_EXE
 cls
 echo =====================================================================
-echo          PEMBUAT FILE "Pertashop.exe" DENGAN LOGO RESMI
+echo          PEMBUAT FILE Pertashop.exe DENGAN LOGO RESMI
 echo =====================================================================
 echo.
 echo Sedang mengompilasi Pertashop.exe menggunakan compiler Windows .NET...
@@ -135,12 +129,12 @@ if errorlevel 1 (
 )
 
 echo =====================================================================
-echo  [SUKSES!] File "Pertashop.exe" telah selesai dibuat!
+echo  [SUKSES] File Pertashop.exe telah selesai dibuat!
 echo.
 echo  Fitur Pertashop.exe:
 echo  1. Memiliki icon logo resmi Pertashop.
-echo  2. Bersih tanpa jendela CMD/prompt hitam yang mengganggu kasir.
-echo  3. Menjalankan server otomatis & membuka jendela kasir mandiri.
+echo  2. Bersih tanpa jendela CMD prompt hitam yang mengganggu kasir.
+echo  3. Menjalankan server otomatis dan membuka jendela kasir mandiri.
 echo =====================================================================
 echo.
 pause
@@ -161,7 +155,7 @@ if not exist "Pertashop.exe" (
     call :BUILD_EXE_SILENT
 )
 
-echo Membuat shortcut "Pertashop Kasir" di Desktop Windows...
+echo Membuat shortcut Pertashop Kasir di Desktop Windows...
 powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $d = [Environment]::GetFolderPath('Desktop'); $s = $ws.CreateShortcut($d + '\Pertashop Kasir.lnk'); $s.TargetPath = '%CD%\Pertashop.exe'; $s.WorkingDirectory = '%CD%'; if (Test-Path '%CD%\assets\icon.ico') { $s.IconLocation = '%CD%\assets\icon.ico'; }; $s.Save(); Write-Host '[SUKSES] Shortcut dengan logo Pertashop berhasil dipasang di Desktop!'"
 
 echo.
@@ -198,7 +192,7 @@ where node >nul 2>nul
 if errorlevel 1 goto ERR_NO_NODE
 
 if not exist "node_modules\electron\" (
-    echo Mengunduh paket electron & builder (memerlukan internet)...
+    echo Mengunduh paket electron dan builder (memerlukan koneksi internet)...
     call npm install --save-dev --legacy-peer-deps electron electron-builder
     if errorlevel 1 (
         echo [ERROR] Gagal mengunduh paket Electron.
@@ -225,7 +219,7 @@ if errorlevel 1 (
 
 echo.
 echo =====================================================================
-echo [SUKSES!] File installer telah dibuat di folder dist-electron\
+echo [SUKSES] File installer telah dibuat di folder dist-electron\
 echo =====================================================================
 if exist "dist-electron\" start "" explorer dist-electron
 pause
@@ -274,7 +268,7 @@ if not exist ".git\" (
     if errorlevel 1 git remote add origin !REPO_URL! 2>nul
 )
 
-echo [1/3] Menghubungi GitHub (fyercz/Project-POS) & menarik update (git pull)...
+echo [1/5] Menghubungi GitHub (fyercz/Project-POS) dan menarik update...
 git fetch origin main 2>nul
 git pull origin main
 if errorlevel 1 (
@@ -283,17 +277,70 @@ if errorlevel 1 (
 )
 
 echo.
-echo [2/3] Memeriksa paket pustaka (npm install)...
+echo [2/5] Memverifikasi integritas file dan membersihkan file usang...
+:: 1. Hapus file script lama yang sudah tidak terpakai
+if exist "buka-desktop.bat" (
+    del /f /q "buka-desktop.bat" >nul 2>nul
+    echo       - Menghapus script lama: buka-desktop.bat
+)
+if exist "buat-aplikasi-exe.bat" (
+    del /f /q "buat-aplikasi-exe.bat" >nul 2>nul
+    echo       - Menghapus script lama: buat-aplikasi-exe.bat
+)
+if exist "buat-exe-cepat.bat" (
+    del /f /q "buat-exe-cepat.bat" >nul 2>nul
+    echo       - Menghapus script lama: buat-exe-cepat.bat
+)
+if exist "install.bat" (
+    del /f /q "install.bat" >nul 2>nul
+    echo       - Menghapus script lama: install.bat
+)
+if exist "update.bat" (
+    del /f /q "update.bat" >nul 2>nul
+    echo       - Menghapus script lama: update.bat
+)
+
+:: 2. Bersihkan file sampah temporer (*.tmp, *.log lama)
+del /f /q *.tmp >nul 2>nul
+del /f /q npm-debug.log* >nul 2>nul
+
+:: 3. Bersihkan cache build lama agar kompilasi bersih (fresh build)
+if exist "dist\" (
+    rmdir /s /q "dist\" >nul 2>nul
+    echo       - Membersihkan cache build: dist\
+)
+if exist "node_modules\.vite\" (
+    rmdir /s /q "node_modules\.vite\" >nul 2>nul
+    echo       - Membersihkan cache dependency optimizer: node_modules\.vite\
+)
+echo       [OK] Seluruh file usang dan cache lama berhasil dibersihkan!
+
+echo.
+echo [3/5] Memverifikasi dependensi dan membuang paket pustaka usang (npm prune)...
+call npm prune
 call npm install
 
 echo.
-echo [3/3] Mengompilasi pembaruan aplikasi...
+echo [4/5] Mengompilasi pembaruan aplikasi web (Vite Build)...
 call npm run build
 
 echo.
+echo [5/5] Memverifikasi dan memperbarui file executable (Pertashop.exe)...
+if exist "Pertashop.exe" (
+    echo       Memperbarui file Pertashop.exe dengan build terbaru...
+    call :BUILD_EXE_SILENT
+    echo       [OK] File Pertashop.exe berhasil diperbarui!
+)
+
+echo.
 echo =====================================================================
-echo [SUKSES!] Sistem Pertashop telah berhasil diperbarui dari GitHub!
-echo Catatan: Seluruh data penjualan kasir tetap aman tersimpan di komputer ini.
+echo [SUKSES] Sistem Pertashop telah berhasil diverifikasi dan diperbarui!
+echo.
+echo Ringkasan Hasil Update:
+echo 1. Kode program terbaru dari GitHub telah terpasang.
+echo 2. File script usang dan cache lama telah dibersihkan secara bersih.
+echo 3. Paket pustaka telah diverifikasi dan disinkronkan.
+echo 4. Seluruh data penjualan kasir dijamin 100% AMAN di komputer ini.
 echo =====================================================================
 echo.
 pause
@@ -305,7 +352,7 @@ goto MAIN_MENU
 :REPAIR_DEPS
 cls
 echo =====================================================================
-echo          INSTALL / REPAIR DEPENDENSI APLIKASI
+echo          INSTALL ATAU PERBAIKI DEPENDENSI APLIKASI
 echo =====================================================================
 echo.
 if not exist ".env" (

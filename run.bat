@@ -4,7 +4,7 @@ title Sistem Manajemen Pertashop
 color 0B
 
 echo =====================================================================
-echo          SISTEM MANAJEMEN & LAPORAN PERTASHOP
+echo          SISTEM MANAJEMEN DAN LAPORAN PERTASHOP
 echo                  MEMULAI APLIKASI KASIR
 echo =====================================================================
 echo.
@@ -50,6 +50,6 @@ if defined BROWSER_CMD (
 
 echo =====================================================================
 echo  [SUKSES] Aplikasi aktif!
-echo  Tekan [Ctrl + C] untuk menutup server.
+echo  Tekan Ctrl + C untuk menutup server.
 echo =====================================================================
 pause

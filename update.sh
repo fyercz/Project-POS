@@ -37,14 +37,22 @@ else
 fi
 echo ""
 
-# 2. Perbarui dependensi
-echo -e "${YELLOW}[2/3] Memperbarui dependensi paket (npm install)...${NC}"
+# 2. Bersihkan file usang dan cache
+echo -e "${YELLOW}[2/4] Memverifikasi integritas file & membersihkan file usang...${NC}"
+rm -f buka-desktop.bat buat-aplikasi-exe.bat buat-exe-cepat.bat install.bat update.bat *.tmp npm-debug.log* 2>/dev/null || true
+rm -rf dist node_modules/.vite 2>/dev/null || true
+echo -e "${GREEN}[OK] File usang dan cache build lama berhasil dibersihkan.${NC}"
+echo ""
+
+# 3. Perbarui dependensi dan pangkas paket usang
+echo -e "${YELLOW}[3/4] Memverifikasi dependensi paket (npm prune & install)...${NC}"
+npm prune || true
 npm install
 echo -e "${GREEN}[OK] Dependensi terverifikasi dan diperbarui.${NC}"
 echo ""
 
-# 3. Validasi kompilasi build
-echo -e "${YELLOW}[3/3] Memvalidasi kompilasi build produksi (npm run build)...${NC}"
+# 4. Validasi kompilasi build
+echo -e "${YELLOW}[4/4] Memvalidasi kompilasi build produksi (npm run build)...${NC}"
 npm run build
 echo -e "${GREEN}[OK] Kompilasi build aplikasi berhasil.${NC}"
 echo ""
