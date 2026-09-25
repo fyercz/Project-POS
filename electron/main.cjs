@@ -36,9 +36,26 @@ function createWindow() {
   // Jalankan file build HTML lokal
   const isDev = process.env.NODE_ENV === 'development';
   if (isDev && process.env.ELECTRON_START_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_START_URL);
+    mainWindow.loadURL(process.env.ELECTRON_START_URL).catch(err => {
+      console.error('Gagal memuat URL development:', err);
+    });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    const targetFile = path.join(__dirname, '../dist/index.html');
+    mainWindow.loadFile(targetFile).catch(err => {
+      console.error('File dist/index.html belum ditemukan, mencoba fallback localhost:3000:', err);
+      mainWindow.loadURL('http://localhost:3000').catch(() => {
+        mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="utf-8"><title>Sistem Pertashop</title></head>
+          <body style="font-family:system-ui,sans-serif;background:#0f172a;color:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;padding:20px;">
+            <h1 style="color:#ef4444;margin-bottom:8px;">Aplikasi Perlu Dibuild</h1>
+            <p style="color:#94a3b8;max-width:500px;line-height:1.6;">File web belum dikompilasi atau server lokal belum aktif.<br>Silakan jalankan file <b>buat-aplikasi-exe.bat</b> atau <b>run.bat</b> terlebih dahulu.</p>
+          </body>
+          </html>
+        `));
+      });
+    });
   }
 
   mainWindow.on('closed', () => {

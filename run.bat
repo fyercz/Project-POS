@@ -1,53 +1,55 @@
 @echo off
 chcp 65001 >nul
-title [Pertashop] - Sistem Manajemen & Laporan Pertashop
-color 0A
+title Sistem Manajemen Pertashop
+color 0B
 
 echo =====================================================================
 echo          SISTEM MANAJEMEN & LAPORAN PERTASHOP
-echo                  MENJALANKAN APLIKASI
+echo                  MEMULAI APLIKASI KASIR
 echo =====================================================================
 echo.
 
-:: Periksa Node.js
 where node >nul 2>nul
-if %errorlevel% neq 0 (
+if errorlevel 1 (
     color 0C
     echo [ERROR] Node.js belum terinstall!
-    echo Silakan install Node.js terlebih dahulu dari https://nodejs.org/
-    echo =====================================================================
+    echo Silakan install Node.js dari https://nodejs.org/
     pause
     exit /b 1
 )
 
-:: Periksa apakah node_modules sudah ada
 if not exist "node_modules\" (
-    echo [INFO] Folder dependensi belum ditemukan. Menjalankan auto-install...
-    echo.
-    call install.bat
-    if %errorlevel% neq 0 exit /b 1
-    cls
-    echo =====================================================================
-    echo          SISTEM MANAJEMEN & LAPORAN PERTASHOP
-    echo                  MENJALANKAN APLIKASI
-    echo =====================================================================
-    echo.
+    echo [INFO] Menyiapkan dependensi pertama kali...
+    call npm install
 )
 
-:: Buka browser otomatis di latar belakang setelah jeda 2.5 detik
-echo [1/2] Menyiapkan browser otomatis ke http://localhost:3000 ...
-start "" /b cmd /c "timeout /t 3 /nobreak >nul & start http://localhost:3000"
+echo [1/2] Menyiapkan server lokal...
+start "" /b cmd /c "call npm run dev"
 
-echo [2/2] Memulai server aplikasi Pertashop...
-echo.
-echo =====================================================================
-echo  Server aktif di:
-echo  - Lokal  : http://localhost:3000/
-echo  - Jaringan: http://0.0.0.0:3000/
-echo.
-echo  * Tekan [Ctrl + C] pada jendela ini untuk menghentikan aplikasi.
-echo =====================================================================
-echo.
+echo [2/2] Membuka jendela desktop kasir...
+timeout /t 3 /nobreak >nul
 
-call npm run dev
+set BROWSER_CMD=
+if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
+    set BROWSER_CMD="%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
+) else if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
+    set BROWSER_CMD="%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+) else if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
+    set BROWSER_CMD="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+) else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
+    set BROWSER_CMD="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+) else if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
+    set BROWSER_CMD="%LocalAppData%\Google\Chrome\Application\chrome.exe"
+)
+
+if defined BROWSER_CMD (
+    start "" %BROWSER_CMD% --app="http://localhost:3000" --window-size=1366,850
+) else (
+    start http://localhost:3000
+)
+
+echo =====================================================================
+echo  [SUKSES] Aplikasi aktif!
+echo  Tekan [Ctrl + C] untuk menutup server.
+echo =====================================================================
 pause

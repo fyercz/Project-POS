@@ -13,46 +13,23 @@ Dokumen ini berisi panduan praktis untuk menginstall, memperbarui (update), dan 
 
 ## 🪟 Panduan untuk Pengguna Windows
 
-Untuk pengguna Windows di komputer kasir Pertashop, cukup gunakan file `.bat` yang telah disediakan (bisa langsung **klik ganda / double-click**):
+Kini file `.bat` telah disederhanakan menjadi **2 file utama** yang sangat mudah digunakan di komputer kasir Pertashop:
 
-### 1. 🚀 Jalankan Aplikasi (Run)
-- **Klik ganda file `run.bat`** (atau `auto-run.bat`).
-- Script akan otomatis:
-  1. Memeriksa apakah dependensi sudah terinstall (jika belum, otomatis menginstall).
-  2. Membuka peramban (browser Edge / Chrome) ke alamat `http://localhost:3000`.
-  3. Memulai server aplikasi.
-- *Tips*: Anda dapat membuat **Shortcut ke Desktop** dari file `run.bat` agar operator kasir mudah membukanya setiap pergantian shift.
+### 1. 🌟 `Pertashop.bat` (Pusat Kontrol Utama All-in-One)
+**Klik ganda file `Pertashop.bat`** untuk membuka menu kontrol berlogo resmi:
+- `[1] 🚀 Buka Aplikasi Kasir`: Membuka sistem langsung dalam jendela aplikasi kasir modern tanpa tab/address bar.
+- `[2] 📦 Buat File "Pertashop.exe"`: Menghasilkan file `Pertashop.exe` berlogo resmi hanya dalam 1-2 detik tanpa perlu download modul berat.
+- `[3] 📌 Pasang Shortcut di Desktop Komputer`: Otomatis membuat icon shortcut dengan logo Pertashop di Desktop layar kasir.
+- `[4] 🛠️ Buat Installer Setup .EXE`: Untuk membuat installer paket Electron (.exe setup).
+- `[5] 🔄 Periksa Pembaruan Sistem`: Mengambil update kode & dependensi secara otomatis.
+- `[6] ⚙️ Install / Perbaiki Dependensi`: Memperbaiki paket library jika ada kendala.
 
-### 2. 🖥️ Mode Aplikasi Desktop Kasir (`buka-desktop.bat`)
-- **Klik ganda file `buka-desktop.bat`**.
-- Aplikasi akan terbuka dalam **jendela mandiri (tanpa tab browser, tanpa address bar URL)** sehingga operator kasir fokus dan tidak sengaja menutup tab atau mengubah URL. Tampilan 100% tampak seperti aplikasi desktop Windows native.
+### 2. ⚡ `run.bat` (1-Klik Langsung Buka Aplikasi Kasir)
+- **Klik ganda file `run.bat`** saat pergantian shift.
+- Tidak memunculkan menu pertanyaan: langsung menjalankan server dan membuka jendela desktop kasir seketika.
+- *Tips*: Anda bisa klik kanan `run.bat` (atau `Pertashop.exe`) lalu pilih **Send to ➜ Desktop (create shortcut)**.
 
-### 3. 📦 Membuat Aplikasi File .EXE Mandiri (`buat-aplikasi-exe.bat`)
-- **Klik ganda file `buat-aplikasi-exe.bat`**.
-- Script akan otomatis:
-  1. Menyiapkan paket Electron & Electron-Builder.
-  2. Melakukan build file HTML/JS/CSS.
-  3. Mengemas aplikasi menjadi file installer `.exe` dan portable `.exe` di folder `dist-electron\`.
-- Anda dapat menyalin file `.exe` tersebut ke komputer kasir lain secara praktis!
-
-### 4. ⚡ Auto-Runner Serbaguna (`auto-run.bat`)
-- **Klik ganda file `auto-run.bat`** untuk menu serbaguna:
-  - `[1]` Jalankan Aplikasi standar (Browser).
-  - `[2]` Jalankan Mode Desktop App (Jendela Mandiri Kasir).
-  - `[3]` Buat File Aplikasi Windows .EXE (Installer & Portable).
-  - `[4]` Cek Update lalu jalankan aplikasi.
-  - `[5]` Install ulang / perbaiki dependensi aplikasi.
-
-### 5. 🔄 Pembaruan Otomatis (Auto-Update)
-- **Klik ganda file `update.bat`** saat ada pembaruan kode atau fitur baru.
-- Script akan otomatis melakukan:
-  - `git pull` (mengambil pembaruan terbaru dari repository jika menggunakan Git).
-  - `npm install` (memperbarui paket pustaka).
-  - `npm run build` (memvalidasi kompilasi kode).
-
-### 6. 📦 Instalasi Manual Pertama Kali (Auto-Install)
-- **Klik ganda file `install.bat`**.
-- Script akan otomatis menyiapkan file konfigurasi `.env` dan mengunduh seluruh dependensi aplikasi yang dibutuhkan.
+---
 
 ---
 
