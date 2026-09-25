@@ -23,20 +23,34 @@ Untuk pengguna Windows di komputer kasir Pertashop, cukup gunakan file `.bat` ya
   3. Memulai server aplikasi.
 - *Tips*: Anda dapat membuat **Shortcut ke Desktop** dari file `run.bat` agar operator kasir mudah membukanya setiap pergantian shift.
 
-### 2. ⚡ Auto-Runner Serbaguna (`auto-run.bat`)
-- **Klik ganda file `auto-run.bat`** untuk menu serbaguna:
-  - `[1]` Jalankan Aplikasi langsung.
-  - `[2]` Cek Update lalu jalankan aplikasi.
-  - `[3]` Install ulang / perbaiki dependensi aplikasi.
+### 2. 🖥️ Mode Aplikasi Desktop Kasir (`buka-desktop.bat`)
+- **Klik ganda file `buka-desktop.bat`**.
+- Aplikasi akan terbuka dalam **jendela mandiri (tanpa tab browser, tanpa address bar URL)** sehingga operator kasir fokus dan tidak sengaja menutup tab atau mengubah URL. Tampilan 100% tampak seperti aplikasi desktop Windows native.
 
-### 3. 🔄 Pembaruan Otomatis (Auto-Update)
+### 3. 📦 Membuat Aplikasi File .EXE Mandiri (`buat-aplikasi-exe.bat`)
+- **Klik ganda file `buat-aplikasi-exe.bat`**.
+- Script akan otomatis:
+  1. Menyiapkan paket Electron & Electron-Builder.
+  2. Melakukan build file HTML/JS/CSS.
+  3. Mengemas aplikasi menjadi file installer `.exe` dan portable `.exe` di folder `dist-electron\`.
+- Anda dapat menyalin file `.exe` tersebut ke komputer kasir lain secara praktis!
+
+### 4. ⚡ Auto-Runner Serbaguna (`auto-run.bat`)
+- **Klik ganda file `auto-run.bat`** untuk menu serbaguna:
+  - `[1]` Jalankan Aplikasi standar (Browser).
+  - `[2]` Jalankan Mode Desktop App (Jendela Mandiri Kasir).
+  - `[3]` Buat File Aplikasi Windows .EXE (Installer & Portable).
+  - `[4]` Cek Update lalu jalankan aplikasi.
+  - `[5]` Install ulang / perbaiki dependensi aplikasi.
+
+### 5. 🔄 Pembaruan Otomatis (Auto-Update)
 - **Klik ganda file `update.bat`** saat ada pembaruan kode atau fitur baru.
 - Script akan otomatis melakukan:
   - `git pull` (mengambil pembaruan terbaru dari repository jika menggunakan Git).
   - `npm install` (memperbarui paket pustaka).
   - `npm run build` (memvalidasi kompilasi kode).
 
-### 4. 📦 Instalasi Manual Pertama Kali (Auto-Install)
+### 6. 📦 Instalasi Manual Pertama Kali (Auto-Install)
 - **Klik ganda file `install.bat`**.
 - Script akan otomatis menyiapkan file konfigurasi `.env` dan mengunduh seluruh dependensi aplikasi yang dibutuhkan.
 
