@@ -49,12 +49,12 @@ echo.
 where node >nul 2>nul
 if errorlevel 1 goto ERR_NO_NODE
 
-if not exist "node_modules\" (
-    echo [INFO] Dependensi belum ditemukan. Memulai instalasi otomatis...
-    call npm install
-    if errorlevel 1 goto ERR_INSTALL
-)
+if exist "node_modules\" goto START_SERVER
+echo [INFO] Dependensi belum ditemukan. Memulai instalasi otomatis...
+call npm install
+if errorlevel 1 goto ERR_INSTALL
 
+:START_SERVER
 echo [1/2] Menyiapkan server lokal...
 start "" /b cmd /c "call npm run dev"
 
@@ -191,16 +191,16 @@ echo.
 where node >nul 2>nul
 if errorlevel 1 goto ERR_NO_NODE
 
-if not exist "node_modules\electron\" (
-    echo Mengunduh paket electron dan builder (memerlukan koneksi internet)...
-    call npm install --save-dev --legacy-peer-deps electron electron-builder
-    if errorlevel 1 (
-        echo [ERROR] Gagal mengunduh paket Electron.
-        pause
-        goto MAIN_MENU
-    )
+if exist "node_modules\electron\" goto START_VITE_BUILD
+echo Mengunduh paket electron dan builder (memerlukan koneksi internet)...
+call npm install --save-dev --legacy-peer-deps electron electron-builder
+if errorlevel 1 (
+    echo [ERROR] Gagal mengunduh paket Electron.
+    pause
+    goto MAIN_MENU
 )
 
+:START_VITE_BUILD
 echo Mengompilasi web assets (Vite)...
 call npm run build
 if errorlevel 1 (
@@ -236,49 +236,43 @@ echo =====================================================================
 echo.
 
 where git >nul 2>nul
-if errorlevel 1 (
-    color 0E
-    echo [INFO] Git belum terpasang di komputer ini.
-    echo.
-    echo Cara Update:
-    echo 1. Anda dapat menginstall Git dari: https://git-scm.com/
-    echo 2. Atau Anda dapat mengunduh ZIP terbaru dari GitHub dan mengekstraknya
-    echo    ke folder ini (Seluruh data transaksi kasir dijamin 100% AMAN).
-    echo =====================================================================
-    echo.
-    pause
-    color 0B
-    goto MAIN_MENU
-)
+if errorlevel 1 goto ERR_NO_GIT
 
 set REPO_URL=https://github.com/fyercz/Project-POS.git
 
-if not exist ".git\" (
-    echo [INFO] Menghubungkan folder aplikasi ke GitHub resmi:
-    echo        !REPO_URL!
-    echo.
-    git init
-    git remote add origin !REPO_URL!
-    git branch -M main
-    echo [OK] Repository berhasil dihubungkan!
-    echo.
-) else (
-    :: Pastikan remote origin selalu mengarah ke repository Project-POS resmi
-    git remote set-url origin !REPO_URL! 2>nul
-    if errorlevel 1 git remote add origin !REPO_URL! 2>nul
-)
+if exist ".git\" goto SYNC_GIT_REMOTE
+echo [INFO] Menghubungkan folder aplikasi ke GitHub resmi...
+echo        %REPO_URL%
+echo.
+git init
+git remote add origin %REPO_URL%
+git branch -M main
+echo [OK] Repository berhasil dihubungkan!
+echo.
+goto DO_PULL_CODE
 
+:SYNC_GIT_REMOTE
+git remote set-url origin %REPO_URL% 2>nul
+if errorlevel 1 git remote add origin %REPO_URL% 2>nul
+
+:DO_PULL_CODE
 echo [1/5] Menghubungi GitHub (fyercz/Project-POS) dan menarik update...
 git fetch origin main 2>nul
 git pull origin main
+if errorlevel 1 goto FALLBACK_PULL
+goto DO_CLEANUP
+
+:FALLBACK_PULL
+echo [INFO] Mencoba sinkronisasi git pull default...
+git pull
 if errorlevel 1 (
-    echo [INFO] Mencoba sinkronisasi git pull default...
-    git pull
+    echo [INFO] Memperbarui branch ke versi origin/main...
+    git checkout -B main origin/main 2>nul
 )
 
+:DO_CLEANUP
 echo.
 echo [2/5] Memverifikasi integritas file dan membersihkan file usang...
-:: 1. Hapus file script lama yang sudah tidak terpakai
 if exist "buka-desktop.bat" (
     del /f /q "buka-desktop.bat" >nul 2>nul
     echo       - Menghapus script lama: buka-desktop.bat
@@ -300,23 +294,21 @@ if exist "update.bat" (
     echo       - Menghapus script lama: update.bat
 )
 
-:: 2. Bersihkan file sampah temporer (*.tmp, *.log lama)
 del /f /q *.tmp >nul 2>nul
 del /f /q npm-debug.log* >nul 2>nul
 
-:: 3. Bersihkan cache build lama agar kompilasi bersih (fresh build)
 if exist "dist\" (
     rmdir /s /q "dist\" >nul 2>nul
     echo       - Membersihkan cache build: dist\
 )
 if exist "node_modules\.vite\" (
     rmdir /s /q "node_modules\.vite\" >nul 2>nul
-    echo       - Membersihkan cache dependency optimizer: node_modules\.vite\
+    echo       - Membersihkan cache dependency: node_modules\.vite\
 )
-echo       [OK] Seluruh file usang dan cache lama berhasil dibersihkan!
+echo       [OK] File usang dan cache build lama berhasil dibersihkan!
 
 echo.
-echo [3/5] Memverifikasi dependensi dan membuang paket pustaka usang (npm prune)...
+echo [3/5] Memverifikasi dependensi dan membuang paket pustaka usang...
 call npm prune
 call npm install
 
@@ -340,7 +332,7 @@ echo Ringkasan Hasil Update:
 echo 1. Kode program terbaru dari GitHub telah terpasang.
 echo 2. File script usang dan cache lama telah dibersihkan secara bersih.
 echo 3. Paket pustaka telah diverifikasi dan disinkronkan.
-echo 4. Seluruh data penjualan kasir dijamin 100% AMAN di komputer ini.
+echo 4. Seluruh data penjualan kasir dijamin 100%% AMAN di komputer ini.
 echo =====================================================================
 echo.
 pause
@@ -371,6 +363,24 @@ goto MAIN_MENU
 :: =============================================================================
 :: PESAN ERROR
 :: =============================================================================
+:ERR_NO_GIT
+color 0E
+echo.
+echo [INFO] Git belum terpasang di komputer ini!
+echo =====================================================================
+echo Agar fitur Auto-Update ini dapat berjalan otomatis:
+echo 1. Silakan unduh dan install Git dari: https://git-scm.com/
+echo 2. Pilih instalasi default dan restart komputer kasir Anda.
+echo.
+echo Alternatif tanpa Git:
+echo Anda dapat mengunduh ZIP terbaru dari https://github.com/fyercz/Project-POS
+echo lalu mengekstraknya ke folder ini (Data transaksi kasir dijamin AMAN).
+echo =====================================================================
+echo.
+pause
+color 0B
+goto MAIN_MENU
+
 :ERR_NO_NODE
 color 0C
 echo.
