@@ -19,15 +19,21 @@ echo ""
 
 # 1. Periksa ketersediaan Git dan lakukan pull
 echo -e "${YELLOW}[1/3] Memeriksa pembaruan kode sumber (Git Pull)...${NC}"
-if [ -d ".git" ]; then
-    if command -v git &> /dev/null; then
-        echo "Menarik update terbaru dari repository..."
-        git pull || echo -e "${YELLOW}[PERINGATAN] Git pull mengalami kendala, melanjutkan proses...${NC}"
+REPO_URL="https://github.com/fyercz/Project-POS.git"
+if command -v git &> /dev/null; then
+    if [ ! -d ".git" ]; then
+        echo "Menghubungkan direktori ke $REPO_URL..."
+        git init
+        git remote add origin "$REPO_URL"
+        git branch -M main
     else
-        echo -e "${YELLOW}[INFO] Git tidak terdeteksi, melewati git pull.${NC}"
+        git remote set-url origin "$REPO_URL" 2>/dev/null || git remote add origin "$REPO_URL" 2>/dev/null
     fi
+    echo "Menarik update terbaru dari GitHub ($REPO_URL)..."
+    git fetch origin main 2>/dev/null || true
+    git pull origin main || git pull || echo -e "${YELLOW}[PERINGATAN] Git pull mengalami kendala, melanjutkan proses...${NC}"
 else
-    echo -e "${YELLOW}[INFO] Direktori bukan git repository, melewati git pull.${NC}"
+    echo -e "${YELLOW}[INFO] Git tidak terdeteksi, melewati git pull.${NC}"
 fi
 echo ""
 

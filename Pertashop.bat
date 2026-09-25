@@ -232,28 +232,70 @@ pause
 goto MAIN_MENU
 
 :: =============================================================================
-:: [5] UPDATE APLIKASI
+:: [5] UPDATE APLIKASI DARI GITHUB
 :: =============================================================================
 :UPDATE_APP
 cls
 echo =====================================================================
-echo          PEMBARUAN APLIKASI (AUTO-UPDATE)
+echo          PEMBARUAN APLIKASI OTOMATIS DARI GITHUB
 echo =====================================================================
 echo.
 
 where git >nul 2>nul
-if not errorlevel 1 (
-    echo Mengambil update kode dari repository Git...
+if errorlevel 1 (
+    color 0E
+    echo [INFO] Git belum terpasang di komputer ini.
+    echo.
+    echo Cara Update:
+    echo 1. Anda dapat menginstall Git dari: https://git-scm.com/
+    echo 2. Atau Anda dapat mengunduh ZIP terbaru dari GitHub dan mengekstraknya
+    echo    ke folder ini (Seluruh data transaksi kasir dijamin 100% AMAN).
+    echo =====================================================================
+    echo.
+    pause
+    color 0B
+    goto MAIN_MENU
+)
+
+set REPO_URL=https://github.com/fyercz/Project-POS.git
+
+if not exist ".git\" (
+    echo [INFO] Menghubungkan folder aplikasi ke GitHub resmi:
+    echo        !REPO_URL!
+    echo.
+    git init
+    git remote add origin !REPO_URL!
+    git branch -M main
+    echo [OK] Repository berhasil dihubungkan!
+    echo.
+) else (
+    :: Pastikan remote origin selalu mengarah ke repository Project-POS resmi
+    git remote set-url origin !REPO_URL! 2>nul
+    if errorlevel 1 git remote add origin !REPO_URL! 2>nul
+)
+
+echo [1/3] Menghubungi GitHub (fyercz/Project-POS) & menarik update (git pull)...
+git fetch origin main 2>nul
+git pull origin main
+if errorlevel 1 (
+    echo [INFO] Mencoba sinkronisasi git pull default...
     git pull
 )
 
-echo Memperbarui paket pustaka aplikasi...
+echo.
+echo [2/3] Memeriksa paket pustaka (npm install)...
 call npm install
+
 echo.
-echo Memvalidasi build sistem...
+echo [3/3] Mengompilasi pembaruan aplikasi...
 call npm run build
+
 echo.
-echo [SUKSES] Sistem Pertashop berhasil diperbarui!
+echo =====================================================================
+echo [SUKSES!] Sistem Pertashop telah berhasil diperbarui dari GitHub!
+echo Catatan: Seluruh data penjualan kasir tetap aman tersimpan di komputer ini.
+echo =====================================================================
+echo.
 pause
 goto MAIN_MENU
 

@@ -21,7 +21,7 @@ Kini file `.bat` telah disederhanakan menjadi **2 file utama** yang sangat mudah
 - `[2] 📦 Buat File "Pertashop.exe"`: Menghasilkan file `Pertashop.exe` berlogo resmi hanya dalam 1-2 detik tanpa perlu download modul berat.
 - `[3] 📌 Pasang Shortcut di Desktop Komputer`: Otomatis membuat icon shortcut dengan logo Pertashop di Desktop layar kasir.
 - `[4] 🛠️ Buat Installer Setup .EXE`: Untuk membuat installer paket Electron (.exe setup).
-- `[5] 🔄 Periksa Pembaruan Sistem`: Mengambil update kode & dependensi secara otomatis.
+- `[5] 🔄 Periksa Pembaruan Sistem (Auto-Update GitHub)`: Otomatis tersinkronisasi ke repository resmi **`https://github.com/fyercz/Project-POS.git`** untuk menarik update kode & modul terbaru.
 - `[6] ⚙️ Install / Perbaiki Dependensi`: Memperbaiki paket library jika ada kendala.
 
 ### 2. ⚡ `run.bat` (1-Klik Langsung Buka Aplikasi Kasir)
@@ -30,6 +30,10 @@ Kini file `.bat` telah disederhanakan menjadi **2 file utama** yang sangat mudah
 - *Tips*: Anda bisa klik kanan `run.bat` (atau `Pertashop.exe`) lalu pilih **Send to ➜ Desktop (create shortcut)**.
 
 ---
+
+### 🌐 Repository Resmi GitHub
+- **URL**: `https://github.com/fyercz/Project-POS.git`
+- Seluruh pembaruan di repository ini dapat langsung ditarik ke komputer kasir kapan saja menggunakan menu `[5]` di `Pertashop.bat`.
 
 ---
 
