@@ -209,18 +209,101 @@ export function synchronizeAllAttendanceHours(
 }
 
 /**
+ * Memeriksa apakah perhitungan gaji otomatis diperbolehkan untuk bulan tertentu.
+ * Aturan: Hanya dapat dilakukan pada 2 hari terakhir bulan tersebut (atau bulan-bulan yang telah lalu).
+ */
+export interface PayrollEligibility {
+  allowed: boolean;
+  daysInMonth: number;
+  startEligibilityDay: number;
+  endEligibilityDay: number;
+  status: 'PAST_MONTH' | 'ACTIVE_WINDOW' | 'TOO_EARLY' | 'FUTURE_MONTH';
+  message: string;
+}
+
+export function isPayrollCalculationAllowed(
+  targetMonth: string,
+  referenceDate: Date = new Date()
+): PayrollEligibility {
+  const [yearStr, monthStr] = targetMonth.split('-');
+  const targetYear = parseInt(yearStr, 10);
+  const targetMonthNum = parseInt(monthStr, 10);
+
+  // Jumlah hari dalam targetMonth (misal 30 hari untuk Sep, 31 hari untuk Agu, 28/29 untuk Feb)
+  const daysInMonth = new Date(targetYear, targetMonthNum, 0).getDate();
+  const startEligibilityDay = Math.max(1, daysInMonth - 1); // 2 hari terakhir (misal tgl 29 & 30 untuk bulan 30 hari)
+
+  const currentYear = referenceDate.getFullYear();
+  const currentMonthNum = referenceDate.getMonth() + 1;
+  const currentDay = referenceDate.getDate();
+
+  const targetPeriodVal = targetYear * 12 + targetMonthNum;
+  const currentPeriodVal = currentYear * 12 + currentMonthNum;
+
+  // Kasus 1: Bulan di masa lalu (sebelum bulan berjalan saat ini) -> Diizinkan karena sudah lewat
+  if (targetPeriodVal < currentPeriodVal) {
+    return {
+      allowed: true,
+      daysInMonth,
+      startEligibilityDay,
+      endEligibilityDay: daysInMonth,
+      status: 'PAST_MONTH',
+      message: 'Periode bulan telah selesai. Perhitungan gaji otomatis diizinkan.',
+    };
+  }
+
+  // Kasus 2: Bulan di masa mendatang -> Belum diizinkan
+  if (targetPeriodVal > currentPeriodVal) {
+    return {
+      allowed: false,
+      daysInMonth,
+      startEligibilityDay,
+      endEligibilityDay: daysInMonth,
+      status: 'FUTURE_MONTH',
+      message: `Bulan belum berjalan. Hitung gaji otomatis baru dapat dilakukan pada 2 hari terakhir bulan tersebut (mulai tanggal ${startEligibilityDay}).`,
+    };
+  }
+
+  // Kasus 3: Bulan berjalan saat ini (targetPeriodVal === currentPeriodVal)
+  if (currentDay >= startEligibilityDay) {
+    return {
+      allowed: true,
+      daysInMonth,
+      startEligibilityDay,
+      endEligibilityDay: daysInMonth,
+      status: 'ACTIVE_WINDOW',
+      message: `Saat ini berada pada 2 hari terakhir bulan ini (tanggal ${startEligibilityDay} - ${daysInMonth}). Hitung gaji otomatis siap dijalankan.`,
+    };
+  } else {
+    const daysRemaining = startEligibilityDay - currentDay;
+    return {
+      allowed: false,
+      daysInMonth,
+      startEligibilityDay,
+      endEligibilityDay: daysInMonth,
+      status: 'TOO_EARLY',
+      message: `Hitung gaji otomatis baru dapat dilakukan pada 2 hari terakhir bulan ini (mulai tanggal ${startEligibilityDay} - ${daysRemaining} hari lagi), agar data seluruh shift kerja dan absensi telah lengkap.`,
+    };
+  }
+}
+
+/**
  * Recalculate monthly payroll slips based on updated attendance records.
+ * Hanya membuat slip gaji baru jika diizinkan (2 hari terakhir bulan tersebut) atau jika dipaksa (forceCreate=true).
  */
 export function recalculateMonthlyPayrolls(
   attendance: AttendanceRecord[],
   employees: Employee[],
   currentPayrolls: PayrollRecord[],
-  targetMonth: string
+  targetMonth: string,
+  forceCreate: boolean = false
 ): PayrollRecord[] {
   const updatedPayrolls = [...currentPayrolls];
   const year = parseInt(targetMonth.split('-')[0], 10);
   const month = parseInt(targetMonth.split('-')[1], 10);
   const daysInMonth = new Date(year, month, 0).getDate();
+
+  const eligibility = isPayrollCalculationAllowed(targetMonth);
 
   employees.forEach((emp) => {
     const empMonthAtt = attendance.filter(
@@ -238,6 +321,11 @@ export function recalculateMonthlyPayrolls(
     );
 
     const existingSlip = existingIndex >= 0 ? updatedPayrolls[existingIndex] : null;
+
+    // Jika belum ada slip gaji dan belum memasuki 2 hari terakhir bulan tersebut (dan tidak di-force), jangan buat slip prematur
+    if (!existingSlip && !eligibility.allowed && !forceCreate) {
+      return;
+    }
 
     // Hitung gaji pokok & lembur (pertahankan nominal manual jika jumlah hari/shift sama)
     const basicSalary =

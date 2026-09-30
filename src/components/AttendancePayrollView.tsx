@@ -23,6 +23,7 @@ import {
   X,
   Sparkles,
   RefreshCw,
+  Lock,
 } from 'lucide-react';
 import {
   Employee,
@@ -50,6 +51,8 @@ import {
   recalculateMonthlyPayrolls,
   isAttendanceHoursMismatch,
   synchronizeAllAttendanceHours,
+  isPayrollCalculationAllowed,
+  PayrollEligibility,
 } from '../utils/attendanceSync';
 import { ConfirmModal } from './ConfirmModal';
 import * as XLSX from 'xlsx';
@@ -96,6 +99,14 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   
   // Selected Filter Month (YYYY-MM)
   const [selectedMonth, setSelectedMonth] = useState<string>('2026-08');
+
+  // Modal penjelasan aturan jadwal hitung gaji (2 hari terakhir bulan)
+  const [eligibilityWarningModal, setEligibilityWarningModal] = useState<PayrollEligibility | null>(null);
+
+  // Status kelayakan hitung gaji otomatis untuk bulan yang dipilih
+  const payrollEligibility = React.useMemo(() => {
+    return isPayrollCalculationAllowed(selectedMonth);
+  }, [selectedMonth]);
   
   // Modal states
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState<boolean>(false);
@@ -242,6 +253,16 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
   // Generate / Recalculate Payroll for all employees in selected month
   const handleAutoGeneratePayroll = () => {
+    // Validasi aturan: hitung gaji otomatis hanya dapat dilakukan pada 2 hari terakhir bulan tersebut
+    if (!payrollEligibility.allowed) {
+      setEligibilityWarningModal(payrollEligibility);
+      setToastMessage({
+        text: `⚠️ Tidak dapat menghitung gaji sekarang: ${payrollEligibility.message}`,
+        type: 'error',
+      });
+      return;
+    }
+
     const daysInMonth = new Date(
       parseInt(selectedMonth.split('-')[0]),
       parseInt(selectedMonth.split('-')[1]),
@@ -657,6 +678,10 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="bg-transparent text-white text-xs font-bold font-mono focus:outline-none pr-2 cursor-pointer"
             >
+              <option value="2026-12" className="bg-slate-900 text-white">Desember 2026</option>
+              <option value="2026-11" className="bg-slate-900 text-white">November 2026</option>
+              <option value="2026-10" className="bg-slate-900 text-white">Oktober 2026</option>
+              <option value="2026-09" className="bg-slate-900 text-white">September 2026</option>
               <option value="2026-08" className="bg-slate-900 text-white">Agustus 2026</option>
               <option value="2026-07" className="bg-slate-900 text-white">Juli 2026</option>
               <option value="2026-06" className="bg-slate-900 text-white">Juni 2026</option>
@@ -671,11 +696,31 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           <button
             type="button"
             onClick={handleAutoGeneratePayroll}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 transition-colors"
-            title="Hitung ulang gaji bulan terpilih berdasarkan data absensi"
+            className={`px-4 py-2 rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-all cursor-pointer ${
+              payrollEligibility.allowed
+                ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/40 ring-1 ring-white/20'
+                : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40'
+            }`}
+            title={
+              payrollEligibility.allowed
+                ? `Hitung gaji otomatis bulan ${formatMonthYear(selectedMonth)} (Aktif pada 2 hari terakhir bulan)`
+                : `Hitung gaji otomatis baru dapat dilakukan pada 2 hari terakhir bulan (${payrollEligibility.startEligibilityDay} - ${payrollEligibility.daysInMonth} ${formatMonthYear(selectedMonth)})`
+            }
           >
-            <Sparkles className="w-4 h-4" />
-            <span>Hitung Gaji Otomatis</span>
+            {payrollEligibility.allowed ? (
+              <>
+                <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>Hitung Gaji Otomatis</span>
+                <span className="hidden sm:inline px-1.5 py-0.5 text-[9px] bg-white/20 rounded font-normal font-mono">
+                  Buka Tgl {payrollEligibility.startEligibilityDay}-{payrollEligibility.daysInMonth}
+                </span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>Hitung Gaji (Buka Tgl {payrollEligibility.startEligibilityDay})</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -842,6 +887,54 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
             </p>
           </div>
 
+          {/* Banner Informasi Jadwal 2 Hari Terakhir Penggajian */}
+          {payrollEligibility.status === 'ACTIVE_WINDOW' ? (
+            <div className="mx-4 sm:mx-5 my-3.5 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 text-emerald-800">
+                <div className="p-1.5 bg-emerald-500 text-white rounded-lg shrink-0">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-emerald-950">Periode Hitung Gaji Aktif (2 Hari Terakhir Bulan): </span>
+                  Saat ini berada pada tanggal {payrollEligibility.startEligibilityDay} - {payrollEligibility.daysInMonth} {formatMonthYear(selectedMonth)}. Seluruh catatan kehadiran dan shift operator siap dikalkulasi menjadi slip gaji bulanan.
+                </div>
+              </div>
+              <span className="px-2.5 py-1 bg-emerald-200 text-emerald-900 rounded-lg font-bold text-[10px] whitespace-nowrap uppercase tracking-wider">
+                Siap Hitung
+              </span>
+            </div>
+          ) : payrollEligibility.status === 'TOO_EARLY' ? (
+            <div className="mx-4 sm:mx-5 my-3.5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 text-amber-800">
+                <div className="p-1.5 bg-amber-500 text-white rounded-lg shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-amber-950">Jadwal Hitung Gaji Belum Dibuka: </span>
+                  Perhitungan gaji otomatis baru dapat dilakukan pada <strong>2 hari terakhir bulan ini</strong> (mulai tanggal {payrollEligibility.startEligibilityDay} {formatMonthYear(selectedMonth)}) agar seluruh data kehadiran dan shift kerja tercatat lengkap.
+                </div>
+              </div>
+              <span className="px-2.5 py-1 bg-amber-200 text-amber-900 rounded-lg font-bold text-[10px] whitespace-nowrap">
+                Buka Tgl {payrollEligibility.startEligibilityDay}
+              </span>
+            </div>
+          ) : payrollEligibility.status === 'FUTURE_MONTH' ? (
+            <div className="mx-4 sm:mx-5 my-3.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 text-slate-700">
+                <div className="p-1.5 bg-slate-400 text-white rounded-lg shrink-0">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900">Periode Belum Berjalan: </span>
+                  Hitung gaji otomatis untuk bulan {formatMonthYear(selectedMonth)} akan dibuka pada 2 hari terakhir bulan tersebut (mulai tanggal {payrollEligibility.startEligibilityDay} {formatMonthYear(selectedMonth)}).
+                </div>
+              </div>
+              <span className="px-2.5 py-1 bg-slate-200 text-slate-700 rounded-lg font-bold text-[10px] whitespace-nowrap">
+                Mendatang
+              </span>
+            </div>
+          ) : null}
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -864,13 +957,21 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                     <td colSpan={10} className="py-12 text-center text-slate-400">
                       <DollarSign className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                       <p className="font-semibold text-slate-600">Belum ada rekap gaji untuk bulan {formatMonthYear(selectedMonth)}.</p>
-                      <button
-                        type="button"
-                        onClick={handleAutoGeneratePayroll}
-                        className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm"
-                      >
-                        Kalkulasi Slip Gaji Bulan Ini Sekarang
-                      </button>
+                      {payrollEligibility.allowed ? (
+                        <button
+                          type="button"
+                          onClick={handleAutoGeneratePayroll}
+                          className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm flex items-center gap-1.5 mx-auto cursor-pointer"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          <span>Kalkulasi Slip Gaji Bulan Ini Sekarang</span>
+                        </button>
+                      ) : (
+                        <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-medium">
+                          <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span>Kalkulasi gaji otomatis dapat dilakukan pada 2 hari terakhir bulan (mulai tanggal {payrollEligibility.startEligibilityDay} {formatMonthYear(selectedMonth)})</span>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -2314,6 +2415,54 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           </div>
         );
       })()}
+
+      {/* ===================== MODAL JADWAL HITUNG GAJI (2 HARI TERAKHIR BULAN) ===================== */}
+      {eligibilityWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-4">
+              <Clock className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-1">
+              Jadwal Hitung Gaji Belum Dibuka
+            </h3>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Sesuai ketentuan sistem Pertashop, perhitungan gaji otomatis hanya dapat dilakukan pada <strong>2 hari terakhir bulan tersebut</strong>.
+            </p>
+
+            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 mb-5 space-y-2.5 text-xs">
+              <div className="flex justify-between items-center text-slate-700">
+                <span className="text-slate-500">Bulan Penggajian:</span>
+                <span className="font-bold font-mono">{formatMonthYear(selectedMonth)}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-700">
+                <span className="text-slate-500">Jadwal Dibuka:</span>
+                <span className="font-bold text-amber-900">
+                  Tanggal {eligibilityWarningModal.startEligibilityDay} s/d {eligibilityWarningModal.daysInMonth} {formatMonthYear(selectedMonth)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-700">
+                <span className="text-slate-500">Ketentuan Periode:</span>
+                <span className="font-semibold text-emerald-800 text-right">
+                  2 Hari Terakhir Bulan
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-400 mb-5 leading-normal">
+              💡 <em>Tujuan:</em> Mencegah slip gaji tercetak tidak lengkap karena shift harian dan absensi operator masih berjalan hingga akhir bulan.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setEligibilityWarningModal(null)}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+            >
+              Saya Mengerti
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ===================== IN-APP TOAST NOTIFICATION ===================== */}
       {toastMessage && (
