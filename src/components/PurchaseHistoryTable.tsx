@@ -15,6 +15,7 @@ import {
   Info,
   Wrench,
   X,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { PurchaseOrder, POStatus, TankConfig } from '../types';
 import { formatRupiah, formatNumber, formatShortDate, formatLiter } from '../utils/formatters';
@@ -29,6 +30,7 @@ interface PurchaseHistoryTableProps {
   onDeleteOrder: (id: string) => void;
   onRevertReceiving: (orderId: string) => void;
   onDirectAdjustTank?: (newStockLiters: number) => void;
+  onOpenImportModal?: () => void;
 }
 
 export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
@@ -40,6 +42,7 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
   onDeleteOrder,
   onRevertReceiving,
   onDirectAdjustTank,
+  onOpenImportModal,
 }) => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<PurchaseOrder | null>(null);
@@ -197,11 +200,23 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
             <button
               type="button"
               onClick={onOpenNewOrderModal}
-              className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm shadow-red-200"
+              className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm shadow-red-200 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Buat PO Pertamina</span>
             </button>
+
+            {onOpenImportModal && (
+              <button
+                type="button"
+                onClick={onOpenImportModal}
+                className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Import Batch Data Penjualan 1 Bulan & DO Pertamina (Excel/CSV)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Import Batch 1 Bulan & DO</span>
+              </button>
+            )}
           </div>
         </div>
 

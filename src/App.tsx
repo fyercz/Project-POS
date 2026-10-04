@@ -501,7 +501,9 @@ export default function App() {
   const handleImportSales = (
     importedSales: SaleRecord[],
     mode: 'append' | 'replace',
-    syncStock: boolean
+    syncStock: boolean,
+    importedPurchases?: PurchaseOrder[],
+    syncAttendance: boolean = true
   ) => {
     let updatedSales: SaleRecord[];
     if (mode === 'replace') {
@@ -512,12 +514,53 @@ export default function App() {
     }
     setSales(updatedSales);
 
+    // Update last sales input date
+    if (importedSales.length > 0) {
+      const sortedDates = [...importedSales].map((s) => s.transactionDate).sort();
+      const latestDate = sortedDates[sortedDates.length - 1];
+      setLastSalesInputDate(latestDate);
+      StorageService.setLastSalesDate(latestDate);
+    }
+
+    // Proses import DO Pertamina (Delivery Order) jika ada
+    let updatedPurchases = purchases;
+    if (importedPurchases && importedPurchases.length > 0) {
+      if (mode === 'replace') {
+        updatedPurchases = importedPurchases;
+      } else {
+        const existingPoNumbers = new Set(purchases.map((p) => p.poNumber));
+        const newPurchases = importedPurchases.filter((p) => !existingPoNumbers.has(p.poNumber));
+        updatedPurchases = [...newPurchases, ...purchases];
+      }
+      setPurchases(updatedPurchases);
+      StorageService.setPurchases(updatedPurchases);
+    }
+
+    // Sinkronisasi shift penjualan batch 1 bulan ke buku absensi karyawan
+    if (syncAttendance && importedSales.length > 0) {
+      const syncResult = syncSalesToAttendance(importedSales, attendance, employees);
+      setAttendance(syncResult.updatedAttendance);
+      StorageService.setAttendance(syncResult.updatedAttendance);
+    }
+
     if (syncStock) {
-      const totalImportLiters = importedSales.reduce((acc, s) => acc + s.literSold, 0);
-      setTank((prev) => ({
-        ...prev,
-        currentStockLiters: Math.max(0, prev.currentStockLiters - totalImportLiters),
-      }));
+      const totalImportLitersSold = importedSales.reduce((acc, s) => acc + s.literSold, 0);
+      const totalImportLitersReceived = (importedPurchases || [])
+        .filter((p) => p.status === 'SELESAI')
+        .reduce((acc, p) => acc + (p.actualLitersReceived || p.volumeLiters), 0);
+
+      setTank((prev) => {
+        const newStock = Math.min(
+          prev.totalCapacityLiters,
+          Math.max(0, prev.currentStockLiters + totalImportLitersReceived - totalImportLitersSold)
+        );
+        const updatedTank = {
+          ...prev,
+          currentStockLiters: newStock,
+        };
+        StorageService.setTankConfig(updatedTank);
+        return updatedTank;
+      });
     }
   };
 
@@ -1189,14 +1232,27 @@ export default function App() {
     payroll: PayrollRecord,
     paymentSource: 'KAS_HARIAN' | 'REKENING_BANK',
     paymentDate?: string,
-    notes?: string
+    notes?: string,
+    paymentTime?: string
   ) => {
-    // 1. Update Payroll Record Status
-    const today = paymentDate || getTodayDateString();
+    // 1. Tentukan tanggal akhir bulan periode penggajian
+    const [yearStr, monthStr] = payroll.month.split('-');
+    const yearNum = parseInt(yearStr, 10);
+    const monthNum = parseInt(monthStr, 10);
+    const lastDay = new Date(yearNum, monthNum, 0).getDate();
+    const endOfMonthDate = `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    // Sesuai SOP Pertashop: Pengeluaran gaji pasti dilakukan pada akhir bulan, maksimal jam 20:00 WIB
+    const finalDate = endOfMonthDate;
+    let finalTime = paymentTime || '20:00';
+    if (finalTime > '20:00') {
+      finalTime = '20:00'; // Maksimal jam 20:00 WIB
+    }
+
     const updatedPayroll: PayrollRecord = {
       ...payroll,
       paymentStatus: 'DIBAYAR',
-      paymentDate: today,
+      paymentDate: finalDate,
       paymentSource,
       notes: notes || payroll.notes,
     };
@@ -1207,17 +1263,17 @@ export default function App() {
     if (!existingSalaryExpense) {
       const newExpense: ExpenseRecord = {
         id: `exp-salary-${payroll.id}-${Date.now()}`,
-        date: today,
-        time: getCurrentTimeString(),
+        date: finalDate,
+        time: finalTime,
         category: 'GAJI_OPERATOR',
-        title: `Pembayaran Gaji Bulanan: ${payroll.employeeName} (${payroll.payrollNumber})`,
+        title: `Pembayaran Gaji Akhir Bulan: ${payroll.employeeName} (${payroll.payrollNumber})`,
         amount: payroll.netSalary,
         quantity: payroll.totalHadir,
         unitRate: payroll.dailyRate,
         personOrVendor: payroll.employeeName,
         paymentSource,
-        notes: `Gaji periode ${payroll.month} (${payroll.totalHadir} hari kerja, ${payroll.totalLemburShifts} shift lembur). Bersih: Rp ${payroll.netSalary.toLocaleString('id-ID')}`,
-        createdAt: `${today} ${getCurrentTimeString()}`,
+        notes: `Pengeluaran gaji akhir bulan periode ${payroll.month} (Cut-off maks. pukul 20:00 WIB). Hadir: ${payroll.totalHadir} hari, Lembur: ${payroll.totalLemburShifts} shift. Bersih: Rp ${payroll.netSalary.toLocaleString('id-ID')}`,
+        createdAt: `${finalDate} ${finalTime}`,
       };
       setExpenses((prev) => [newExpense, ...prev]);
     }
@@ -1325,6 +1381,7 @@ export default function App() {
               onDeleteOrder={handleDeletePurchaseOrder}
               onRevertReceiving={handleRevertReceiving}
               onDirectAdjustTank={handleDirectAdjustTank}
+              onOpenImportModal={() => setIsImportSalesModalOpen(true)}
             />
           )}
 

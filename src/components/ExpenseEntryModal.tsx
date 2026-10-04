@@ -64,8 +64,14 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
       setUnitRate(rate);
       setQuantity(1);
       setAmount(rate);
-      setTitle(`Gaji Harian Operator (${personOrVendor || 'Daslam'})`);
+      setTitle(`Gaji Operator (${personOrVendor || 'Daslam'})`);
       setPaymentSource('KAS_HARIAN');
+      // SOP Pertashop: Pengeluaran gaji pasti dilakukan pada akhir bulan, maksimal jam 20.00
+      const now = new Date();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const endOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      setDate(endOfMonth);
+      setTime('20:00');
     } else if (cat === 'LEMBURAN') {
       const rate = EXPENSE_RATES.LEMBURAN_PER_SHIFT; // 30.000
       setUnitRate(rate);
@@ -193,9 +199,14 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
       return;
     }
 
+    let finalTime = time;
+    if (category === 'GAJI_OPERATOR' && finalTime > '20:00') {
+      finalTime = '20:00';
+    }
+
     onSaveExpense({
       date,
-      time,
+      time: finalTime,
       category,
       title: title.trim() || `Pengeluaran ${category}`,
       amount,
@@ -399,16 +410,24 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
 
           {/* Specific Banner Helper */}
           {category === 'GAJI_OPERATOR' && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-blue-700" />
-                <span className="text-blue-900 font-medium">
-                  Standar Gaji: <strong>Rp 40.000 per hari / operator</strong>
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-blue-700" />
+                  <span className="text-blue-900 font-medium">
+                    Standar Gaji: <strong>Rp 40.000 per hari / operator</strong>
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-blue-200 text-blue-900 font-bold font-mono text-[11px]">
+                  {quantity} Hari = {formatRupiah(quantity * unitRate)}
                 </span>
               </div>
-              <span className="px-2 py-0.5 rounded-md bg-blue-200 text-blue-900 font-bold font-mono text-[11px]">
-                {quantity} Hari = {formatRupiah(quantity * unitRate)}
-              </span>
+              <div className="text-[11px] text-blue-900 bg-white/80 p-2 rounded-lg border border-blue-200/80 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>
+                  <strong>Aturan SOP:</strong> Pengeluaran untuk gaji pasti dilakukan pada akhir bulan, maksimal jam 20:00 WIB.
+                </span>
+              </div>
             </div>
           )}
 

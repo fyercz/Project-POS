@@ -12,10 +12,24 @@ import {
   ArrowRight,
   Database,
   Fuel,
+  Truck,
+  Check,
+  Calendar,
+  Users,
+  Building2,
+  Sparkles,
+  Info,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { SaleRecord, Product } from '../types';
-import { formatRupiah, formatNumber, formatLiter, getTodayDateString, getCurrentTimeString } from '../utils/formatters';
+import { SaleRecord, Product, PurchaseOrder, OrderVolumePecahan } from '../types';
+import {
+  formatRupiah,
+  formatNumber,
+  formatLiter,
+  getTodayDateString,
+  getCurrentTimeString,
+  formatShortDate,
+} from '../utils/formatters';
 
 interface ImportSalesModalProps {
   isOpen: boolean;
@@ -23,12 +37,25 @@ interface ImportSalesModalProps {
   products: Product[];
   currentPrice: number;
   currentBuyPrice: number;
-  onImportSales: (importedSales: SaleRecord[], mode: 'append' | 'replace', syncStock: boolean) => void;
+  onImportSales: (
+    importedSales: SaleRecord[],
+    mode: 'append' | 'replace',
+    syncStock: boolean,
+    importedPurchases?: PurchaseOrder[],
+    syncAttendance?: boolean
+  ) => void;
 }
 
 interface ParsedRowPreview {
   raw: any;
   sale: SaleRecord;
+  isValid: boolean;
+  errors: string[];
+}
+
+interface ParsedDORowPreview {
+  raw: any;
+  order: PurchaseOrder;
   isValid: boolean;
   errors: string[];
 }
@@ -42,11 +69,15 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   onImportSales,
 }) => {
   const [activeInputTab, setActiveInputTab] = useState<'file' | 'paste'>('file');
+  const [pasteType, setPasteType] = useState<'sales' | 'do'>('sales');
+  const [previewTab, setPreviewTab] = useState<'sales' | 'do'>('sales');
   const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
   const [syncStock, setSyncStock] = useState<boolean>(true);
+  const [syncAttendance, setSyncAttendance] = useState<boolean>(true);
   const [pastedText, setPastedText] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
   const [parsedRows, setParsedRows] = useState<ParsedRowPreview[]>([]);
+  const [parsedDoRows, setParsedDoRows] = useState<ParsedDORowPreview[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [dragActive, setDragActive] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,16 +95,13 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   const parseDateString = (val: any): string => {
     if (!val) return getTodayDateString();
     if (typeof val === 'number') {
-      // Excel serial date to JS Date
       const dateObj = XLSX.SSF.parse_date_code(val);
       if (dateObj) {
         return `${dateObj.y}-${String(dateObj.m).padStart(2, '0')}-${String(dateObj.d).padStart(2, '0')}`;
       }
     }
     const str = String(val).trim();
-    // Check if YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-    // Check DD/MM/YYYY or DD-MM-YYYY
     const ddmmyyyy = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
     if (ddmmyyyy) {
       const d = ddmmyyyy[1].padStart(2, '0');
@@ -81,7 +109,6 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       const y = ddmmyyyy[3];
       return `${y}-${m}-${d}`;
     }
-    // Attempt standard Date parse
     const parsed = new Date(str);
     if (!isNaN(parsed.getTime())) {
       return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
@@ -93,7 +120,6 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   const parseTimeString = (val: any): string => {
     if (!val) return getCurrentTimeString();
     if (typeof val === 'number') {
-      // Fraction of day
       const totalSeconds = Math.round(val * 86400);
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -107,23 +133,18 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   };
 
   // Transform raw objects to SaleRecord and validate
-  const processRawData = (rows: any[]) => {
-    if (!rows || rows.length === 0) {
-      setParsedRows([]);
-      return;
-    }
+  const processRawSalesData = (rows: any[]): ParsedRowPreview[] => {
+    if (!rows || rows.length === 0) return [];
 
-    const results: ParsedRowPreview[] = rows.map((row, index) => {
+    return rows.map((row, index) => {
       const errors: string[] = [];
 
-      // Normalize keys by lowercase & removing spaces/underscores
       const normalized: Record<string, any> = {};
       Object.keys(row).forEach((k) => {
         const cleanKey = k.toLowerCase().replace(/[\s_\-.]/g, '');
         normalized[cleanKey] = row[k];
       });
 
-      // Date & Time
       const dateVal =
         normalized['tanggal'] ||
         normalized['tgl'] ||
@@ -135,7 +156,6 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       const timeVal = normalized['jam'] || normalized['waktu'] || normalized['time'] || getCurrentTimeString();
       const time = parseTimeString(timeVal);
 
-      // Shift
       let shift = String(normalized['shift'] || 'Shift 1 (05.30 - 13.30)').trim();
       if (shift === '1' || shift.toLowerCase().includes('shift 1') || shift.toLowerCase().includes('pagi')) {
         shift = 'Shift 1 (05.30 - 13.30)';
@@ -145,7 +165,6 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         shift = 'Full Day';
       }
 
-      // Operator
       const operatorName = String(
         normalized['operator'] ||
         normalized['namaoperator'] ||
@@ -154,7 +173,6 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         'Daslam'
       ).trim();
 
-      // Product
       const prodNameRaw = String(normalized['produk'] || normalized['product'] || defaultProduct.name).trim();
       const matchedProduct =
         products.find(
@@ -163,7 +181,6 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
             p.code.toLowerCase().includes(prodNameRaw.toLowerCase())
         ) || defaultProduct;
 
-      // Meters & Liters
       const meterAwalRaw = normalized['standawal'] || normalized['meterawal'] || normalized['awal'];
       const meterAkhirRaw = normalized['standakhir'] || normalized['meterakhir'] || normalized['akhir'];
 
@@ -180,10 +197,9 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       }
 
       if (literSold <= 0) {
-        errors.push('Volume liter harus lebih besar dari 0');
+        errors.push('Volume liter penjualan harus lebih besar dari 0');
       }
 
-      // Prices
       const unitPrice =
         parseFloat(normalized['hargajual'] || normalized['harga'] || normalized['unitprice']) ||
         matchedProduct.currentPrice;
@@ -191,7 +207,6 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         parseFloat(normalized['hargabeli'] || normalized['hargatebus'] || normalized['buyprice']) ||
         matchedProduct.buyPrice;
 
-      // Total Revenue & Profit
       const totalRevenue =
         parseFloat(normalized['omzet'] || normalized['totalomzet'] || normalized['totalrevenue'] || normalized['total']) ||
         literSold * unitPrice;
@@ -199,7 +214,6 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         parseFloat(normalized['laba'] || normalized['profit'] || normalized['margin']) ||
         literSold * (unitPrice - buyPriceSnapshot);
 
-      // Payments
       const paymentQris = parseFloat(normalized['qris'] || normalized['paymentqris'] || normalized['nontunai']) || 0;
       const paymentEdc = parseFloat(normalized['edc'] || normalized['paymentedc'] || normalized['debit']) || 0;
       const totalDigital = paymentQris + paymentEdc;
@@ -217,11 +231,9 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
           : paymentCash;
 
       const cashDifference = actualCashInHand - paymentCash;
-
       const teraTestLiters =
         parseFloat(normalized['tera'] || normalized['ujitera'] || normalized['teratestliters']) || 5;
 
-      // Optional Sounding Fields
       const soundingStickRaw =
         normalized['soundingstick'] ||
         normalized['soundingstickcm'] ||
@@ -231,7 +243,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         normalized['sounding'];
       const soundingStickCm =
         soundingStickRaw !== undefined && soundingStickRaw !== '' ? parseFloat(soundingStickRaw) : undefined;
-      
+
       const soundingCalculatedLiters =
         soundingStickCm !== undefined
           ? parseFloat(normalized['volumesounding'] || normalized['soundingcalculatedliters']) || Math.round(soundingStickCm * 21)
@@ -267,7 +279,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         soundingStickCm,
         soundingCalculatedLiters,
         soundingWaterCm: soundingStickCm !== undefined ? soundingWaterCm : undefined,
-        notes: notes || 'Diimpor dari file data existing',
+        notes: notes || 'Diimpor dari file batch penjualan 1 bulan',
         createdAt: `${transactionDate} ${time}`,
       };
 
@@ -278,11 +290,178 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         errors,
       };
     });
-
-    setParsedRows(results);
   };
 
-  // Handle file upload
+  // Transform raw objects to PurchaseOrder (DO) and validate
+  const processRawDOData = (rows: any[]): ParsedDORowPreview[] => {
+    if (!rows || rows.length === 0) return [];
+
+    return rows.map((row, index) => {
+      const errors: string[] = [];
+
+      const normalized: Record<string, any> = {};
+      Object.keys(row).forEach((k) => {
+        const cleanKey = k.toLowerCase().replace(/[\s_\-.]/g, '');
+        normalized[cleanKey] = row[k];
+      });
+
+      const poNumber = String(
+        normalized['nodo'] ||
+        normalized['nomordo'] ||
+        normalized['nopo'] ||
+        normalized['nomorpo'] ||
+        normalized['ponumber'] ||
+        normalized['deliveryorder'] ||
+        `DO-IMP-${Date.now().toString().slice(-4)}-${index + 1}`
+      ).trim();
+
+      const soPertaminaNumber = String(
+        normalized['noso'] || normalized['nomorso'] || normalized['sopertamina'] || ''
+      ).trim();
+
+      const doPertaminaNumber = String(
+        normalized['dopertamina'] || normalized['nodo'] || normalized['nomordo'] || poNumber
+      ).trim();
+
+      const orderDateVal =
+        normalized['tanggalorder'] ||
+        normalized['tanggal'] ||
+        normalized['tgl'] ||
+        normalized['orderdate'] ||
+        getTodayDateString();
+      const orderDate = parseDateString(orderDateVal);
+
+      const actualDeliveryDateVal =
+        normalized['tanggaltiba'] ||
+        normalized['tanggalterima'] ||
+        normalized['tglterima'] ||
+        normalized['actualdeliverydate'] ||
+        orderDate;
+      const actualDeliveryDate = parseDateString(actualDeliveryDateVal);
+
+      const prodNameRaw = String(normalized['produk'] || normalized['product'] || defaultProduct.name).trim();
+      const matchedProduct =
+        products.find(
+          (p) =>
+            p.name.toLowerCase().includes(prodNameRaw.toLowerCase()) ||
+            p.code.toLowerCase().includes(prodNameRaw.toLowerCase())
+        ) || defaultProduct;
+
+      // Volume parsing (Liters vs KL)
+      let volumeLiters = 0;
+      let volumeKL: OrderVolumePecahan = 2;
+
+      const rawVol =
+        normalized['volumeliter'] ||
+        normalized['volume'] ||
+        normalized['liter'] ||
+        normalized['jumlah'] ||
+        normalized['volumeliters'];
+      const rawKL = normalized['volumekl'] || normalized['kl'] || normalized['pecahan'];
+
+      if (rawVol !== undefined && rawVol !== '') {
+        const parsedV = parseFloat(rawVol) || 0;
+        if (parsedV <= 10) {
+          // Inputted in KL e.g. 2 or 3
+          volumeKL = Math.min(5, Math.max(1, Math.round(parsedV))) as OrderVolumePecahan;
+          volumeLiters = volumeKL * 1000;
+        } else {
+          volumeLiters = parsedV;
+          volumeKL = Math.min(5, Math.max(1, Math.round(parsedV / 1000))) as OrderVolumePecahan;
+        }
+      } else if (rawKL !== undefined && rawKL !== '') {
+        const parsedKL = parseFloat(rawKL) || 2;
+        volumeKL = Math.min(5, Math.max(1, Math.round(parsedKL))) as OrderVolumePecahan;
+        volumeLiters = volumeKL * 1000;
+      } else {
+        volumeKL = 2;
+        volumeLiters = 2000;
+      }
+
+      if (volumeLiters <= 0) {
+        errors.push('Volume DO harus lebih dari 0 Liter');
+      }
+
+      const buyPricePerLiter =
+        parseFloat(normalized['hargabeli'] || normalized['hargatebus'] || normalized['buyprice'] || normalized['harga']) ||
+        matchedProduct.buyPrice ||
+        12100;
+
+      const totalAmount =
+        parseFloat(normalized['total'] || normalized['totalamount'] || normalized['totalharga'] || normalized['nominal']) ||
+        volumeLiters * buyPricePerLiter;
+
+      const supplyDepot = String(
+        normalized['tbbm'] ||
+        normalized['depot'] ||
+        normalized['supplydepot'] ||
+        normalized['terminal'] ||
+        'TBBM Rewulu / Boyolali'
+      ).trim();
+
+      const truckPlateNumber = String(
+        normalized['plat'] ||
+        normalized['plattruk'] ||
+        normalized['truckplate'] ||
+        normalized['platnomor'] ||
+        'AD 8492 FB'
+      ).trim();
+
+      const driverName = String(
+        normalized['supir'] ||
+        normalized['driver'] ||
+        normalized['namasupir'] ||
+        normalized['namadriver'] ||
+        'Pak Joko Santoso'
+      ).trim();
+
+      const rawStatus = String(normalized['status'] || 'SELESAI').toUpperCase().trim();
+      const status = rawStatus === 'DIPESAN' || rawStatus === 'PENGIRIMAN' || rawStatus === 'BATAL' ? rawStatus : 'SELESAI';
+
+      const actualLitersReceived =
+        parseFloat(normalized['literditerima'] || normalized['actualliters'] || normalized['volumeterima']) ||
+        volumeLiters;
+
+      const varianceLiters = actualLitersReceived - volumeLiters;
+
+      const notes = String(normalized['catatan'] || normalized['notes'] || normalized['keterangan'] || '').trim();
+
+      const order: PurchaseOrder = {
+        id: `po-imp-${Date.now()}-${index}`,
+        poNumber,
+        soPertaminaNumber,
+        doPertaminaNumber,
+        orderDate,
+        estimatedDeliveryDate: actualDeliveryDate,
+        actualDeliveryDate,
+        productId: matchedProduct.id,
+        productName: matchedProduct.name,
+        volumeKL,
+        volumeLiters,
+        buyPricePerLiter,
+        totalAmount,
+        supplyDepot,
+        truckPlateNumber,
+        driverName,
+        status,
+        actualLitersReceived,
+        effectiveStockAdded: actualLitersReceived,
+        varianceLiters,
+        notes: notes || `Penerimaan BBM DO Pertamina (${volumeLiters} L / ${volumeKL} KL)`,
+        createdAt: `${orderDate} 12:00`,
+        completedAt: `${actualDeliveryDate} 14:00`,
+      };
+
+      return {
+        raw: row,
+        order,
+        isValid: errors.length === 0,
+        errors,
+      };
+    });
+  };
+
+  // Handle file upload with multi-sheet support
   const handleFileUpload = (file: File) => {
     setFileName(file.name);
     setIsProcessing(true);
@@ -292,13 +471,59 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-        processRawData(json);
+
+        let detectedSalesRows: any[] = [];
+        let detectedDoRows: any[] = [];
+
+        workbook.SheetNames.forEach((sheetName) => {
+          const lowerName = sheetName.toLowerCase();
+          const worksheet = workbook.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+          if (
+            lowerName.includes('do') ||
+            lowerName.includes('delivery') ||
+            lowerName.includes('penerimaan') ||
+            lowerName.includes('pembelian') ||
+            lowerName.includes('po') ||
+            lowerName.includes('order')
+          ) {
+            detectedDoRows = [...detectedDoRows, ...json];
+          } else if (
+            lowerName.includes('penjualan') ||
+            lowerName.includes('sales') ||
+            lowerName.includes('transaksi') ||
+            lowerName.includes('shift')
+          ) {
+            detectedSalesRows = [...detectedSalesRows, ...json];
+          } else {
+            // Check headers in first sheet if not matched by sheet name
+            if (json.length > 0) {
+              const firstRowKeys = Object.keys(json[0]).map((k) => k.toLowerCase().replace(/[\s_]/g, ''));
+              const isDoSheet = firstRowKeys.some((k) => k.includes('nodo') || k.includes('tbbm') || k.includes('volumekl'));
+              if (isDoSheet) {
+                detectedDoRows = [...detectedDoRows, ...json];
+              } else {
+                detectedSalesRows = [...detectedSalesRows, ...json];
+              }
+            }
+          }
+        });
+
+        const parsedSales = processRawSalesData(detectedSalesRows);
+        const parsedDO = processRawDOData(detectedDoRows);
+
+        setParsedRows(parsedSales);
+        setParsedDoRows(parsedDO);
+
+        if (parsedSales.length > 0) {
+          setPreviewTab('sales');
+        } else if (parsedDO.length > 0) {
+          setPreviewTab('do');
+        }
       } catch (err) {
         console.error('Error reading Excel/CSV file:', err);
-        alert('Gagal membaca file Excel/CSV. Pastikan format file valid (.xlsx, .xls, .csv).');
+        alert('Gagal membaca file. Pastikan format file valid (.xlsx, .xls, .csv).');
       } finally {
         setIsProcessing(false);
       }
@@ -331,11 +556,9 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
     if (!pastedText.trim()) return;
     setIsProcessing(true);
     try {
-      // Split by lines
       const lines = pastedText.trim().split(/\r?\n/);
       if (lines.length === 0) return;
 
-      // Detect delimiter (Tab or Comma or Semicolon)
       const firstLine = lines[0];
       let delimiter = '\t';
       if (firstLine.includes('\t')) delimiter = '\t';
@@ -355,8 +578,17 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         rows.push(rowObj);
       }
 
-      setFileName(`Pasted Text (${rows.length} Baris)`);
-      processRawData(rows);
+      setFileName(`Pasted Text (${rows.length} Baris - ${pasteType === 'sales' ? 'Penjualan' : 'Delivery Order'})`);
+
+      if (pasteType === 'sales') {
+        const parsed = processRawSalesData(rows);
+        setParsedRows(parsed);
+        setPreviewTab('sales');
+      } else {
+        const parsed = processRawDOData(rows);
+        setParsedDoRows(parsed);
+        setPreviewTab('do');
+      }
     } catch (err) {
       console.error('Error parsing text:', err);
       alert('Format teks tidak valid. Gunakan format salinan tabel dari Excel atau CSV.');
@@ -365,65 +597,203 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
     }
   };
 
-  // Download official Pertashop Excel Template
+  // Download official Pertashop Multi-Sheet Excel Template (Sales Batch 1 Bulan & DO)
   const handleDownloadTemplate = () => {
-    const templateData = [
-      {
-        'Tanggal': '2026-08-25',
+    // 1. Sheet Data Penjualan 1 Bulan Penuh (Contoh 31 Hari Lengkap Shift 1 & 2)
+    const salesTemplateData: any[] = [];
+    let currentStand = 145500;
+    const yearMonth = '2026-08';
+
+    for (let day = 1; day <= 31; day++) {
+      const dateStr = `${yearMonth}-${String(day).padStart(2, '0')}`;
+      
+      // Shift 1 (Pagi)
+      const shift1Liters = 260 + (day % 7) * 15;
+      const standAkhir1 = currentStand + shift1Liters;
+      const omzet1 = shift1Liters * 12950;
+      const qris1 = day % 2 === 0 ? 200000 : 150000;
+      const tunai1 = omzet1 - qris1;
+
+      salesTemplateData.push({
+        'Tanggal': dateStr,
         'Waktu': '06:00',
         'Shift': 'Shift 1 (05.30 - 13.30)',
         'Operator': 'Daslam',
         'Produk': 'Pertamax (RON 92)',
-        'Stand Awal': 145530,
-        'Stand Akhir': 145810,
-        'Liter': 280,
+        'Stand Awal': currentStand,
+        'Stand Akhir': standAkhir1,
+        'Liter': shift1Liters,
         'Harga Jual': 12950,
         'Harga Beli': 12100,
-        'Tunai': 3426000,
-        'QRIS': 200000,
+        'Tunai': tunai1,
+        'QRIS': qris1,
         'EDC': 0,
-        'Uang Kasir': 3426000,
-        'Catatan': 'Lancar ramai pengendara roda dua',
-      },
-      {
-        'Tanggal': '2026-08-25',
+        'Uang Kasir': tunai1,
+        'Catatan': `Shift 1 Tgl ${day} cuaca cerah`,
+      });
+      currentStand = standAkhir1;
+
+      // Shift 2 (Siang/Sore)
+      const shift2Liters = 280 + ((day + 3) % 6) * 18;
+      const standAkhir2 = currentStand + shift2Liters;
+      const omzet2 = shift2Liters * 12950;
+      const qris2 = day % 3 === 0 ? 300000 : 250000;
+      const tunai2 = omzet2 - qris2;
+
+      salesTemplateData.push({
+        'Tanggal': dateStr,
         'Waktu': '14:00',
         'Shift': 'Shift 2 (13.30 - 19.30)',
         'Operator': 'Angga',
         'Produk': 'Pertamax (RON 92)',
-        'Stand Awal': 145810,
-        'Stand Akhir': 146120,
-        'Liter': 310,
+        'Stand Awal': currentStand,
+        'Stand Akhir': standAkhir2,
+        'Liter': shift2Liters,
         'Harga Jual': 12950,
         'Harga Beli': 12100,
-        'Tunai': 3614500,
-        'QRIS': 400000,
+        'Tunai': tunai2,
+        'QRIS': qris2,
         'EDC': 0,
-        'Uang Kasir': 3614500,
-        'Catatan': 'Shift siang cuaca cerah',
+        'Uang Kasir': tunai2,
+        'Catatan': `Shift 2 Tgl ${day} arus kendaraan ramai`,
+      });
+      currentStand = standAkhir2;
+    }
+
+    // 2. Sheet Delivery Order (DO) Pertamina Selama 1 Bulan (Contoh 8x Pengiriman DO @ 2 KL / 2.000 L)
+    const doTemplateData = [
+      {
+        'Nomor DO': 'DO-PTM-202608-001',
+        'Nomor SO': 'SO-99211',
+        'Tanggal DO': '2026-08-01',
+        'Tanggal Tiba': '2026-08-01',
+        'Produk': 'Pertamax (RON 92)',
+        'Volume KL': 2,
+        'Volume Liter': 2000,
+        'Harga Beli': 12100,
+        'Total Nominal': 24200000,
+        'TBBM Depot': 'TBBM Rewulu / Boyolali',
+        'Plat Mobil Tangki': 'AD 8492 FB',
+        'Nama Driver': 'Pak Joko Santoso',
+        'Status': 'SELESAI',
+        'Catatan': 'DO Awal Bulan - Segel Utuh & Tera Pas',
       },
       {
-        'Tanggal': '2026-08-26',
-        'Waktu': '06:00',
-        'Shift': 'Shift 1 (05.30 - 13.30)',
-        'Operator': 'Daslam',
+        'Nomor DO': 'DO-PTM-202608-002',
+        'Nomor SO': 'SO-99218',
+        'Tanggal DO': '2026-08-05',
+        'Tanggal Tiba': '2026-08-05',
         'Produk': 'Pertamax (RON 92)',
-        'Stand Awal': 146120,
-        'Stand Akhir': 146385,
-        'Liter': 265,
-        'Harga Jual': 12950,
+        'Volume KL': 2,
+        'Volume Liter': 2000,
         'Harga Beli': 12100,
-        'Tunai': 3231750,
-        'QRIS': 200000,
-        'EDC': 0,
-        'Uang Kasir': 3231750,
-        'Catatan': 'Penjualan pagi hari',
+        'Total Nominal': 24200000,
+        'TBBM Depot': 'TBBM Rewulu / Boyolali',
+        'Plat Mobil Tangki': 'AB 9102 CD',
+        'Nama Driver': 'Pak Bambang',
+        'Status': 'SELESAI',
+        'Catatan': 'Penerimaan BBM kuota reguler',
+      },
+      {
+        'Nomor DO': 'DO-PTM-202608-003',
+        'Nomor SO': 'SO-99226',
+        'Tanggal DO': '2026-08-09',
+        'Tanggal Tiba': '2026-08-09',
+        'Produk': 'Pertamax (RON 92)',
+        'Volume KL': 2,
+        'Volume Liter': 2000,
+        'Harga Beli': 12100,
+        'Total Nominal': 24200000,
+        'TBBM Depot': 'TBBM Rewulu / Boyolali',
+        'Plat Mobil Tangki': 'AD 8492 FB',
+        'Nama Driver': 'Pak Joko Santoso',
+        'Status': 'SELESAI',
+        'Catatan': 'Bongkar siang hari lancar',
+      },
+      {
+        'Nomor DO': 'DO-PTM-202608-004',
+        'Nomor SO': 'SO-99234',
+        'Tanggal DO': '2026-08-14',
+        'Tanggal Tiba': '2026-08-14',
+        'Produk': 'Pertamax (RON 92)',
+        'Volume KL': 2,
+        'Volume Liter': 2000,
+        'Harga Beli': 12100,
+        'Total Nominal': 24200000,
+        'TBBM Depot': 'TBBM Rewulu / Boyolali',
+        'Plat Mobil Tangki': 'B 9421 KGA',
+        'Nama Driver': 'Pak Slamet',
+        'Status': 'SELESAI',
+        'Catatan': 'Penebusan kuota pertengahan bulan',
+      },
+      {
+        'Nomor DO': 'DO-PTM-202608-005',
+        'Nomor SO': 'SO-99242',
+        'Tanggal DO': '2026-08-18',
+        'Tanggal Tiba': '2026-08-18',
+        'Produk': 'Pertamax (RON 92)',
+        'Volume KL': 2,
+        'Volume Liter': 2000,
+        'Harga Beli': 12100,
+        'Total Nominal': 24200000,
+        'TBBM Depot': 'TBBM Rewulu / Boyolali',
+        'Plat Mobil Tangki': 'AD 8492 FB',
+        'Nama Driver': 'Pak Joko Santoso',
+        'Status': 'SELESAI',
+        'Catatan': 'Kondisi BBM bersih tidak ada air',
+      },
+      {
+        'Nomor DO': 'DO-PTM-202608-006',
+        'Nomor SO': 'SO-99250',
+        'Tanggal DO': '2026-08-22',
+        'Tanggal Tiba': '2026-08-22',
+        'Produk': 'Pertamax (RON 92)',
+        'Volume KL': 2,
+        'Volume Liter': 2000,
+        'Harga Beli': 12100,
+        'Total Nominal': 24200000,
+        'TBBM Depot': 'TBBM Rewulu / Boyolali',
+        'Plat Mobil Tangki': 'AB 9102 CD',
+        'Nama Driver': 'Pak Bambang',
+        'Status': 'SELESAI',
+        'Catatan': 'Bongkar malam aman',
+      },
+      {
+        'Nomor DO': 'DO-PTM-202608-007',
+        'Nomor SO': 'SO-99258',
+        'Tanggal DO': '2026-08-26',
+        'Tanggal Tiba': '2026-08-26',
+        'Produk': 'Pertamax (RON 92)',
+        'Volume KL': 2,
+        'Volume Liter': 2000,
+        'Harga Beli': 12100,
+        'Total Nominal': 24200000,
+        'TBBM Depot': 'TBBM Rewulu / Boyolali',
+        'Plat Mobil Tangki': 'B 9421 KGA',
+        'Nama Driver': 'Pak Slamet',
+        'Status': 'SELESAI',
+        'Catatan': 'Pasokan lancar akhir pekan',
+      },
+      {
+        'Nomor DO': 'DO-PTM-202608-008',
+        'Nomor SO': 'SO-99265',
+        'Tanggal DO': '2026-08-30',
+        'Tanggal Tiba': '2026-08-30',
+        'Produk': 'Pertamax (RON 92)',
+        'Volume KL': 2,
+        'Volume Liter': 2000,
+        'Harga Beli': 12100,
+        'Total Nominal': 24200000,
+        'TBBM Depot': 'TBBM Rewulu / Boyolali',
+        'Plat Mobil Tangki': 'AD 8492 FB',
+        'Nama Driver': 'Pak Joko Santoso',
+        'Status': 'SELESAI',
+        'Catatan': 'DO Penutup Akhir Bulan',
       },
     ];
 
-    const worksheet = XLSX.utils.json_to_sheet(templateData);
-    // Set column widths
-    worksheet['!cols'] = [
+    const wsSales = XLSX.utils.json_to_sheet(salesTemplateData);
+    wsSales['!cols'] = [
       { wch: 12 }, // Tanggal
       { wch: 8 },  // Waktu
       { wch: 25 }, // Shift
@@ -441,48 +811,74 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       { wch: 30 }, // Catatan
     ];
 
+    const wsDO = XLSX.utils.json_to_sheet(doTemplateData);
+    wsDO['!cols'] = [
+      { wch: 20 }, // Nomor DO
+      { wch: 15 }, // Nomor SO
+      { wch: 13 }, // Tanggal DO
+      { wch: 13 }, // Tanggal Tiba
+      { wch: 20 }, // Produk
+      { wch: 12 }, // Volume KL
+      { wch: 14 }, // Volume Liter
+      { wch: 12 }, // Harga Beli
+      { wch: 16 }, // Total Nominal
+      { wch: 24 }, // TBBM Depot
+      { wch: 16 }, // Plat Mobil Tangki
+      { wch: 18 }, // Nama Driver
+      { wch: 12 }, // Status
+      { wch: 32 }, // Catatan
+    ];
+
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data_Penjualan');
-    XLSX.writeFile(workbook, 'Template_Import_Penjualan_Pertashop.xlsx');
+    XLSX.utils.book_append_sheet(workbook, wsSales, 'Data_Penjualan_1_Bulan');
+    XLSX.utils.book_append_sheet(workbook, wsDO, 'Data_DO_Pertamina');
+    XLSX.writeFile(workbook, 'Template_Batch_Penjualan_1_Bulan_dan_DO_Pertashop.xlsx');
   };
 
-  const validRows = parsedRows.filter((r) => r.isValid);
-  const totalImportLiters = validRows.reduce((sum, r) => sum + r.sale.literSold, 0);
-  const totalImportRevenue = validRows.reduce((sum, r) => sum + r.sale.totalRevenue, 0);
-  const totalImportProfit = validRows.reduce((sum, r) => sum + r.sale.totalProfit, 0);
+  const validSalesRows = parsedRows.filter((r) => r.isValid);
+  const totalImportLiters = validSalesRows.reduce((sum, r) => sum + r.sale.literSold, 0);
+  const totalImportRevenue = validSalesRows.reduce((sum, r) => sum + r.sale.totalRevenue, 0);
+  const totalImportProfit = validSalesRows.reduce((sum, r) => sum + r.sale.totalProfit, 0);
+
+  const validDoRows = parsedDoRows.filter((r) => r.isValid);
+  const totalDoLiters = validDoRows.reduce((sum, r) => sum + r.order.volumeLiters, 0);
+  const totalDoKL = validDoRows.reduce((sum, r) => sum + r.order.volumeKL, 0);
+  const totalDoAmount = validDoRows.reduce((sum, r) => sum + r.order.totalAmount, 0);
 
   const handleCommitImport = () => {
-    if (validRows.length === 0) {
-      alert('Tidak ada baris data yang valid untuk diimpor.');
+    if (validSalesRows.length === 0 && validDoRows.length === 0) {
+      alert('Tidak ada baris data valid untuk diimpor. Silakan periksa kembali file atau teks yang dimasukkan.');
       return;
     }
 
-    const salesToSave = validRows.map((r) => r.sale);
-    onImportSales(salesToSave, importMode, syncStock);
+    const salesToSave = validSalesRows.map((r) => r.sale);
+    const purchasesToSave = validDoRows.map((r) => r.order);
+
+    onImportSales(salesToSave, importMode, syncStock, purchasesToSave, syncAttendance);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
         id="import-sales-modal"
-        className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+        className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 text-white p-4 sm:p-5 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white p-4 sm:p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-white/10 rounded-xl">
+            <div className="p-2.5 bg-white/10 rounded-xl border border-white/20">
               <FileSpreadsheet className="w-6 h-6 text-emerald-300" />
             </div>
             <div>
               <h2 className="text-lg font-bold flex items-center gap-2">
-                Import Data Penjualan Existing
-                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-medium">
-                  Excel / CSV
+                <span>Import Batch 1 Bulan & DO Pertamina</span>
+                <span className="text-[10px] bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full font-medium">
+                  Multi-Sheet Excel / CSV
                 </span>
               </h2>
               <p className="text-xs text-emerald-100 mt-0.5">
-                Perbarui dan sinkronkan riwayat transaksi penjualan nozzle Pertashop secara massal
+                Impor data penjualan massal 1 bulan penuh (Shift 1 & 2) beserta riwayat penerimaan BBM Delivery Order (DO) Pertamina
               </p>
             </div>
           </div>
@@ -495,25 +891,25 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
           </button>
         </div>
 
-        {/* Tab & Template Download Banner */}
+        {/* Tab Selection & Template Download Banner */}
         <div className="p-4 sm:px-6 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 bg-slate-200/80 p-1 rounded-xl">
             <button
               type="button"
               onClick={() => setActiveInputTab('file')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeInputTab === 'file'
                   ? 'bg-white text-emerald-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <UploadCloud className="w-3.5 h-3.5" />
-              <span>Upload File (.xlsx / .csv)</span>
+              <span>Upload File Excel / CSV</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveInputTab('paste')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeInputTab === 'paste'
                   ? 'bg-white text-emerald-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -527,16 +923,17 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
           <button
             type="button"
             onClick={handleDownloadTemplate}
-            className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors"
+            className="px-3.5 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+            title="Download Template Excel Resmi: Berisi 2 Sheet (Penjualan 1 Bulan & DO Pertamina)"
           >
             <Download className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Download Template Excel Resmi</span>
+            <span>Download Template Excel (2 Sheet: Penjualan & DO)</span>
           </button>
         </div>
 
         {/* Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
-          {/* Input Method Content */}
+          {/* File Upload Zone */}
           {activeInputTab === 'file' ? (
             <div
               onDragEnter={handleDrag}
@@ -547,7 +944,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
               className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
                 dragActive
                   ? 'border-emerald-500 bg-emerald-50/80 scale-[0.99]'
-                  : 'border-slate-300 hover:border-emerald-400 bg-slate-50/50 hover:bg-emerald-50/30'
+                  : 'border-slate-300 hover:border-emerald-400 bg-slate-50/60 hover:bg-emerald-50/30'
               }`}
             >
               <input
@@ -561,241 +958,418 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
                   }
                 }}
               />
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3">
                 <UploadCloud className="w-6 h-6" />
               </div>
-              <p className="text-sm font-bold text-slate-800">
-                {fileName ? `File terpilih: ${fileName}` : 'Klik untuk memilih file atau seret file ke sini'}
+              <p className="text-sm font-bold text-slate-800 mb-1">
+                {fileName ? fileName : 'Klik atau seret file Excel / CSV ke sini'}
               </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Mendukung format Microsoft Excel (<strong>.xlsx</strong>, <strong>.xls</strong>) atau <strong>.csv</strong>
+              <p className="text-xs text-slate-500 max-w-lg mx-auto leading-relaxed">
+                Mendukung file Excel multi-sheet otomatis (Sheet 1: <strong>Penjualan 1 Bulan</strong> dan Sheet 2: <strong>Delivery Order DO</strong>). Sistem akan memilah kedua jenis data secara cerdas.
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">
-                Paste (Tempel) Baris Data dari Excel / Google Sheets:
-              </label>
+            /* Paste Zone */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">
+                  Pilih Data yang Sedang Disalin:
+                </label>
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setPasteType('sales')}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                      pasteType === 'sales'
+                        ? 'bg-white text-emerald-800 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    ⛽ Data Penjualan (1 Bulan)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPasteType('do')}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                      pasteType === 'do'
+                        ? 'bg-white text-teal-800 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🚚 Delivery Order (DO)
+                  </button>
+                </div>
+              </div>
+
               <textarea
-                rows={5}
                 value={pastedText}
                 onChange={(e) => setPastedText(e.target.value)}
-                placeholder="Tanggal	Shift	Operator	Liter	Harga Jual	Tunai	QRIS&#10;2026-08-25	Shift 1	Daslam	280	12950	3426000	200000"
-                className="w-full p-3 font-mono text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-emerald-500 outline-none"
+                placeholder={
+                  pasteType === 'sales'
+                    ? 'Paste salinan baris tabel penjualan dari Excel / Google Sheet di sini...\nFormat kolom: Tanggal | Shift | Operator | Liter | Stand Awal | Stand Akhir | Tunai | QRIS ...'
+                    : 'Paste salinan baris Delivery Order (DO) di sini...\nFormat kolom: Nomor DO | Tanggal DO | Tanggal Tiba | Volume Liter/KL | Harga Beli | Total Nominal | Plat Truk | Driver ...'
+                }
+                rows={5}
+                className="w-full px-3.5 py-3 text-xs font-mono bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
-              <div className="flex justify-end">
+
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] text-slate-500">
+                  💡 Tips: Salin seluruh baris termasuk baris judul header dari Excel, lalu klik tombol Proses.
+                </span>
                 <button
                   type="button"
                   onClick={handleParsePastedText}
                   disabled={!pastedText.trim() || isProcessing}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  Proses Teks Tabel
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Proses Teks Tabel {pasteType === 'sales' ? 'Penjualan' : 'DO'}</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* Parsed Preview Section */}
-          {parsedRows.length > 0 && (
-            <div className="space-y-4">
-              {/* Stat metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Baris Terdeteksi</span>
-                  <div className="text-lg font-black text-slate-900 mt-0.5 flex items-center gap-1.5">
-                    <span>{parsedRows.length}</span>
-                    <span className="text-xs font-normal text-emerald-600 font-sans">
-                      ({validRows.length} Valid)
-                    </span>
+          {/* Batch Summary Bar */}
+          {(parsedRows.length > 0 || parsedDoRows.length > 0) && (
+            <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/80 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-emerald-600 text-white rounded-lg">
+                    <Database className="w-4 h-4" />
                   </div>
-                </div>
-
-                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl">
-                  <span className="text-[10px] font-bold text-blue-500 uppercase block">Total Volume Diimpor</span>
-                  <div className="text-lg font-black text-blue-800 font-mono mt-0.5">
-                    {formatLiter(totalImportLiters)}
-                  </div>
-                </div>
-
-                <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl">
-                  <span className="text-[10px] font-bold text-emerald-600 uppercase block">Total Omzet Penjualan</span>
-                  <div className="text-lg font-black text-emerald-800 font-mono mt-0.5">
-                    {formatRupiah(totalImportRevenue)}
-                  </div>
-                </div>
-
-                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
-                  <span className="text-[10px] font-bold text-amber-600 uppercase block">Estimasi Margin Pertashop</span>
-                  <div className="text-lg font-black text-amber-800 font-mono mt-0.5">
-                    {formatRupiah(totalImportProfit)}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">
+                      Rangkuman Batch 1 Bulan Terdeteksi:
+                    </h4>
+                    <p className="text-[11px] text-slate-600">
+                      Verifikasi data penjualan harian dan pasokan DO sebelum disimpan ke sistem
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Table Preview */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                    Pratinjau Data Penjualan ({parsedRows.length} Baris)
+              {/* Stats Highlights */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {/* Penjualan Volume */}
+                <div className="bg-white/80 border border-emerald-200/60 rounded-xl p-2.5">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    Penjualan BBM Terjual
                   </span>
+                  <span className="text-base font-black font-mono text-emerald-700 block mt-0.5">
+                    {formatNumber(totalImportLiters, 1)} L
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    {validSalesRows.length} transaksi shift
+                  </span>
+                </div>
+
+                {/* Omzet Penjualan */}
+                <div className="bg-white/80 border border-emerald-200/60 rounded-xl p-2.5">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    Total Omzet Penjualan
+                  </span>
+                  <span className="text-base font-black font-mono text-slate-900 block mt-0.5">
+                    {formatRupiah(totalImportRevenue)}
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-medium block">
+                    Est. Margin: {formatRupiah(totalImportProfit)}
+                  </span>
+                </div>
+
+                {/* Delivery Order BBM Masuk */}
+                <div className="bg-white/80 border border-teal-200/60 rounded-xl p-2.5">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    Pasokan DO Pertamina Masuk
+                  </span>
+                  <span className="text-base font-black font-mono text-teal-700 block mt-0.5">
+                    {formatNumber(totalDoLiters)} L ({totalDoKL} KL)
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    {validDoRows.length} pengiriman DO
+                  </span>
+                </div>
+
+                {/* Nilai Tebusan DO */}
+                <div className="bg-white/80 border border-teal-200/60 rounded-xl p-2.5">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    Total Penebusan DO
+                  </span>
+                  <span className="text-base font-black font-mono text-slate-900 block mt-0.5">
+                    {formatRupiah(totalDoAmount)}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    Harga tebus rata-rata
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Preview Navigation Tabs */}
+          {(parsedRows.length > 0 || parsedDoRows.length > 0) && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setParsedRows([]);
-                      setFileName('');
-                      setPastedText('');
-                    }}
-                    className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold"
+                    onClick={() => setPreviewTab('sales')}
+                    className={`px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                      previewTab === 'sales'
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Reset Data</span>
+                    <Fuel className="w-3.5 h-3.5" />
+                    <span>Data Penjualan ({validSalesRows.length} Baris)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab('do')}
+                    className={`px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                      previewTab === 'do'
+                        ? 'bg-teal-700 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Delivery Order DO ({validDoRows.length} DO)</span>
                   </button>
                 </div>
 
-                <div className="border border-slate-200 rounded-xl overflow-x-auto max-h-56">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 sticky top-0 z-10 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                <span className="text-[11px] text-slate-500">
+                  {previewTab === 'sales'
+                    ? `${validSalesRows.length} valid / ${parsedRows.length} terbaca`
+                    : `${validDoRows.length} valid / ${parsedDoRows.length} terbaca`}
+                </span>
+              </div>
+
+              {/* Table Preview Sales */}
+              {previewTab === 'sales' && (
+                <div className="border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                  <table className="w-full text-left text-[11px] font-sans">
+                    <thead className="bg-slate-100 text-slate-600 sticky top-0 font-bold border-b border-slate-200">
                       <tr>
-                        <th className="py-2.5 px-3">Status</th>
-                        <th className="py-2.5 px-3">Tanggal & Waktu</th>
-                        <th className="py-2.5 px-3">Shift & Operator</th>
-                        <th className="py-2.5 px-3 text-right">Stand Meter</th>
-                        <th className="py-2.5 px-3 text-right">Liter</th>
-                        <th className="py-2.5 px-3 text-right">Omzet</th>
-                        <th className="py-2.5 px-3 text-right">Tunai / QRIS</th>
+                        <th className="py-2 px-3">Tanggal & Shift</th>
+                        <th className="py-2 px-3">Operator</th>
+                        <th className="py-2 px-3 text-right">Stand Meter</th>
+                        <th className="py-2 px-3 text-right">Liter</th>
+                        <th className="py-2 px-3 text-right">Omzet</th>
+                        <th className="py-2 px-3 text-right">Tunai</th>
+                        <th className="py-2 px-3 text-right">QRIS / EDC</th>
+                        <th className="py-2 px-3">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
-                      {parsedRows.map((r, idx) => (
-                        <tr
-                          key={idx}
-                          className={r.isValid ? 'hover:bg-slate-50' : 'bg-rose-50/50 hover:bg-rose-50'}
-                        >
-                          <td className="py-2 px-3">
-                            {r.isValid ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                                <CheckCircle2 className="w-3 h-3" /> Valid
-                              </span>
-                            ) : (
-                              <span
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700"
-                                title={r.errors.join(', ')}
-                              >
-                                <AlertCircle className="w-3 h-3" /> Error
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 whitespace-nowrap">
-                            <span className="font-bold text-slate-900">{r.sale.transactionDate}</span>{' '}
-                            <span className="text-slate-400 font-mono text-[11px]">{r.sale.time}</span>
-                          </td>
-                          <td className="py-2 px-3 whitespace-nowrap">
-                            <span className="font-semibold text-slate-800">{r.sale.operatorName}</span>
-                            <span className="text-[11px] text-blue-600 block">{r.sale.shift}</span>
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
-                            {r.sale.meterAwal !== undefined && r.sale.meterAkhir !== undefined ? (
-                              <span>{formatNumber(r.sale.meterAwal)} → {formatNumber(r.sale.meterAkhir)}</span>
-                            ) : (
-                              <span className="text-slate-400">-</span>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                            {formatNumber(r.sale.literSold, 1)} L
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-black text-slate-900 whitespace-nowrap">
-                            {formatRupiah(r.sale.totalRevenue)}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono text-slate-600 whitespace-nowrap text-[11px]">
-                            <div>T: {formatRupiah(r.sale.paymentCash)}</div>
-                            {r.sale.paymentQris > 0 && (
-                              <div className="text-blue-600">Q: {formatRupiah(r.sale.paymentQris)}</div>
-                            )}
+                    <tbody className="divide-y divide-slate-100">
+                      {parsedRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-8 text-center text-slate-400">
+                            Belum ada baris data penjualan yang terdeteksi dalam file atau teks.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        parsedRows.slice(0, 100).map((r, i) => (
+                          <tr key={i} className={`hover:bg-slate-50 ${!r.isValid ? 'bg-rose-50/60' : ''}`}>
+                            <td className="py-2 px-3">
+                              <span className="font-bold font-mono text-slate-800 block">
+                                {r.sale.transactionDate}
+                              </span>
+                              <span className="text-[10px] text-slate-500 block">
+                                {r.sale.shift}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 font-medium text-slate-700">
+                              {r.sale.operatorName}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-slate-600">
+                              {r.sale.meterAwal !== undefined && r.sale.meterAkhir !== undefined
+                                ? `${r.sale.meterAwal} ➜ ${r.sale.meterAkhir}`
+                                : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">
+                              {formatNumber(r.sale.literSold, 1)} L
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-slate-900">
+                              {formatRupiah(r.sale.totalRevenue)}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-slate-600">
+                              {formatRupiah(r.sale.paymentCash)}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-slate-600">
+                              {formatRupiah(r.sale.paymentQris + r.sale.paymentEdc)}
+                            </td>
+                            <td className="py-2 px-3">
+                              {r.isValid ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-700 font-bold text-[10px]">
+                                  <CheckCircle2 className="w-3 h-3" /> Valid
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-rose-700 font-bold text-[10px]" title={r.errors.join(', ')}>
+                                  <AlertCircle className="w-3 h-3" /> Error
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
-              </div>
+              )}
 
-              {/* Import Options */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-                  Pengaturan Mode Import & Stok
-                </span>
+              {/* Table Preview DO */}
+              {previewTab === 'do' && (
+                <div className="border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                  <table className="w-full text-left text-[11px] font-sans">
+                    <thead className="bg-slate-100 text-slate-600 sticky top-0 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2 px-3">Nomor DO</th>
+                        <th className="py-2 px-3">Tgl Tiba / Kirim</th>
+                        <th className="py-2 px-3 text-right">Volume BBM</th>
+                        <th className="py-2 px-3 text-right">Harga Tebus</th>
+                        <th className="py-2 px-3 text-right">Total Nominal</th>
+                        <th className="py-2 px-3">Truk & Supir</th>
+                        <th className="py-2 px-3">Depot TBBM</th>
+                        <th className="py-2 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {parsedDoRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-8 text-center text-slate-400">
+                            Belum ada baris data Delivery Order (DO) yang terdeteksi. Gunakan Sheet 2 "Data_DO_Pertamina" pada template untuk mengimpor DO sekaligus.
+                          </td>
+                        </tr>
+                      ) : (
+                        parsedDoRows.map((r, i) => (
+                          <tr key={i} className={`hover:bg-slate-50 ${!r.isValid ? 'bg-rose-50/60' : ''}`}>
+                            <td className="py-2 px-3 font-mono font-bold text-slate-800">
+                              {r.order.doPertaminaNumber || r.order.poNumber}
+                            </td>
+                            <td className="py-2 px-3 font-mono text-slate-700">
+                              {r.order.actualDeliveryDate || r.order.orderDate}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono font-bold text-teal-700">
+                              {formatNumber(r.order.volumeLiters)} L ({r.order.volumeKL} KL)
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-slate-600">
+                              {formatRupiah(r.order.buyPricePerLiter)}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
+                              {formatRupiah(r.order.totalAmount)}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700">
+                              <span className="font-bold block">{r.order.truckPlateNumber || '-'}</span>
+                              <span className="text-[10px] text-slate-500 block">{r.order.driverName || '-'}</span>
+                            </td>
+                            <td className="py-2 px-3 text-slate-600 truncate max-w-xs">
+                              {r.order.supplyDepot}
+                            </td>
+                            <td className="py-2 px-3">
+                              {r.isValid ? (
+                                <span className="inline-flex items-center gap-1 text-teal-700 font-bold text-[10px]">
+                                  <CheckCircle2 className="w-3 h-3" /> Valid
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-rose-700 font-bold text-[10px]" title={r.errors.join(', ')}>
+                                  <AlertCircle className="w-3 h-3" /> Error
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label
-                    className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                      importMode === 'append'
-                        ? 'border-emerald-500 bg-emerald-50/50 text-emerald-900 font-semibold'
-                        : 'border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
+          {/* Import Execution Options */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-emerald-600" />
+              <span>Opsi & Sinkronisasi Sistem:</span>
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              {/* Option Mode */}
+              <div className="space-y-1.5">
+                <label className="font-semibold text-slate-700 block">Metode Penyimpanan Data:</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="radio"
                       name="importMode"
+                      value="append"
                       checked={importMode === 'append'}
                       onChange={() => setImportMode('append')}
-                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                      className="text-emerald-600 focus:ring-emerald-500"
                     />
-                    <div>
-                      <div className="text-xs font-bold">Tambahkan Data (Append)</div>
-                      <div className="text-[11px] text-slate-500 font-normal">
-                        Data impor digabungkan dengan catatan penjualan yang sudah ada.
-                      </div>
-                    </div>
+                    <span className="text-slate-700">Tambahkan ke Data Yang Ada (Append)</span>
                   </label>
-
-                  <label
-                    className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                      importMode === 'replace'
-                        ? 'border-amber-500 bg-amber-50/50 text-amber-900 font-semibold'
-                        : 'border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
+                  <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="radio"
                       name="importMode"
+                      value="replace"
                       checked={importMode === 'replace'}
                       onChange={() => setImportMode('replace')}
-                      className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                      className="text-emerald-600 focus:ring-emerald-500"
                     />
-                    <div>
-                      <div className="text-xs font-bold">Gantikan Semua Data (Replace All)</div>
-                      <div className="text-[11px] text-slate-500 font-normal">
-                        Hapus data penjualan lama dan gantikan penuh dengan data file ini.
-                      </div>
-                    </div>
+                    <span className="text-slate-700">Ganti Seluruh Data (Replace)</span>
                   </label>
                 </div>
+              </div>
 
-                <label className="flex items-center gap-2.5 pt-1 text-xs font-semibold text-slate-700 cursor-pointer">
+              {/* Sync Options */}
+              <div className="space-y-2">
+                <label className="flex items-start gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={syncStock}
                     onChange={(e) => setSyncStock(e.target.checked)}
-                    className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                    className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
                   />
-                  <span>
-                    Sinkronkan stok tangki fisik: Kurangi stok tangki otomatis sejumlah total volume yang diimpor (
-                    <strong>{formatLiter(totalImportLiters)}</strong>)
-                  </span>
+                  <div>
+                    <span className="font-semibold text-slate-800 block">
+                      Sinkronkan Saldo Stok Tangki Modular
+                    </span>
+                    <span className="text-[10px] text-slate-500 block">
+                      Otomatis menambah stok dari DO BBM yang diterima dan mengurangi volume penjualan nozzle.
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={syncAttendance}
+                    onChange={(e) => setSyncAttendance(e.target.checked)}
+                    className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-800 block">
+                      Sinkronkan Shift ke Absensi Karyawan
+                    </span>
+                    <span className="text-[10px] text-slate-500 block">
+                      Otomatis merekap kehadiran & lembur operator untuk persiapan <strong>hitung gaji otomatis pada 2 hari terakhir bulan</strong>.
+                    </span>
+                  </div>
                 </label>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 sm:px-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 bg-white border-t border-slate-200 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
+            className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
           >
             Batal
           </button>
@@ -803,12 +1377,18 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
           <button
             type="button"
             onClick={handleCommitImport}
-            disabled={validRows.length === 0}
-            className="px-5 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl shadow-md transition-colors flex items-center gap-2"
+            disabled={validSalesRows.length === 0 && validDoRows.length === 0}
+            className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-900/20 flex items-center gap-2 transition-all cursor-pointer"
           >
-            <CheckCircle2 className="w-4 h-4" />
+            <Check className="w-4 h-4" />
             <span>
-              Simpan & Terapkan ({validRows.length} Transaksi Penjualan)
+              {validSalesRows.length > 0 && validDoRows.length > 0
+                ? `Simpan ${validSalesRows.length} Penjualan & ${validDoRows.length} DO ke Sistem`
+                : validSalesRows.length > 0
+                ? `Simpan ${validSalesRows.length} Transaksi Penjualan`
+                : validDoRows.length > 0
+                ? `Simpan ${validDoRows.length} Delivery Order (DO)`
+                : 'Pilih Data Terlebih Dahulu'}
             </span>
           </button>
         </div>
