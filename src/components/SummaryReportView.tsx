@@ -53,6 +53,7 @@ interface SummaryReportViewProps {
   products: Product[];
   profile: PertashopProfile;
   onOpenPrintModal: (mode: 'MONTHLY' | 'YEARLY', month: string, year: number) => void;
+  onOpenHistoricalBatchModal?: () => void;
 }
 
 export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
@@ -62,6 +63,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
   products,
   profile,
   onOpenPrintModal,
+  onOpenHistoricalBatchModal,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
@@ -664,6 +666,18 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
               <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Export CSV</span>
             </button>
+
+            {onOpenHistoricalBatchModal && (
+              <button
+                type="button"
+                onClick={onOpenHistoricalBatchModal}
+                className="px-3.5 py-2 bg-gradient-to-r from-indigo-700 to-blue-700 hover:from-indigo-800 hover:to-blue-800 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1.5 transition-all cursor-pointer"
+                title="Input data penjualan & operasional bulan-bulan lampau secara batch bulanan (bukan harian)"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>+ Input Rekap Bulanan Lampau</span>
+              </button>
+            )}
 
             <button
               type="button"

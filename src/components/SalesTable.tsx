@@ -15,6 +15,7 @@ import {
   UploadCloud,
   Gauge,
   Calendar,
+  CalendarDays,
   SlidersHorizontal,
   RotateCcw,
   RefreshCw,
@@ -97,6 +98,7 @@ interface SalesTableProps {
   onOpenPrintReportModal: () => void;
   onOpenImportModal: () => void;
   onOpenBackupModal?: () => void;
+  onOpenHistoricalBatchModal?: () => void;
 }
 
 export const SalesTable: React.FC<SalesTableProps> = ({
@@ -107,6 +109,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   onOpenPrintReportModal,
   onOpenImportModal,
   onOpenBackupModal,
+  onOpenHistoricalBatchModal,
 }) => {
   const [saleToDelete, setSaleToDelete] = useState<SaleRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -573,11 +576,23 @@ export const SalesTable: React.FC<SalesTableProps> = ({
           <button
             type="button"
             onClick={onOpenNewSaleModal}
-            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm shadow-blue-200"
+            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm shadow-blue-200 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>+ Catat Shift</span>
           </button>
+
+          {onOpenHistoricalBatchModal && (
+            <button
+              type="button"
+              onClick={onOpenHistoricalBatchModal}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-indigo-700 to-blue-700 hover:from-indigo-800 hover:to-blue-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shadow-indigo-300 cursor-pointer"
+              title="Input data penjualan & operasional bulan-bulan lampau secara batch bulanan (bukan harian)"
+            >
+              <CalendarDays className="w-3.5 h-3.5 text-amber-300" />
+              <span>+ Input Rekap Bulanan Lampau</span>
+            </button>
+          )}
         </div>
       </div>
 

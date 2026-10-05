@@ -19,6 +19,7 @@ import { PrintSummaryReportModal } from './components/PrintSummaryReportModal';
 import { PertashopProfileModal } from './components/PertashopProfileModal';
 import { ExpenseEntryModal } from './components/ExpenseEntryModal';
 import { ImportSalesModal } from './components/ImportSalesModal';
+import { HistoricalMonthlyBatchModal, MonthlyBatchPayload } from './components/HistoricalMonthlyBatchModal';
 import { AttendancePayrollView } from './components/AttendancePayrollView';
 import { ConfirmModal } from './components/ConfirmModal';
 import { BackupRestoreModal } from './components/BackupRestoreModal';
@@ -65,6 +66,7 @@ export default function App() {
   // Modals & Editing States
   const [isSalesModalOpen, setIsSalesModalOpen] = useState<boolean>(false);
   const [isImportSalesModalOpen, setIsImportSalesModalOpen] = useState<boolean>(false);
+  const [isHistoricalBatchModalOpen, setIsHistoricalBatchModalOpen] = useState<boolean>(false);
   const [editingSale, setEditingSale] = useState<SaleRecord | null>(null);
   const [lastSalesInputDate, setLastSalesInputDate] = useState<string | null>(() => StorageService.getLastSalesDate());
 
@@ -575,6 +577,428 @@ export default function App() {
     }));
 
     setSales(sales.filter((s) => s.id !== saleId));
+  };
+
+  const processMonthlyBatches = (batches: MonthlyBatchPayload[]) => {
+    if (!batches || batches.length === 0) return;
+
+    let allSales = [...sales];
+    let allPurchases = [...purchases];
+    let allExpenses = [...expenses];
+    let allPayrolls = [...payrolls];
+    let allAttendance = [...attendance];
+    let allPriceHistory = [...priceHistory];
+    let netTankStockChange = 0;
+
+    batches.forEach((batchData) => {
+      const targetMonth = batchData.targetMonth;
+      const [yearStr, monthStr] = targetMonth.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const endOfMonthDate = `${targetMonth}-${String(daysInMonth).padStart(2, '0')}`;
+
+      // Remove existing data for targetMonth if replace requested
+      if (batchData.replaceExistingMonthData) {
+        allSales = allSales.filter((s) => !s.transactionDate.startsWith(targetMonth));
+        allPurchases = allPurchases.filter(
+          (p) => !(p.orderDate.startsWith(targetMonth) || (p.actualDeliveryDate && p.actualDeliveryDate.startsWith(targetMonth)))
+        );
+        allExpenses = allExpenses.filter((e) => !e.date.startsWith(targetMonth));
+        allPayrolls = allPayrolls.filter((p) => p.month !== targetMonth);
+        allAttendance = allAttendance.filter((a) => !a.date.startsWith(targetMonth));
+      }
+
+      // 1. Sales Records
+      const newSalesForMonth: SaleRecord[] = [];
+      if (batchData.distributionMode === 'AUTO_DISTRIBUTE') {
+        const totalShifts = daysInMonth * 2;
+        const baseLiterPerShift = Math.floor(batchData.totalLitersSold / totalShifts);
+        let remainder = batchData.totalLitersSold - (baseLiterPerShift * totalShifts);
+        let currentMeter = batchData.meterAwal ?? 100000;
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${targetMonth}-${String(day).padStart(2, '0')}`;
+
+          // Shift 1 (05.30 - 13.30)
+          let add1 = 0;
+          if (remainder > 0) { add1 = 1; remainder--; }
+          const s1Liters = baseLiterPerShift + add1;
+          const meterAwal1 = currentMeter;
+          const meterAkhir1 = currentMeter + s1Liters;
+          currentMeter = meterAkhir1;
+          const s1Rev = s1Liters * batchData.unitPrice;
+          const s1Profit = s1Liters * (batchData.unitPrice - batchData.buyPrice);
+          const s1Qris = Math.round(s1Rev * 0.15);
+          const s1Cash = s1Rev - s1Qris;
+
+          newSalesForMonth.push({
+            id: `sale-hist-${targetMonth}-${String(day).padStart(2, '0')}-s1`,
+            transactionDate: dateStr,
+            time: '06:00',
+            shift: 'Shift 1 (05.30 - 13.30)',
+            operatorName: 'Daslam',
+            productId: primaryProduct.id,
+            productName: primaryProduct.name,
+            meterAwal: meterAwal1,
+            meterAkhir: meterAkhir1,
+            literSold: s1Liters,
+            unitPrice: batchData.unitPrice,
+            buyPriceSnapshot: batchData.buyPrice,
+            totalRevenue: s1Rev,
+            totalProfit: s1Profit,
+            paymentCash: s1Cash,
+            paymentQris: s1Qris,
+            paymentEdc: 0,
+            actualCashInHand: s1Cash,
+            cashDifference: 0,
+            teraTestLiters: 5,
+            notes: `Distribusi penjualan historis ${formatMonthYearId(targetMonth)} (Shift 1)`,
+            createdAt: `${dateStr} 06:00`,
+          });
+
+          // Shift 2 (13.30 - 19.30)
+          let add2 = 0;
+          if (remainder > 0) { add2 = 1; remainder--; }
+          const s2Liters = baseLiterPerShift + add2;
+          const meterAwal2 = currentMeter;
+          const meterAkhir2 = currentMeter + s2Liters;
+          currentMeter = meterAkhir2;
+          const s2Rev = s2Liters * batchData.unitPrice;
+          const s2Profit = s2Liters * (batchData.unitPrice - batchData.buyPrice);
+          const s2Qris = Math.round(s2Rev * 0.15);
+          const s2Cash = s2Rev - s2Qris;
+
+          newSalesForMonth.push({
+            id: `sale-hist-${targetMonth}-${String(day).padStart(2, '0')}-s2`,
+            transactionDate: dateStr,
+            time: '14:00',
+            shift: 'Shift 2 (13.30 - 19.30)',
+            operatorName: 'Angga',
+            productId: primaryProduct.id,
+            productName: primaryProduct.name,
+            meterAwal: meterAwal2,
+            meterAkhir: meterAkhir2,
+            literSold: s2Liters,
+            unitPrice: batchData.unitPrice,
+            buyPriceSnapshot: batchData.buyPrice,
+            totalRevenue: s2Rev,
+            totalProfit: s2Profit,
+            paymentCash: s2Cash,
+            paymentQris: s2Qris,
+            paymentEdc: 0,
+            actualCashInHand: s2Cash,
+            cashDifference: 0,
+            teraTestLiters: 5,
+            notes: `Distribusi penjualan historis ${formatMonthYearId(targetMonth)} (Shift 2)`,
+            createdAt: `${dateStr} 14:00`,
+          });
+        }
+      } else {
+        const rev = batchData.totalLitersSold * batchData.unitPrice;
+        const profit = batchData.totalLitersSold * (batchData.unitPrice - batchData.buyPrice);
+        newSalesForMonth.push({
+          id: `sale-rekap-${targetMonth}`,
+          transactionDate: endOfMonthDate,
+          time: '19:30',
+          shift: 'Rekap Bulanan (Closing Akhir Bulan)',
+          operatorName: 'Admin / Closing Bulanan',
+          productId: primaryProduct.id,
+          productName: primaryProduct.name,
+          meterAwal: batchData.meterAwal,
+          meterAkhir: batchData.meterAkhir,
+          literSold: batchData.totalLitersSold,
+          unitPrice: batchData.unitPrice,
+          buyPriceSnapshot: batchData.buyPrice,
+          totalRevenue: rev,
+          totalProfit: profit,
+          paymentCash: batchData.cashPayment,
+          paymentQris: batchData.nonCashPayment,
+          paymentEdc: 0,
+          actualCashInHand: batchData.cashPayment,
+          cashDifference: 0,
+          teraTestLiters: 5,
+          notes: `Rekapitulasi total penjualan historis ${formatMonthYearId(targetMonth)} (${formatNumber(batchData.totalLitersSold)} L)`,
+          createdAt: `${endOfMonthDate} 19:30`,
+        });
+      }
+
+      allSales = [...newSalesForMonth, ...allSales];
+
+      // 2. DO Pertamina
+      if (batchData.totalDOLiters > 0) {
+        allPurchases.unshift({
+          id: `po-rekap-${targetMonth}`,
+          poNumber: `DO-REKAP-${targetMonth.replace('-', '')}`,
+          doPertaminaNumber: `DO/PTM/${targetMonth.replace('-', '')}/001`,
+          soPertaminaNumber: `SO-PTM-${targetMonth.replace('-', '')}`,
+          orderDate: `${targetMonth}-05`,
+          estimatedDeliveryDate: `${targetMonth}-05`,
+          actualDeliveryDate: `${targetMonth}-05`,
+          productId: primaryProduct.id,
+          productName: primaryProduct.name,
+          volumeLiters: batchData.totalDOLiters,
+          volumeKL: Math.max(1, Math.min(5, Math.round(batchData.totalDOLiters / 1000))) as OrderVolumePecahan,
+          buyPricePerLiter: batchData.buyPrice,
+          totalAmount: batchData.doAmount || (batchData.totalDOLiters * batchData.buyPrice),
+          supplyDepot: batchData.tbbmDepot || 'TBBM Rewulu / Boyolali',
+          truckPlateNumber: 'AD 8492 FB',
+          driverName: 'Pak Joko Santoso',
+          status: 'SELESAI',
+          actualLitersReceived: batchData.totalDOLiters,
+          effectiveStockAdded: batchData.totalDOLiters,
+          varianceLiters: 0,
+          notes: `Rekap pasokan DO Pertamina bulan ${formatMonthYearId(targetMonth)} (${formatNumber(batchData.totalDOLiters)} L)`,
+          createdAt: `${targetMonth}-05 10:00`,
+          completedAt: `${targetMonth}-05 14:00`,
+        });
+      }
+
+      // 3. Expenses (Gaji akhir bulan maks 20:00, token, pdam, dll)
+      const exp = batchData.expenses;
+      if (exp.gajiOperator > 0) {
+        allExpenses.unshift({
+          id: `exp-salary-hist-${targetMonth}`,
+          date: endOfMonthDate,
+          time: '20:00',
+          category: 'GAJI_OPERATOR',
+          title: `Pembayaran Gaji Akhir Bulan: Operator (${formatMonthYearId(targetMonth)})`,
+          amount: exp.gajiOperator,
+          quantity: daysInMonth,
+          unitRate: Math.round(exp.gajiOperator / daysInMonth),
+          personOrVendor: 'Operator Pertashop',
+          paymentSource: 'REKENING_BANK',
+          notes: `Pengeluaran gaji pasti dilakukan pada akhir bulan (${endOfMonthDate}), cut-off maksimal pukul 20:00 WIB. Rekap gaji historis ${formatMonthYearId(targetMonth)}.`,
+          createdAt: `${endOfMonthDate} 20:00`,
+        });
+      }
+
+      if (exp.tokenListrik > 0) {
+        allExpenses.unshift({
+          id: `exp-pln-hist-${targetMonth}`,
+          date: `${targetMonth}-10`,
+          time: '10:00',
+          category: 'TOKEN_LISTRIK',
+          title: `Beli Token Listrik PLN (${formatMonthYearId(targetMonth)})`,
+          amount: exp.tokenListrik,
+          personOrVendor: 'PLN Prabayar',
+          paymentSource: 'KAS_HARIAN',
+          notes: `Rekap beban listrik ${formatMonthYearId(targetMonth)}`,
+          createdAt: `${targetMonth}-10 10:00`,
+        });
+      }
+
+      if (exp.pdam > 0) {
+        allExpenses.unshift({
+          id: `exp-pdam-hist-${targetMonth}`,
+          date: `${targetMonth}-15`,
+          time: '11:00',
+          category: 'PDAM',
+          title: `Tagihan Air PDAM (${formatMonthYearId(targetMonth)})`,
+          amount: exp.pdam,
+          personOrVendor: 'PDAM Tirta',
+          paymentSource: 'KAS_HARIAN',
+          notes: `Rekap beban air ${formatMonthYearId(targetMonth)}`,
+          createdAt: `${targetMonth}-15 11:00`,
+        });
+      }
+
+      if (exp.maintenance > 0) {
+        allExpenses.unshift({
+          id: `exp-maint-hist-${targetMonth}`,
+          date: `${targetMonth}-20`,
+          time: '14:00',
+          category: 'MAINTENANCE_ALAT',
+          title: `Maintenance & Servis Alat (${formatMonthYearId(targetMonth)})`,
+          amount: exp.maintenance,
+          personOrVendor: 'Teknisi Dispenser',
+          paymentSource: 'KAS_HARIAN',
+          notes: `Rekap beban servis ${formatMonthYearId(targetMonth)}`,
+          createdAt: `${targetMonth}-20 14:00`,
+        });
+      }
+
+      if (exp.lossesMinyak > 0) {
+        allExpenses.unshift({
+          id: `exp-loss-hist-${targetMonth}`,
+          date: endOfMonthDate,
+          time: '18:00',
+          category: 'LOSSES_MINYAK',
+          title: `Beban Losses Minyak Tangki (${formatMonthYearId(targetMonth)})`,
+          amount: exp.lossesMinyak,
+          quantity: exp.lossesLiters,
+          unitRate: batchData.buyPrice,
+          fuelLossLiters: exp.lossesLiters,
+          fuelLossBuyPriceSnapshot: batchData.buyPrice,
+          personOrVendor: 'Susut Tangki & Tera',
+          paymentSource: 'KAS_HARIAN',
+          notes: `Rekap susut BBM ${formatMonthYearId(targetMonth)}`,
+          createdAt: `${endOfMonthDate} 18:00`,
+        });
+      }
+
+      if (exp.dividenOwner > 0) {
+        allExpenses.unshift({
+          id: `exp-prive-hist-${targetMonth}`,
+          date: endOfMonthDate,
+          time: '19:00',
+          category: 'DIVIDEN_OWNER',
+          title: `Dividen / Prive Pemilik (${formatMonthYearId(targetMonth)})`,
+          amount: exp.dividenOwner,
+          personOrVendor: 'Owner Pertashop',
+          paymentSource: 'REKENING_BANK',
+          notes: `Rekap dividen/bagi hasil ${formatMonthYearId(targetMonth)}`,
+          createdAt: `${endOfMonthDate} 19:00`,
+        });
+      }
+
+      if (exp.lainnya > 0) {
+        allExpenses.unshift({
+          id: `exp-other-hist-${targetMonth}`,
+          date: endOfMonthDate,
+          time: '17:00',
+          category: 'LAINNYA',
+          title: `Pengeluaran Operasional Lainnya (${formatMonthYearId(targetMonth)})`,
+          amount: exp.lainnya,
+          paymentSource: 'KAS_HARIAN',
+          notes: exp.notes || `Beban lain-lain ${formatMonthYearId(targetMonth)}`,
+          createdAt: `${endOfMonthDate} 17:00`,
+        });
+      }
+
+      // 4. Payroll Slips
+      if (exp.gajiOperator > 0) {
+        const activeEmps = employees.filter((e) => e.isActive);
+        const splitAmount = Math.round(exp.gajiOperator / (activeEmps.length || 1));
+
+        activeEmps.forEach((emp, idx) => {
+          allPayrolls.unshift({
+            id: `pay-hist-${targetMonth}-${emp.id}`,
+            payrollNumber: `SLIP-${targetMonth.replace('-', '')}-${String(idx + 1).padStart(3, '0')}`,
+            month: targetMonth,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            employeeRole: emp.role,
+            periodStartDate: `${targetMonth}-01`,
+            periodEndDate: endOfMonthDate,
+            totalHadir: daysInMonth,
+            totalLemburShifts: 0,
+            totalIzin: 0,
+            totalSakit: 0,
+            totalAlpa: 0,
+            dailyRate: emp.dailyRate,
+            basicSalary: splitAmount,
+            overtimeRate: emp.overtimeRate,
+            overtimePay: 0,
+            bonusAllowance: 0,
+            kasbonDeduction: 0,
+            penaltyDeduction: 0,
+            otherDeductions: 0,
+            grossSalary: splitAmount,
+            totalDeductions: 0,
+            netSalary: splitAmount,
+            paymentStatus: 'DIBAYAR',
+            paymentDate: endOfMonthDate,
+            paymentSource: 'REKENING_BANK',
+            notes: `Gaji historis periode ${formatMonthYearId(targetMonth)} (Lunas akhir bulan cut-off 20:00 WIB)`,
+            createdAt: `${endOfMonthDate} 20:00`,
+          });
+        });
+      }
+
+      // 5. Attendance
+      if (batchData.distributionMode === 'AUTO_DISTRIBUTE') {
+        const syncResult = syncSalesToAttendance(newSalesForMonth, allAttendance, employees);
+        allAttendance = syncResult.updatedAttendance;
+      }
+
+      // 6. Tank change
+      if (batchData.syncTankStock) {
+        netTankStockChange += (batchData.totalDOLiters - batchData.totalLitersSold);
+      }
+
+      // 7. Price History
+      const existingHist = allPriceHistory.find((h) => h.effectiveDate.startsWith(targetMonth));
+      if (!existingHist) {
+        allPriceHistory.unshift({
+          id: `price-hist-${targetMonth}`,
+          productId: primaryProduct.id,
+          effectiveDate: `${targetMonth}-01 00:00`,
+          oldPrice: batchData.unitPrice,
+          newPrice: batchData.unitPrice,
+          oldBuyPrice: batchData.buyPrice,
+          newBuyPrice: batchData.buyPrice,
+          marginPerLiter: batchData.unitPrice - batchData.buyPrice,
+          referenceDoc: 'Rekap Historis Bulanan',
+          notes: `Tarif historis ${formatMonthYearId(targetMonth)}`,
+          updatedBy: 'Admin Pertashop',
+          updatedAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
+        });
+      }
+    });
+
+    // Sort All Sales
+    allSales.sort(
+      (a, b) => b.transactionDate.localeCompare(a.transactionDate) || (b.time || '').localeCompare(a.time || '')
+    );
+    setSales(allSales);
+    StorageService.setSales(allSales);
+
+    // Save Purchases
+    setPurchases(allPurchases);
+    StorageService.setPurchases(allPurchases);
+
+    // Save Expenses
+    setExpenses(allExpenses);
+    StorageService.setExpenses(allExpenses);
+
+    // Save Payrolls
+    setPayrolls(allPayrolls);
+    StorageService.setPayrolls(allPayrolls);
+
+    // Save Attendance
+    setAttendance(allAttendance);
+    StorageService.setAttendance(allAttendance);
+
+    // Save Price History
+    setPriceHistory(allPriceHistory);
+    StorageService.setPriceHistory(allPriceHistory);
+
+    // Update Tank if net change exists
+    if (netTankStockChange !== 0) {
+      setTank((prev) => {
+        const nextStock = Math.min(prev.totalCapacityLiters, Math.max(0, prev.currentStockLiters + netTankStockChange));
+        const updated = { ...prev, currentStockLiters: nextStock };
+        StorageService.setTankConfig(updated);
+        return updated;
+      });
+    }
+  };
+
+  const handleSaveMonthlyBatch = (batchData: MonthlyBatchPayload) => {
+    processMonthlyBatches([batchData]);
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Rekap Bulanan Historis Berhasil Disimpan',
+      message: `Data pembukuan periode ${formatMonthYearId(batchData.targetMonth)} (penjualan ${formatNumber(batchData.totalLitersSold)} L, pasokan DO, pengeluaran gaji akhir bulan, dan biaya operasional) berhasil disimpan ke dalam sistem.`,
+      confirmLabel: 'Selesai',
+      cancelLabel: 'Tutup',
+      isDestructive: false,
+      onConfirm: () => {},
+    });
+  };
+
+  const handleSaveMultiMonthBatches = (batches: MonthlyBatchPayload[]) => {
+    processMonthlyBatches(batches);
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Import Multi-Bulan Berhasil',
+      message: `Berhasil mengimpor rekapitulasi data historis untuk ${batches.length} periode bulan secara batch (termasuk DO Pertamina, penjualan nozzle, beban opEx, dan gaji akhir bulan).`,
+      confirmLabel: 'Selesai',
+      cancelLabel: 'Tutup',
+      isDestructive: false,
+      onConfirm: () => {},
+    });
   };
 
   const handleUpdateProductPrice = (priceData: {
@@ -1368,6 +1792,7 @@ export default function App() {
               onOpenPrintReportModal={() => setIsPrintReportModalOpen(true)}
               onOpenImportModal={() => setIsImportSalesModalOpen(true)}
               onOpenBackupModal={() => setIsBackupModalOpen(true)}
+              onOpenHistoricalBatchModal={() => setIsHistoricalBatchModalOpen(true)}
             />
           )}
 
@@ -1561,6 +1986,7 @@ export default function App() {
               products={products}
               profile={profile}
               onOpenPrintModal={handleOpenPrintSummaryModal}
+              onOpenHistoricalBatchModal={() => setIsHistoricalBatchModalOpen(true)}
             />
           )}
 
@@ -1578,6 +2004,20 @@ export default function App() {
         currentPrice={primaryProduct.currentPrice}
         currentBuyPrice={primaryProduct.buyPrice}
         onImportSales={handleImportSales}
+        onOpenHistoricalBatchModal={() => {
+          setIsImportSalesModalOpen(false);
+          setIsHistoricalBatchModalOpen(true);
+        }}
+      />
+
+      <HistoricalMonthlyBatchModal
+        isOpen={isHistoricalBatchModalOpen}
+        onClose={() => setIsHistoricalBatchModalOpen(false)}
+        products={products}
+        employees={employees}
+        existingSales={sales}
+        onSaveMonthlyBatch={handleSaveMonthlyBatch}
+        onSaveMultiMonthBatches={handleSaveMultiMonthBatches}
       />
 
       <SalesEntryModal

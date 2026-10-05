@@ -44,6 +44,7 @@ interface ImportSalesModalProps {
     importedPurchases?: PurchaseOrder[],
     syncAttendance?: boolean
   ) => void;
+  onOpenHistoricalBatchModal?: () => void;
 }
 
 interface ParsedRowPreview {
@@ -67,6 +68,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   currentPrice,
   currentBuyPrice,
   onImportSales,
+  onOpenHistoricalBatchModal,
 }) => {
   const [activeInputTab, setActiveInputTab] = useState<'file' | 'paste'>('file');
   const [pasteType, setPasteType] = useState<'sales' | 'do'>('sales');
@@ -933,6 +935,36 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
 
         {/* Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
+          {/* Banner Solusi Pertashop Berjalan: Rekap Bulanan Historis */}
+          {onOpenHistoricalBatchModal && (
+            <div className="p-3.5 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+              <div className="flex items-center gap-3 text-indigo-950">
+                <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0 shadow-xs">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-indigo-950 block text-xs">
+                    Pertashop Sudah Berjalan & Ingin Input Data Bulan-Bulan Lalu?
+                  </span>
+                  <span className="text-[11px] text-indigo-800 block mt-0.5">
+                    Gunakan fitur <strong>Input Rekap Bulanan (Data Lampau)</strong> untuk memasukkan data secara batch 1 baris per bulan tanpa perlu input harian satu per satu.
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenHistoricalBatchModal();
+                }}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs whitespace-nowrap shadow-xs cursor-pointer transition-colors shrink-0 flex items-center gap-1.5"
+              >
+                <span>Buka Input Rekap Bulanan</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* File Upload Zone */}
           {activeInputTab === 'file' ? (
             <div
