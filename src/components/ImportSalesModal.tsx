@@ -21,7 +21,7 @@ import {
   Info,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { SaleRecord, Product, PurchaseOrder, OrderVolumePecahan } from '../types';
+import { SaleRecord, Product, PurchaseOrder, OrderVolumePecahan, TankConfig } from '../types';
 import {
   formatRupiah,
   formatNumber,
@@ -37,10 +37,12 @@ interface ImportSalesModalProps {
   products: Product[];
   currentPrice: number;
   currentBuyPrice: number;
+  tank?: TankConfig;
+  onDirectAdjustTank?: (newStockLiters: number) => void;
   onImportSales: (
     importedSales: SaleRecord[],
     mode: 'append' | 'replace',
-    syncStock: boolean,
+    syncStock: boolean | 'LOSSES_ONLY' | 'FULL_MUTATION' | 'NONE',
     importedPurchases?: PurchaseOrder[],
     syncAttendance?: boolean
   ) => void;
@@ -67,6 +69,8 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   products,
   currentPrice,
   currentBuyPrice,
+  tank,
+  onDirectAdjustTank,
   onImportSales,
   onOpenHistoricalBatchModal,
 }) => {
@@ -74,6 +78,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   const [pasteType, setPasteType] = useState<'sales' | 'do'>('sales');
   const [previewTab, setPreviewTab] = useState<'sales' | 'do'>('sales');
   const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
+  const [tankSyncMode, setTankSyncMode] = useState<'LOSSES_ONLY' | 'FULL_MUTATION' | 'NONE'>('LOSSES_ONLY');
   const [syncStock, setSyncStock] = useState<boolean>(true);
   const [syncAttendance, setSyncAttendance] = useState<boolean>(true);
   const [pastedText, setPastedText] = useState<string>('');
@@ -82,7 +87,24 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   const [parsedDoRows, setParsedDoRows] = useState<ParsedDORowPreview[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [dragActive, setDragActive] = useState<boolean>(false);
+  const [showStockCalibration, setShowStockCalibration] = useState<boolean>(false);
+  const [manualInitialStock, setManualInitialStock] = useState<number>(2000);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const parseSafeNumber = (val: any): number => {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return Math.abs(val);
+    let str = String(val).trim();
+    if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(str)) {
+      str = str.replace(/\./g, '').replace(',', '.');
+    } else if (/^\d+(,\d+)$/.test(str)) {
+      str = str.replace(',', '.');
+    } else {
+      str = str.replace(/[^0-9.,-]/g, '').replace(',', '.');
+    }
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : Math.abs(num);
+  };
 
   if (!isOpen) return null;
 
@@ -143,7 +165,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
 
       const normalized: Record<string, any> = {};
       Object.keys(row).forEach((k) => {
-        const cleanKey = k.toLowerCase().replace(/[\s_\-.]/g, '');
+        const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
         normalized[cleanKey] = row[k];
       });
 
@@ -254,6 +276,34 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       const soundingWaterCm =
         parseFloat(normalized['ujipastaair'] || normalized['pastaair'] || normalized['watercm']) || 0;
 
+      const lossesRaw =
+        normalized['lossessusuttangkil'] ??
+        normalized['lossessusuttangki'] ??
+        normalized['lossessusutliter'] ??
+        normalized['lossessusut'] ??
+        normalized['lossesminyakliter'] ??
+        normalized['lossesminyakl'] ??
+        normalized['lossesminyak'] ??
+        normalized['lossesliter'] ??
+        normalized['lossesliters'] ??
+        normalized['lossestangkiliter'] ??
+        normalized['lossestangkil'] ??
+        normalized['lossestangki'] ??
+        normalized['lossesl'] ??
+        normalized['losses'] ??
+        normalized['susuttangkiliter'] ??
+        normalized['susuttangkil'] ??
+        normalized['susuttangki'] ??
+        normalized['susutliter'] ??
+        normalized['susutl'] ??
+        normalized['susut'] ??
+        normalized['loss'];
+      const parsedLossesVal =
+        lossesRaw !== undefined && lossesRaw !== ''
+          ? parseSafeNumber(lossesRaw)
+          : 0;
+      const fuelLossLiters = parsedLossesVal > 0 ? parsedLossesVal : undefined;
+
       const notes = String(normalized['catatan'] || normalized['notes'] || normalized['keterangan'] || '').trim();
 
       const sale: SaleRecord = {
@@ -277,6 +327,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         actualCashInHand,
         cashDifference,
         teraTestLiters,
+        fuelLossLiters: fuelLossLiters && fuelLossLiters > 0 ? fuelLossLiters : undefined,
         hasSounding: soundingStickCm !== undefined,
         soundingStickCm,
         soundingCalculatedLiters,
@@ -303,7 +354,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
 
       const normalized: Record<string, any> = {};
       Object.keys(row).forEach((k) => {
-        const cleanKey = k.toLowerCase().replace(/[\s_\-.]/g, '');
+        const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
         normalized[cleanKey] = row[k];
       });
 
@@ -631,6 +682,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         'QRIS': qris1,
         'EDC': 0,
         'Uang Kasir': tunai1,
+        'Losses / Susut Tangki (L)': 0,
         'Catatan': `Shift 1 Tgl ${day} cuaca cerah`,
       });
       currentStand = standAkhir1;
@@ -657,6 +709,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         'QRIS': qris2,
         'EDC': 0,
         'Uang Kasir': tunai2,
+        'Losses / Susut Tangki (L)': 0,
         'Catatan': `Shift 2 Tgl ${day} arus kendaraan ramai`,
       });
       currentStand = standAkhir2;
@@ -841,6 +894,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   const totalImportLiters = validSalesRows.reduce((sum, r) => sum + r.sale.literSold, 0);
   const totalImportRevenue = validSalesRows.reduce((sum, r) => sum + r.sale.totalRevenue, 0);
   const totalImportProfit = validSalesRows.reduce((sum, r) => sum + r.sale.totalProfit, 0);
+  const totalImportLosses = validSalesRows.reduce((sum, r) => sum + (r.sale.fuelLossLiters || 0), 0);
 
   const validDoRows = parsedDoRows.filter((r) => r.isValid);
   const totalDoLiters = validDoRows.reduce((sum, r) => sum + r.order.volumeLiters, 0);
@@ -856,7 +910,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
     const salesToSave = validSalesRows.map((r) => r.sale);
     const purchasesToSave = validDoRows.map((r) => r.order);
 
-    onImportSales(salesToSave, importMode, syncStock, purchasesToSave, syncAttendance);
+    onImportSales(salesToSave, importMode, tankSyncMode, purchasesToSave, syncAttendance);
     onClose();
   };
 
@@ -1082,7 +1136,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
               </div>
 
               {/* Stats Highlights */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className={`grid grid-cols-2 ${totalImportLosses > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-2.5`}>
                 {/* Penjualan Volume */}
                 <div className="bg-white/80 border border-emerald-200/60 rounded-xl p-2.5">
                   <span className="text-[10px] text-slate-500 font-bold uppercase block">
@@ -1121,6 +1175,21 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
                     {validDoRows.length} pengiriman DO
                   </span>
                 </div>
+
+                {/* Losses / Susut Tangki */}
+                {totalImportLosses > 0 && (
+                  <div className="bg-rose-50/90 border border-rose-300 rounded-xl p-2.5">
+                    <span className="text-[10px] text-rose-700 font-bold uppercase block">
+                      Total Losses / Susut
+                    </span>
+                    <span className="text-base font-black font-mono text-rose-700 block mt-0.5">
+                      -{formatNumber(totalImportLosses, 1)} L
+                    </span>
+                    <span className="text-[10px] text-rose-600 font-medium block">
+                      Mengurangi stok tangki
+                    </span>
+                  </div>
+                )}
 
                 {/* Nilai Tebusan DO */}
                 <div className="bg-white/80 border border-teal-200/60 rounded-xl p-2.5">
@@ -1187,6 +1256,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
                         <th className="py-2 px-3">Operator</th>
                         <th className="py-2 px-3 text-right">Stand Meter</th>
                         <th className="py-2 px-3 text-right">Liter</th>
+                        <th className="py-2 px-3 text-right text-rose-700">Losses / Susut</th>
                         <th className="py-2 px-3 text-right">Omzet</th>
                         <th className="py-2 px-3 text-right">Tunai</th>
                         <th className="py-2 px-3 text-right">QRIS / EDC</th>
@@ -1196,7 +1266,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
                     <tbody className="divide-y divide-slate-100">
                       {parsedRows.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-8 text-center text-slate-400">
+                          <td colSpan={9} className="py-8 text-center text-slate-400">
                             Belum ada baris data penjualan yang terdeteksi dalam file atau teks.
                           </td>
                         </tr>
@@ -1221,6 +1291,13 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
                             </td>
                             <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">
                               {formatNumber(r.sale.literSold, 1)} L
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono font-bold text-rose-700">
+                              {r.sale.fuelLossLiters && r.sale.fuelLossLiters > 0 ? (
+                                <span>-{formatNumber(r.sale.fuelLossLiters, 1)} L</span>
+                              ) : (
+                                <span className="text-slate-300 font-normal">-</span>
+                              )}
                             </td>
                             <td className="py-2 px-3 text-right font-mono text-slate-900">
                               {formatRupiah(r.sale.totalRevenue)}
@@ -1357,40 +1434,191 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
               </div>
 
               {/* Sync Options */}
-              <div className="space-y-2">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={syncStock}
-                    onChange={(e) => setSyncStock(e.target.checked)}
-                    className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <div>
-                    <span className="font-semibold text-slate-800 block">
-                      Sinkronkan Saldo Stok Tangki Modular
-                    </span>
-                    <span className="text-[10px] text-slate-500 block">
-                      Otomatis menambah stok dari DO BBM yang diterima dan mengurangi volume penjualan nozzle.
-                    </span>
+              <div className="space-y-3 pt-1">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Fuel className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Pengaruh ke Stok Tangki Modular Saat Ini:</span>
+                    </label>
+                    {tank && (
+                      <span className="text-[11px] text-slate-500 font-mono">
+                        Stok Tangki Saat Ini: <strong>{formatLiter(tank.currentStockLiters)}</strong>
+                      </span>
+                    )}
                   </div>
-                </label>
 
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={syncAttendance}
-                    onChange={(e) => setSyncAttendance(e.target.checked)}
-                    className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <div>
-                    <span className="font-semibold text-slate-800 block">
-                      Sinkronkan Shift ke Absensi Karyawan
-                    </span>
-                    <span className="text-[10px] text-slate-500 block">
-                      Otomatis merekap kehadiran & lembur operator untuk persiapan <strong>hitung gaji otomatis pada 2 hari terakhir bulan</strong>.
-                    </span>
+                  {/* Kalibrasi Saldo Awal jika stok masih 0 L */}
+                  {tank && tank.currentStockLiters === 0 && (
+                    <div className="mb-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold block">
+                            Saldo Stok Tangki Masih 0 L (Belum Dikalibrasi)
+                          </span>
+                          <span className="text-[11px] text-amber-800 block">
+                            Karena Pertashop sudah berjalan, Anda dapat memasukkan estimasi saldo fisik tangki saat ini agar pemotongan losses (-{formatNumber(totalImportLosses, 1)} L) terlihat riil.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {showStockCalibration ? (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min={0}
+                              max={tank.totalCapacityLiters}
+                              value={manualInitialStock}
+                              onChange={(e) => setManualInitialStock(Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="w-24 px-2 py-1 bg-white border border-amber-300 rounded text-xs font-mono font-bold text-slate-800"
+                              placeholder="Liter"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onDirectAdjustTank?.(manualInitialStock);
+                                setShowStockCalibration(false);
+                              }}
+                              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-xs cursor-pointer shadow-xs"
+                            >
+                              Simpan
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowStockCalibration(false)}
+                              className="px-2 py-1 bg-slate-200 text-slate-700 rounded text-xs cursor-pointer"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowStockCalibration(true)}
+                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs cursor-pointer shadow-xs whitespace-nowrap"
+                          >
+                            + Isi Stok Awal Tangki
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTankSyncMode('LOSSES_ONLY')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        tankSyncMode === 'LOSSES_ONLY'
+                          ? 'bg-emerald-50 border-emerald-600 ring-2 ring-emerald-500/20 text-emerald-950'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs">
+                        <input
+                          type="radio"
+                          name="importTankSyncRadio"
+                          checked={tankSyncMode === 'LOSSES_ONLY'}
+                          onChange={() => setTankSyncMode('LOSSES_ONLY')}
+                          className="text-emerald-600"
+                        />
+                        <span>Potong Losses Saja</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                        Khusus kurangi stok dari losses (<strong>-{formatNumber(totalImportLosses, 1)} L</strong>). Pilihan aman untuk data bulan lalu.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTankSyncMode('FULL_MUTATION')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        tankSyncMode === 'FULL_MUTATION'
+                          ? 'bg-emerald-50 border-emerald-600 ring-2 ring-emerald-500/20 text-emerald-950'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs">
+                        <input
+                          type="radio"
+                          name="importTankSyncRadio"
+                          checked={tankSyncMode === 'FULL_MUTATION'}
+                          onChange={() => setTankSyncMode('FULL_MUTATION')}
+                          className="text-emerald-600"
+                        />
+                        <span>Mutasi Penuh</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                        Hitung akumulasi (+DO {formatNumber(totalDoLiters)} L, -Jual {formatNumber(totalImportLiters)} L, -Losses {formatNumber(totalImportLosses, 1)} L).
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTankSyncMode('NONE')}
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        tankSyncMode === 'NONE'
+                          ? 'bg-emerald-50 border-emerald-600 ring-2 ring-emerald-500/20 text-emerald-950'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs">
+                        <input
+                          type="radio"
+                          name="importTankSyncRadio"
+                          checked={tankSyncMode === 'NONE'}
+                          onChange={() => setTankSyncMode('NONE')}
+                          className="text-emerald-600"
+                        />
+                        <span>Jangan Ubah Stok</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                        Saldo stok tangki saat ini dibiarkan tetap seperti semula.
+                      </p>
+                    </button>
                   </div>
-                </label>
+
+                  {tank && tankSyncMode !== 'NONE' && (
+                    <div className="mt-2 p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-emerald-900 text-[11px] flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Fuel className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                        <span>
+                          {tankSyncMode === 'LOSSES_ONLY' ? (
+                            <span>
+                              Stok tangki akan dipotong <strong>-{formatNumber(totalImportLosses, 1)} L</strong> (dari {formatLiter(tank.currentStockLiters)} menjadi{' '}
+                              <strong className="text-emerald-800">{formatLiter(Math.max(0, tank.currentStockLiters - totalImportLosses))}</strong>)
+                            </span>
+                          ) : (
+                            <span>
+                              Mutasi netto: {formatNumber(totalDoLiters - totalImportLiters - totalImportLosses, 1)} L (dari {formatLiter(tank.currentStockLiters)} menjadi{' '}
+                              <strong className="text-emerald-800">{formatLiter(Math.min(tank.totalCapacityLiters, Math.max(0, tank.currentStockLiters + totalDoLiters - totalImportLiters - totalImportLosses)))}</strong>)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/60">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={syncAttendance}
+                      onChange={(e) => setSyncAttendance(e.target.checked)}
+                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="font-semibold text-slate-800 block text-xs">
+                        Sinkronkan Shift ke Absensi Karyawan
+                      </span>
+                      <span className="text-[10px] text-slate-500 block">
+                        Otomatis merekap kehadiran operator untuk persiapan <strong>hitung gaji otomatis pada 2 hari terakhir bulan</strong>.
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
           </div>

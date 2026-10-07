@@ -230,6 +230,11 @@ goto MAIN_MENU
 :: =============================================================================
 :UPDATE_APP
 cls
+if exist "update.bat" (
+    call update.bat
+    goto MAIN_MENU
+)
+
 echo =====================================================================
 echo          PEMBARUAN APLIKASI OTOMATIS DARI GITHUB
 echo =====================================================================
@@ -257,18 +262,16 @@ if errorlevel 1 git remote add origin %REPO_URL% 2>nul
 
 :DO_PULL_CODE
 echo [1/5] Menghubungi GitHub (fyercz/Project-POS) dan menarik update...
-git fetch origin main 2>nul
-git pull origin main
+git fetch origin main --prune 2>nul
+git checkout -B main origin/main >nul 2>nul
+git reset --hard origin/main
 if errorlevel 1 goto FALLBACK_PULL
 goto DO_CLEANUP
 
 :FALLBACK_PULL
-echo [INFO] Mencoba sinkronisasi git pull default...
-git pull
-if errorlevel 1 (
-    echo [INFO] Memperbarui branch ke versi origin/main...
-    git checkout -B main origin/main 2>nul
-)
+echo [INFO] Menghubungkan branch ke versi origin/main...
+git pull --rebase origin main 2>nul
+git reset --hard origin/main 2>nul
 
 :DO_CLEANUP
 echo.
@@ -288,10 +291,6 @@ if exist "buat-exe-cepat.bat" (
 if exist "install.bat" (
     del /f /q "install.bat" >nul 2>nul
     echo       - Menghapus script lama: install.bat
-)
-if exist "update.bat" (
-    del /f /q "update.bat" >nul 2>nul
-    echo       - Menghapus script lama: update.bat
 )
 
 del /f /q *.tmp >nul 2>nul

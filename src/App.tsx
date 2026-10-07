@@ -503,7 +503,7 @@ export default function App() {
   const handleImportSales = (
     importedSales: SaleRecord[],
     mode: 'append' | 'replace',
-    syncStock: boolean,
+    syncStock: boolean | 'LOSSES_ONLY' | 'FULL_MUTATION' | 'NONE',
     importedPurchases?: PurchaseOrder[],
     syncAttendance: boolean = true
   ) => {
@@ -545,16 +545,21 @@ export default function App() {
       StorageService.setAttendance(syncResult.updatedAttendance);
     }
 
-    if (syncStock) {
-      const totalImportLitersSold = importedSales.reduce((acc, s) => acc + s.literSold, 0);
-      const totalImportLitersReceived = (importedPurchases || [])
-        .filter((p) => p.status === 'SELESAI')
-        .reduce((acc, p) => acc + (p.actualLitersReceived || p.volumeLiters), 0);
+    const totalImportLitersSold = importedSales.reduce((acc, s) => acc + s.literSold, 0);
+    const totalImportLosses = importedSales.reduce((acc, s) => acc + (s.fuelLossLiters || 0), 0);
+    const totalImportLitersReceived = (importedPurchases || [])
+      .filter((p) => p.status === 'SELESAI')
+      .reduce((acc, p) => acc + (p.actualLitersReceived || p.volumeLiters), 0);
 
+    const isFull = syncStock === true || syncStock === 'FULL_MUTATION';
+    const isLossesOnly = syncStock === 'LOSSES_ONLY';
+
+    if (isFull) {
       setTank((prev) => {
+        const net = totalImportLitersReceived - totalImportLitersSold - totalImportLosses;
         const newStock = Math.min(
           prev.totalCapacityLiters,
-          Math.max(0, prev.currentStockLiters + totalImportLitersReceived - totalImportLitersSold)
+          Math.max(0, prev.currentStockLiters + net)
         );
         const updatedTank = {
           ...prev,
@@ -563,7 +568,61 @@ export default function App() {
         StorageService.setTankConfig(updatedTank);
         return updatedTank;
       });
+    } else if (isLossesOnly || (totalImportLosses > 0 && syncStock !== false && syncStock !== 'NONE')) {
+      // Potong losses secara langsung dari stok tangki
+      setTank((prev) => {
+        const newStock = Math.max(0, prev.currentStockLiters - totalImportLosses);
+        const updatedTank = {
+          ...prev,
+          currentStockLiters: newStock,
+        };
+        StorageService.setTankConfig(updatedTank);
+        return updatedTank;
+      });
     }
+
+    // Catat beban LOSSES_MINYAK jika ada losses di data penjualan yang diimpor
+    const importedLossExpenses: ExpenseRecord[] = [];
+    importedSales.forEach((s) => {
+      if (s.fuelLossLiters && s.fuelLossLiters > 0) {
+        const bp = s.buyPriceSnapshot || primaryProduct.buyPrice || 12100;
+        importedLossExpenses.push({
+          id: `exp-loss-imp-${s.id}`,
+          date: s.transactionDate,
+          time: s.time || '18:00',
+          category: 'LOSSES_MINYAK',
+          title: `Beban Losses Minyak Tangki (${formatNumber(s.fuelLossLiters, 1)} L)`,
+          amount: Math.round(s.fuelLossLiters * bp),
+          quantity: s.fuelLossLiters,
+          unitRate: bp,
+          fuelLossLiters: s.fuelLossLiters,
+          fuelLossBuyPriceSnapshot: bp,
+          personOrVendor: `Tera Tangki (${s.operatorName || 'Operator'})`,
+          paymentSource: 'KAS_HARIAN',
+          notes: `Susut fisik BBM dari import batch (-${formatNumber(s.fuelLossLiters, 1)} L). Otomatis mengurangi stok tangki sistem.`,
+          createdAt: `${s.transactionDate} ${s.time || '18:00'}`,
+        });
+      }
+    });
+
+    if (importedLossExpenses.length > 0) {
+      setExpenses((prev) => [...importedLossExpenses, ...prev]);
+      StorageService.setExpenses([...importedLossExpenses, ...expenses]);
+    }
+
+    // Notifikasi hasil import
+    const lossInfo = totalImportLosses > 0
+      ? ` Stok tangki telah dikurangi sebesar losses (-${formatNumber(totalImportLosses, 1)} L).`
+      : '';
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Import Data Penjualan Berhasil',
+      message: `Berhasil mengimpor ${importedSales.length} transaksi penjualan (${formatNumber(totalImportLitersSold, 1)} L) dan ${importedPurchases?.length || 0} DO Pertamina.${lossInfo}`,
+      confirmLabel: 'Selesai',
+      cancelLabel: 'Tutup',
+      isDestructive: false,
+      onConfirm: () => {},
+    });
   };
 
   const handleDeleteSale = (saleId: string) => {
@@ -818,21 +877,28 @@ export default function App() {
         });
       }
 
-      if (exp.lossesMinyak > 0) {
+      const monthLossLiters = (exp.lossesLiters && exp.lossesLiters > 0)
+        ? exp.lossesLiters
+        : (exp.lossesMinyak > 0 && batchData.buyPrice > 0 ? parseFloat((exp.lossesMinyak / batchData.buyPrice).toFixed(1)) : 0);
+      const monthLossAmount = exp.lossesMinyak > 0
+        ? exp.lossesMinyak
+        : Math.round(monthLossLiters * batchData.buyPrice);
+
+      if (monthLossAmount > 0 || monthLossLiters > 0) {
         allExpenses.unshift({
           id: `exp-loss-hist-${targetMonth}`,
           date: endOfMonthDate,
           time: '18:00',
           category: 'LOSSES_MINYAK',
-          title: `Beban Losses Minyak Tangki (${formatMonthYearId(targetMonth)})`,
-          amount: exp.lossesMinyak,
-          quantity: exp.lossesLiters,
+          title: `Beban Losses / Susut Minyak Tangki (${formatMonthYearId(targetMonth)})`,
+          amount: monthLossAmount,
+          quantity: monthLossLiters,
           unitRate: batchData.buyPrice,
-          fuelLossLiters: exp.lossesLiters,
+          fuelLossLiters: monthLossLiters,
           fuelLossBuyPriceSnapshot: batchData.buyPrice,
           personOrVendor: 'Susut Tangki & Tera',
           paymentSource: 'KAS_HARIAN',
-          notes: `Rekap susut BBM ${formatMonthYearId(targetMonth)}`,
+          notes: `Rekap susut fisik BBM ${formatMonthYearId(targetMonth)} (-${monthLossLiters} L). Otomatis mengurangi stok tangki sistem.`,
           createdAt: `${endOfMonthDate} 18:00`,
         });
       }
@@ -912,9 +978,12 @@ export default function App() {
         allAttendance = syncResult.updatedAttendance;
       }
 
-      // 6. Tank change
-      if (batchData.syncTankStock) {
-        netTankStockChange += (batchData.totalDOLiters - batchData.totalLitersSold);
+      // 6. Tank change (Pasokan DO masuk, Penjualan keluar, Losses/susut fisik keluar)
+      const mode = batchData.tankSyncMode || (batchData.syncTankStock ? 'FULL_MUTATION' : 'NONE');
+      if (mode === 'FULL_MUTATION') {
+        netTankStockChange += (batchData.totalDOLiters - batchData.totalLitersSold - monthLossLiters);
+      } else if (mode === 'LOSSES_ONLY') {
+        netTankStockChange -= monthLossLiters;
       }
 
       // 7. Price History
@@ -977,10 +1046,27 @@ export default function App() {
 
   const handleSaveMonthlyBatch = (batchData: MonthlyBatchPayload) => {
     processMonthlyBatches([batchData]);
+    const lossLit = (batchData.expenses.lossesLiters && batchData.expenses.lossesLiters > 0)
+      ? batchData.expenses.lossesLiters
+      : (batchData.expenses.lossesMinyak > 0 && batchData.buyPrice > 0 ? parseFloat((batchData.expenses.lossesMinyak / batchData.buyPrice).toFixed(1)) : 0);
+    const lossNote = lossLit > 0 ? `, pemotongan susut stok tangki (-${formatNumber(lossLit, 1)} L)` : '';
+
+    const syncMode = batchData.tankSyncMode || (batchData.syncTankStock ? 'FULL_MUTATION' : 'NONE');
+    let tankNote = '';
+    if (syncMode === 'LOSSES_ONLY' && lossLit > 0) {
+      const zeroHint = tank.currentStockLiters === 0
+        ? ' (Catatan: Saldo tangki Anda saat ini 0 L. Lakukan sounding/isi saldo awal tangki agar pengurangan losses terlihat riil).'
+        : '';
+      tankNote = ` Stok tangki dipotong sebesar losses (-${formatNumber(lossLit, 1)} L).${zeroHint}`;
+    } else if (syncMode === 'FULL_MUTATION') {
+      const net = batchData.totalDOLiters - batchData.totalLitersSold - lossLit;
+      tankNote = ` Mutasi stok tangki: ${net >= 0 ? '+' : ''}${formatNumber(net, 1)} L.`;
+    }
+
     setConfirmConfig({
       isOpen: true,
       title: 'Rekap Bulanan Historis Berhasil Disimpan',
-      message: `Data pembukuan periode ${formatMonthYearId(batchData.targetMonth)} (penjualan ${formatNumber(batchData.totalLitersSold)} L, pasokan DO, pengeluaran gaji akhir bulan, dan biaya operasional) berhasil disimpan ke dalam sistem.`,
+      message: `Data pembukuan periode ${formatMonthYearId(batchData.targetMonth)} (penjualan ${formatNumber(batchData.totalLitersSold)} L, pasokan DO, pengeluaran gaji akhir bulan, biaya operasional${lossNote}) berhasil disimpan dan stok tangki telah disinkronkan.${tankNote}`,
       confirmLabel: 'Selesai',
       cancelLabel: 'Tutup',
       isDestructive: false,
@@ -990,10 +1076,18 @@ export default function App() {
 
   const handleSaveMultiMonthBatches = (batches: MonthlyBatchPayload[]) => {
     processMonthlyBatches(batches);
+    const totalLossLit = batches.reduce((acc, b) => {
+      const l = (b.expenses.lossesLiters && b.expenses.lossesLiters > 0)
+        ? b.expenses.lossesLiters
+        : (b.expenses.lossesMinyak > 0 && b.buyPrice > 0 ? parseFloat((b.expenses.lossesMinyak / b.buyPrice).toFixed(1)) : 0);
+      return acc + l;
+    }, 0);
+    const lossNote = totalLossLit > 0 ? ` Total losses tangki ${formatNumber(totalLossLit, 1)} L telah berhasil memotong stok tangki.` : '';
+
     setConfirmConfig({
       isOpen: true,
       title: 'Import Multi-Bulan Berhasil',
-      message: `Berhasil mengimpor rekapitulasi data historis untuk ${batches.length} periode bulan secara batch (termasuk DO Pertamina, penjualan nozzle, beban opEx, dan gaji akhir bulan).`,
+      message: `Berhasil mengimpor rekapitulasi data historis untuk ${batches.length} periode bulan secara batch (termasuk DO Pertamina, penjualan nozzle, beban opEx, dan gaji akhir bulan).${lossNote}`,
       confirmLabel: 'Selesai',
       cancelLabel: 'Tutup',
       isDestructive: false,
@@ -2003,6 +2097,8 @@ export default function App() {
         products={products}
         currentPrice={primaryProduct.currentPrice}
         currentBuyPrice={primaryProduct.buyPrice}
+        tank={tank}
+        onDirectAdjustTank={handleDirectAdjustTank}
         onImportSales={handleImportSales}
         onOpenHistoricalBatchModal={() => {
           setIsImportSalesModalOpen(false);
@@ -2016,6 +2112,8 @@ export default function App() {
         products={products}
         employees={employees}
         existingSales={sales}
+        tank={tank}
+        onDirectAdjustTank={handleDirectAdjustTank}
         onSaveMonthlyBatch={handleSaveMonthlyBatch}
         onSaveMultiMonthBatches={handleSaveMultiMonthBatches}
       />

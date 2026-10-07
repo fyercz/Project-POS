@@ -67,6 +67,7 @@ export interface SaleRecord {
   soundingWaterCm?: number; // Uji pasta air dasar tangki (cm)
   syncToSoundingLog?: boolean; // Apakah dicatat juga ke log resmi sounding tangki
   syncToAttendance?: boolean; // Apakah shift ini otomatis dicatat ke Buku Absensi Karyawan
+  fuelLossLiters?: number; // Volume susut/losses minyak fisik tangki (Liter)
 
   notes?: string;
   createdAt: string;

@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
-import { X, Building2, Check, Fuel, Trash2, Database } from 'lucide-react';
+import {
+  X,
+  Building2,
+  Check,
+  Fuel,
+  Trash2,
+  Database,
+  GitBranch,
+  RefreshCw,
+  ExternalLink,
+  CheckCircle2,
+  AlertCircle,
+  Download,
+} from 'lucide-react';
 import { PertashopProfile, TankConfig } from '../types';
 
 interface PertashopProfileModalProps {
@@ -23,8 +36,49 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<PertashopProfile>(profile);
   const [tankData, setTankData] = useState<TankConfig>(tank);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
+  const [githubInfo, setGithubInfo] = useState<{
+    status: 'IDLE' | 'SUCCESS' | 'ERROR';
+    commitHash?: string;
+    commitMessage?: string;
+    commitDate?: string;
+    commitAuthor?: string;
+    errorMsg?: string;
+  }>({ status: 'IDLE' });
 
   if (!isOpen) return null;
+
+  const handleCheckGitHubUpdate = async () => {
+    setIsCheckingUpdate(true);
+    setGithubInfo({ status: 'IDLE' });
+    try {
+      const res = await fetch('https://api.github.com/repos/fyercz/Project-POS/commits/main');
+      if (!res.ok) {
+        throw new Error(`Gagal menghubungi GitHub API (Status: ${res.status})`);
+      }
+      const data = await res.json();
+      const hash = data.sha ? data.sha.substring(0, 7) : 'Unknown';
+      const msg = data.commit?.message || 'Update terbaru';
+      const date = data.commit?.committer?.date || data.commit?.author?.date || '';
+      const author = data.commit?.author?.name || 'Developer';
+
+      setGithubInfo({
+        status: 'SUCCESS',
+        commitHash: hash,
+        commitMessage: msg,
+        commitDate: date ? new Date(date).toLocaleString('id-ID') : '-',
+        commitAuthor: author,
+      });
+    } catch (err: any) {
+      console.error('Error checking GitHub update:', err);
+      setGithubInfo({
+        status: 'ERROR',
+        errorMsg: err.message || 'Tidak dapat terhubung ke GitHub.',
+      });
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,6 +270,71 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
                   <span>Buka Backup & Restore</span>
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* GitHub Auto-Update & Version Section */}
+          <div className="pt-3 border-t border-slate-200">
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-slate-900 text-cyan-400 rounded-xl shrink-0">
+                    <GitBranch className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 text-xs">Pembaruan Sistem (GitHub Resmi)</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                        v2.5.0
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 block">
+                      Repo: <code className="text-indigo-600 font-mono">github.com/fyercz/Project-POS</code>
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCheckGitHubUpdate}
+                  disabled={isCheckingUpdate}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+                  title="Cek commit dan status pembaruan langsung dari GitHub"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+                  <span>{isCheckingUpdate ? 'Memeriksa...' : 'Cek GitHub'}</span>
+                </button>
+              </div>
+
+              {githubInfo.status === 'SUCCESS' && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-950 space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2 font-bold text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>Terhubung ke GitHub: Commit #{githubInfo.commitHash}</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-900 bg-white/70 p-2 rounded-lg border border-emerald-200 font-mono">
+                    "{githubInfo.commitMessage}"
+                  </p>
+                  <div className="flex items-center justify-between text-[10px] text-emerald-700">
+                    <span>Penulis: <strong>{githubInfo.commitAuthor}</strong></span>
+                    <span>Waktu: <strong>{githubInfo.commitDate}</strong></span>
+                  </div>
+                </div>
+              )}
+
+              {githubInfo.status === 'ERROR' && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 flex items-center gap-2 text-[11px]">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{githubInfo.errorMsg}</span>
+                </div>
+              )}
+
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <span className="font-semibold text-slate-800 block">📌 Cara Memperbarui Aplikasi di Komputer Kasir:</span>
+                <p>1. Buka folder aplikasi di komputer, klik ganda file <strong><code className="text-indigo-600 font-bold">update.bat</code></strong> (atau pilih nomor <strong>[5]</strong> di <strong>Pertashop.bat</strong>).</p>
+                <p>2. Script akan otomatis menyinkronkan kode terbaru dari GitHub dan membersihkan cache build lama.</p>
+                <p>3. Jika tampilan belum berubah setelah update, tekan <strong>Ctrl + F5</strong> di browser untuk refresh cache.</p>
+              </div>
             </div>
           </div>
 

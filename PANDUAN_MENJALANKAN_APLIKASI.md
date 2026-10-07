@@ -13,7 +13,7 @@ Dokumen ini berisi panduan praktis untuk menginstall, memperbarui (update), dan 
 
 ## 🪟 Panduan untuk Pengguna Windows
 
-Kini file `.bat` telah disederhanakan menjadi **2 file utama** yang sangat mudah digunakan di komputer kasir Pertashop:
+Kini file `.bat` telah dioptimalkan agar sangat mudah digunakan di komputer kasir Pertashop:
 
 ### 1. 🌟 `Pertashop.bat` (Pusat Kontrol Utama All-in-One)
 **Klik ganda file `Pertashop.bat`** untuk membuka menu kontrol berlogo resmi:
@@ -28,6 +28,14 @@ Kini file `.bat` telah disederhanakan menjadi **2 file utama** yang sangat mudah
 - **Klik ganda file `run.bat`** saat pergantian shift.
 - Tidak memunculkan menu pertanyaan: langsung menjalankan server dan membuka jendela desktop kasir seketika.
 - *Tips*: Anda bisa klik kanan `run.bat` (atau `Pertashop.exe`) lalu pilih **Send to ➜ Desktop (create shortcut)**.
+
+### 3. 🔄 `update.bat` (1-Klik Auto-Update GitHub Resmi)
+- **Klik ganda file `update.bat`** untuk memperbarui sistem kapan saja ke versi paling aktual dari GitHub.
+- **Mengapa update sebelumnya tidak aktual?**
+  1. *Konflik Git*: Jika Anda mengunduh dari ZIP atau ada perubahan file lokal/CRLF, Git versi lama membatalkan proses merge (`untracked files error`) sehingga kode tidak berubah.
+  2. *Cache Browser & Vite*: Browser dan Vite sering menyimpan file cache lama (`node_modules/.vite`).
+  3. **Solusi di `update.bat` Baru**: Script otomatis menyinkronkan kode secara bersih ke `origin/main` (`git reset --hard`), membersihkan cache Vite/build, dan memiliki fitur *Cadangan Otomatis via PowerShell ZIP* jika Git mengalami kendala koneksi. Seluruh data transaksi penjualan Anda tetap 100% AMAN di LocalStorage!
+  4. Setelah update selesai, jika tampilan belum berubah di browser, tekan **`Ctrl + F5`** (Hard Refresh).
 
 ---
 
