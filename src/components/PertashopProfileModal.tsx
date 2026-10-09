@@ -331,8 +331,8 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
 
               <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
                 <span className="font-semibold text-slate-800 block">📌 Cara Memperbarui Aplikasi di Komputer Kasir:</span>
-                <p>1. Buka folder aplikasi di komputer, klik ganda file <strong><code className="text-indigo-600 font-bold">update.bat</code></strong> (atau pilih nomor <strong>[5]</strong> di <strong>Pertashop.bat</strong>).</p>
-                <p>2. Script akan otomatis menyinkronkan kode terbaru dari GitHub dan membersihkan cache build lama.</p>
+                <p>1. Buka folder aplikasi di komputer, klik ganda file <strong><code className="text-indigo-600 font-bold">update.bat</code></strong> (atau pilih nomor <strong>[5]</strong> di <strong>Pertashop.bat</strong>, atau jalankan <strong>update.ps1</strong>).</p>
+                <p>2. Script runner mandiri akan otomatis menyinkronkan kode terbaru dari GitHub, memverifikasi pustaka, dan membersihkan cache build lama tanpa menutup jendela CMD sebelum selesai.</p>
                 <p>3. Jika tampilan belum berubah setelah update, tekan <strong>Ctrl + F5</strong> di browser untuk refresh cache.</p>
               </div>
             </div>

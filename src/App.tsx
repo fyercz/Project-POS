@@ -42,7 +42,7 @@ import {
   PayrollRecord,
   PertashopBackupData,
 } from './types';
-import { getTodayDateString, getCurrentTimeString, getShiftCategory, getShiftHoursInfo, STANDARD_SHIFTS, formatRupiah, formatNumber, formatShortDate } from './utils/formatters';
+import { getTodayDateString, getCurrentTimeString, getShiftCategory, getShiftHoursInfo, STANDARD_SHIFTS, formatRupiah, formatNumber, formatShortDate, formatMonthYear } from './utils/formatters';
 import { Gauge, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export default function App() {
@@ -132,58 +132,22 @@ export default function App() {
   }, [priceHistory]);
 
   useEffect(() => {
-    // Safety check: if state is empty, ensure we don't accidentally overwrite non-empty storage
-    if (sales.length === 0) {
-      const stored = StorageService.getSales();
-      if (stored && stored.length > 0) {
-        setSales(stored);
-        return;
-      }
-    }
     StorageService.setSales(sales);
   }, [sales]);
 
   useEffect(() => {
-    if (purchases.length === 0) {
-      const stored = StorageService.getPurchases();
-      if (stored && stored.length > 0) {
-        setPurchases(stored);
-        return;
-      }
-    }
     StorageService.setPurchases(purchases);
   }, [purchases]);
 
   useEffect(() => {
-    if (soundings.length === 0) {
-      const stored = StorageService.getSoundings();
-      if (stored && stored.length > 0) {
-        setSoundings(stored);
-        return;
-      }
-    }
     StorageService.setSoundings(soundings);
   }, [soundings]);
 
   useEffect(() => {
-    if (expenses.length === 0) {
-      const stored = StorageService.getExpenses();
-      if (stored && stored.length > 0) {
-        setExpenses(stored);
-        return;
-      }
-    }
     StorageService.setExpenses(expenses);
   }, [expenses]);
 
   useEffect(() => {
-    if (employees.length === 0) {
-      const stored = StorageService.getEmployees();
-      if (stored && stored.length > 0) {
-        setEmployees(stored);
-        return;
-      }
-    }
     StorageService.setEmployees(employees);
   }, [employees]);
 
@@ -1602,14 +1566,17 @@ export default function App() {
   const handleResetAllData = () => {
     setConfirmConfig({
       isOpen: true,
-      title: 'Reset Aplikasi ke Kondisi Baru',
+      title: 'Reset & Format Total Aplikasi ke Kondisi Baru',
       message:
-        'Apakah Anda yakin ingin mengosongkan seluruh data penjualan, pemesanan/DO BBM, pengeluaran operasional, absensi karyawan, dan sounding tangki? Aplikasi akan dikembalikan ke kondisi awal bersih seperti aplikasi baru.',
-      confirmLabel: 'Ya, Reset Semua Data',
+        'PERHATIAN: Tindakan ini akan mengosongkan dan memformat total seluruh data transaksi (penjualan bulanan historis, penjualan harian, pemesanan DO BBM Pertamina, pengeluaran operasional, absensi, slip gaji, dan sounding tangki). Semua riwayat arsip dan penyimpanan lokal akan dibersihkan tuntas ke kondisi awal pabrik.\n\nApakah Anda yakin ingin memformat total aplikasi?',
+      confirmLabel: 'Ya, Format & Reset Total',
       cancelLabel: 'Batal',
       isDestructive: true,
       onConfirm: () => {
+        // 1. Bersihkan seluruh penyimpanan lokal browser & storage safeguards
         StorageService.resetToDefault();
+
+        // 2. Kosongkan seluruh state memori React secara tuntas
         setSales([]);
         setPurchases([]);
         setExpenses([]);
@@ -1630,6 +1597,69 @@ export default function App() {
         };
         setTank(cleanTank);
         StorageService.setTankConfig(cleanTank);
+
+        // 3. Berikan notifikasi sukses bahwa aplikasi telah bersih terformat
+        setTimeout(() => {
+          setConfirmConfig({
+            isOpen: true,
+            title: 'Format Berhasil Dilakukan',
+            message:
+              'Aplikasi telah berhasil diformat bersih ke kondisi baru. Seluruh data penjualan bulanan, harian, DO Pertamina, dan pembukuan lainnya telah terhapus total tanpa sisa. Sistem siap digunakan untuk pembukuan baru.',
+            confirmLabel: 'Selesai',
+            cancelLabel: '',
+            isDestructive: false,
+            onConfirm: () => {},
+          });
+        }, 100);
+      },
+    });
+  };
+
+  const handleDeleteMonthData = (targetMonthStr: string) => {
+    const monthName = formatMonthYear(targetMonthStr);
+
+    setConfirmConfig({
+      isOpen: true,
+      title: `Format / Hapus Seluruh Data Bulan ${monthName}`,
+      message: `Apakah Anda yakin ingin menghapus seluruh data penjualan (harian/bulanan), pemesanan DO, pengeluaran, absensi, dan slip gaji khusus untuk periode ${monthName}? Data bulan lainnya tetap aman.`,
+      confirmLabel: `Ya, Hapus Data ${monthName}`,
+      cancelLabel: 'Batal',
+      isDestructive: true,
+      onConfirm: () => {
+        const remainingSales = sales.filter((s) => !s.transactionDate.startsWith(targetMonthStr));
+        const remainingPurchases = purchases.filter(
+          (p) => !(p.orderDate.startsWith(targetMonthStr) || (p.actualDeliveryDate && p.actualDeliveryDate.startsWith(targetMonthStr)))
+        );
+        const remainingExpenses = expenses.filter((e) => !e.date.startsWith(targetMonthStr));
+        const remainingAttendance = attendance.filter((a) => !a.date.startsWith(targetMonthStr));
+        const remainingPayrolls = payrolls.filter((p) => p.month !== targetMonthStr);
+
+        setSales(remainingSales);
+        StorageService.setSales(remainingSales);
+
+        setPurchases(remainingPurchases);
+        StorageService.setPurchases(remainingPurchases);
+
+        setExpenses(remainingExpenses);
+        StorageService.setExpenses(remainingExpenses);
+
+        setAttendance(remainingAttendance);
+        StorageService.setAttendance(remainingAttendance);
+
+        setPayrolls(remainingPayrolls);
+        StorageService.setPayrolls(remainingPayrolls);
+
+        setTimeout(() => {
+          setConfirmConfig({
+            isOpen: true,
+            title: 'Data Bulan Berhasil Dihapus',
+            message: `Seluruh transaksi dan catatan untuk bulan ${monthName} telah berhasil diformat dan dibersihkan dari sistem.`,
+            confirmLabel: 'Selesai',
+            cancelLabel: '',
+            isDestructive: false,
+            onConfirm: () => {},
+          });
+        }, 100);
       },
     });
   };
@@ -2081,6 +2111,7 @@ export default function App() {
               profile={profile}
               onOpenPrintModal={handleOpenPrintSummaryModal}
               onOpenHistoricalBatchModal={() => setIsHistoricalBatchModalOpen(true)}
+              onDeleteMonthData={handleDeleteMonthData}
             />
           )}
 

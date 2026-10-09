@@ -108,15 +108,19 @@ function mergeSalesArrays(...arrays: (SaleRecord[] | undefined)[]): SaleRecord[]
 
 // Deep Rescue: Search all keys in browser localStorage for lost sales records
 function rescueSalesFromStorage(): SaleRecord[] {
-  // 1. Check primary key first
-  const primary = getStorageItem<SaleRecord[]>(KEYS.SALES, []);
-  if (Array.isArray(primary) && primary.length > 0) {
-    return primary;
+  // 1. Check primary key first: if key exists in storage (even as empty array []), honor it!
+  const rawPrimary = localStorage.getItem(KEYS.SALES);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {}
   }
 
-  console.info('[StorageService] Primary sales key is empty. Initiating deep rescue scan across browser storage...');
-
-  // 2. Candidate legacy and backup keys
+  // 2. Candidate legacy and backup keys (only check if primary key has never been initialized)
+  console.info('[StorageService] Primary sales key not initialized. Scanning for legacy/backup keys...');
   const candidateKeys = [
     SAFEGUARD_KEYS.SALES_ARCHIVE,
     SAFEGUARD_KEYS.SALES_UNVERSIONED,
@@ -154,32 +158,6 @@ function rescueSalesFromStorage(): SaleRecord[] {
     }
   }
 
-  // 3. Deep Scan every single key in localStorage if still empty
-  if (foundLists.length === 0) {
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const keyName = localStorage.key(i);
-        if (!keyName || keyName === KEYS.SALES) continue;
-        try {
-          const raw = localStorage.getItem(keyName);
-          if (!raw || raw.length < 20) continue;
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0 && isSaleRecord(parsed[0])) {
-            console.info(`[StorageService] Deep scan found ${parsed.length} sales in key: ${keyName}`);
-            foundLists.push(parsed);
-          } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.sales) && parsed.sales.length > 0) {
-            console.info(`[StorageService] Deep scan found ${parsed.sales.length} sales in backup object: ${keyName}`);
-            foundLists.push(parsed.sales);
-          }
-        } catch {
-          // not JSON, continue
-        }
-      }
-    } catch {
-      // localStorage iteration blocked
-    }
-  }
-
   if (foundLists.length > 0) {
     const merged = mergeSalesArrays(...foundLists);
     if (merged.length > 0) {
@@ -197,8 +175,13 @@ function rescueSalesFromStorage(): SaleRecord[] {
 
 // Deep Rescue for Purchases
 function rescuePurchasesFromStorage(): PurchaseOrder[] {
-  const primary = getStorageItem<PurchaseOrder[]>(KEYS.PURCHASES, []);
-  if (Array.isArray(primary) && primary.length > 0) return primary;
+  const rawPrimary = localStorage.getItem(KEYS.PURCHASES);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
 
   const candidateKeys = [
     'pertashop_purchases',
@@ -232,8 +215,13 @@ function rescuePurchasesFromStorage(): PurchaseOrder[] {
 
 // Deep Rescue for Soundings
 function rescueSoundingsFromStorage(): SoundingRecord[] {
-  const primary = getStorageItem<SoundingRecord[]>(KEYS.SOUNDINGS, []);
-  if (Array.isArray(primary) && primary.length > 0) return primary;
+  const rawPrimary = localStorage.getItem(KEYS.SOUNDINGS);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
 
   const candidateKeys = [
     'pertashop_soundings',
@@ -265,8 +253,13 @@ function rescueSoundingsFromStorage(): SoundingRecord[] {
 
 // Deep Rescue for Expenses
 function rescueExpensesFromStorage(): ExpenseRecord[] {
-  const primary = getStorageItem<ExpenseRecord[]>(KEYS.EXPENSES, []);
-  if (Array.isArray(primary) && primary.length > 0) return primary;
+  const rawPrimary = localStorage.getItem(KEYS.EXPENSES);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
 
   const candidateKeys = [
     'pertashop_expenses',
@@ -299,8 +292,14 @@ function rescueExpensesFromStorage(): ExpenseRecord[] {
 
 // Deep Rescue for Employees
 function rescueEmployeesFromStorage(): Employee[] {
-  const primary = getStorageItem<Employee[]>(KEYS.EMPLOYEES, []);
-  if (Array.isArray(primary) && primary.length > 0) return primary;
+  const rawPrimary = localStorage.getItem(KEYS.EMPLOYEES);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length === 0) return INITIAL_EMPLOYEES;
+    } catch {}
+  }
 
   const candidateKeys = [
     'pertashop_employees',
@@ -332,8 +331,13 @@ function rescueEmployeesFromStorage(): Employee[] {
 
 // Deep Rescue for Attendance & Payroll
 function rescueAttendanceFromStorage(): AttendanceRecord[] {
-  const primary = getStorageItem<AttendanceRecord[]>(KEYS.ATTENDANCE, []);
-  if (Array.isArray(primary) && primary.length > 0) return primary;
+  const rawPrimary = localStorage.getItem(KEYS.ATTENDANCE);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
 
   const candidateKeys = ['pertashop_attendance', 'pertashop_attendance_v5', 'pertashop_attendance_v4_krajan', 'pertashop_attendance_v4'];
   for (const key of candidateKeys) {
@@ -351,8 +355,13 @@ function rescueAttendanceFromStorage(): AttendanceRecord[] {
 }
 
 function rescuePayrollsFromStorage(): PayrollRecord[] {
-  const primary = getStorageItem<PayrollRecord[]>(KEYS.PAYROLLS, []);
-  if (Array.isArray(primary) && primary.length > 0) return primary;
+  const rawPrimary = localStorage.getItem(KEYS.PAYROLLS);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
 
   const candidateKeys = ['pertashop_payrolls', 'pertashop_payrolls_v5', 'pertashop_payrolls_v4_krajan', 'pertashop_payrolls_v4'];
   for (const key of candidateKeys) {
@@ -371,8 +380,13 @@ function rescuePayrollsFromStorage(): PayrollRecord[] {
 
 // Deep Rescue for Tank Config
 function rescueTankConfigFromStorage(): TankConfig {
-  const primary = getStorageItem<TankConfig>(KEYS.TANK, INITIAL_TANK_CONFIG);
-  if (primary && primary.totalCapacityLiters > 0 && primary.tankId) return primary;
+  const rawPrimary = localStorage.getItem(KEYS.TANK);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (parsed && typeof parsed === 'object' && parsed.tankId) return parsed;
+    } catch {}
+  }
 
   const candidateKeys = ['pertashop_tank', 'pertashop_tank_v5', 'pertashop_tank_v4_krajan', 'pertashop_tank_v4', 'pertashop_tank_v1'];
   for (const key of candidateKeys) {
@@ -391,8 +405,13 @@ function rescueTankConfigFromStorage(): TankConfig {
 
 // Deep Rescue for Profile
 function rescueProfileFromStorage(): PertashopProfile {
-  const primary = getStorageItem<PertashopProfile>(KEYS.PROFILE, INITIAL_PERTASHOP_PROFILE);
-  if (primary && primary.pertashopCode) return primary;
+  const rawPrimary = localStorage.getItem(KEYS.PROFILE);
+  if (rawPrimary !== null) {
+    try {
+      const parsed = JSON.parse(rawPrimary);
+      if (parsed && typeof parsed === 'object' && parsed.pertashopCode) return parsed;
+    } catch {}
+  }
 
   const candidateKeys = ['pertashop_profile', 'pertashop_profile_v5', 'pertashop_profile_v4_krajan', 'pertashop_profile_v4', 'pertashop_profile_v1'];
   for (const key of candidateKeys) {
@@ -461,55 +480,51 @@ export const StorageService = {
           })
         );
       } catch {}
+    } else {
+      // When sales are intentionally empty (reset or all deleted), wipe the safeguard mirrors
+      setStorageItem(SAFEGUARD_KEYS.SALES_ARCHIVE, []);
+      setStorageItem(SAFEGUARD_KEYS.SALES_UNVERSIONED, []);
+      setStorageItem(SAFEGUARD_KEYS.SALES_V5, []);
+      try {
+        localStorage.removeItem(SAFEGUARD_KEYS.EMERGENCY_BACKUP);
+      } catch {}
     }
   },
 
   getPurchases: (): PurchaseOrder[] => rescuePurchasesFromStorage(),
   setPurchases: (purchases: PurchaseOrder[]) => {
     setStorageItem(KEYS.PURCHASES, purchases);
-    if (Array.isArray(purchases) && purchases.length > 0) {
-      setStorageItem('pertashop_purchases', purchases);
-    }
+    setStorageItem('pertashop_purchases', purchases);
   },
 
   getSoundings: (): SoundingRecord[] => rescueSoundingsFromStorage(),
   setSoundings: (soundings: SoundingRecord[]) => {
     setStorageItem(KEYS.SOUNDINGS, soundings);
-    if (Array.isArray(soundings) && soundings.length > 0) {
-      setStorageItem('pertashop_soundings', soundings);
-    }
+    setStorageItem('pertashop_soundings', soundings);
   },
 
   getExpenses: (): ExpenseRecord[] => rescueExpensesFromStorage(),
   setExpenses: (expenses: ExpenseRecord[]) => {
     setStorageItem(KEYS.EXPENSES, expenses);
-    if (Array.isArray(expenses) && expenses.length > 0) {
-      setStorageItem('pertashop_expenses', expenses);
-    }
+    setStorageItem('pertashop_expenses', expenses);
   },
 
   getEmployees: (): Employee[] => rescueEmployeesFromStorage(),
   setEmployees: (employees: Employee[]) => {
     setStorageItem(KEYS.EMPLOYEES, employees);
-    if (Array.isArray(employees) && employees.length > 0) {
-      setStorageItem('pertashop_employees', employees);
-    }
+    setStorageItem('pertashop_employees', employees);
   },
 
   getAttendance: (): AttendanceRecord[] => rescueAttendanceFromStorage(),
   setAttendance: (records: AttendanceRecord[]) => {
     setStorageItem(KEYS.ATTENDANCE, records);
-    if (Array.isArray(records) && records.length > 0) {
-      setStorageItem('pertashop_attendance', records);
-    }
+    setStorageItem('pertashop_attendance', records);
   },
 
   getPayrolls: (): PayrollRecord[] => rescuePayrollsFromStorage(),
   setPayrolls: (payrolls: PayrollRecord[]) => {
     setStorageItem(KEYS.PAYROLLS, payrolls);
-    if (Array.isArray(payrolls) && payrolls.length > 0) {
-      setStorageItem('pertashop_payrolls', payrolls);
-    }
+    setStorageItem('pertashop_payrolls', payrolls);
   },
 
   getLastSalesDate: (): string | null => getStorageItem(KEYS.LAST_SALES_DATE, null),
@@ -609,11 +624,53 @@ export const StorageService = {
   },
 
   resetToDefault: () => {
+    // 1. Wipe all pertashop keys from browser localStorage
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.toLowerCase().startsWith('pertashop') || k.toLowerCase().includes('pertashop'))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => {
+        try {
+          localStorage.removeItem(k);
+        } catch {}
+      });
+    } catch {}
+
+    // 2. Explicitly wipe all defined keys and safeguards
     Object.values(KEYS).forEach((k) => {
       try {
         localStorage.removeItem(k);
       } catch (e) {}
     });
+    Object.values(SAFEGUARD_KEYS).forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+      } catch (e) {}
+    });
+
+    // 3. Re-initialize cleanly with empty / initial state
+    setStorageItem(KEYS.PROFILE, INITIAL_PERTASHOP_PROFILE);
+    setStorageItem(KEYS.PRODUCTS, INITIAL_PRODUCTS);
+    setStorageItem(KEYS.TANK, INITIAL_TANK_CONFIG);
+    setStorageItem(KEYS.PRICE_HISTORY, INITIAL_PRICE_HISTORY);
+    setStorageItem(KEYS.SALES, []);
+    setStorageItem(KEYS.PURCHASES, []);
+    setStorageItem(KEYS.SOUNDINGS, []);
+    setStorageItem(KEYS.EXPENSES, []);
+    setStorageItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
+    setStorageItem(KEYS.ATTENDANCE, []);
+    setStorageItem(KEYS.PAYROLLS, []);
+    setStorageItem(SAFEGUARD_KEYS.SALES_ARCHIVE, []);
+    setStorageItem(SAFEGUARD_KEYS.SALES_UNVERSIONED, []);
+    setStorageItem(SAFEGUARD_KEYS.SALES_V5, []);
+    try {
+      localStorage.removeItem(SAFEGUARD_KEYS.EMERGENCY_BACKUP);
+      localStorage.removeItem(SAFEGUARD_KEYS.LATEST_BACKUP);
+    } catch {}
   },
 
   createBackupData: (customProfile?: PertashopProfile): PertashopBackupData => {

@@ -1,5 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 >nul 2>nul
+cd /d "%~dp0"
 title Sistem Manajemen dan Laporan Pertashop
 color 0B
 
@@ -18,10 +20,11 @@ echo   [3] Pasang Shortcut di Desktop Komputer (Dengan Logo Pertashop)
 echo   [4] Buat Installer Setup .EXE (Electron Package)
 echo   [5] Periksa Pembaruan Sistem dari GitHub (Auto-Update)
 echo   [6] Install atau Perbaiki Dependensi Aplikasi
-echo   [7] Keluar
+echo   [7] Reset / Format Total Data Aplikasi ke Kondisi Bersih Baru
+echo   [8] Keluar
 echo.
 echo ===============================================================================
-set /p opt="Pilih nomor menu (1-7) [Default: 1]: "
+set /p opt="Pilih nomor menu (1-8) [Default: 1]: "
 
 if "%opt%"=="" set opt=1
 if "%opt%"=="1" goto RUN_APP
@@ -30,7 +33,8 @@ if "%opt%"=="3" goto CREATE_SHORTCUT
 if "%opt%"=="4" goto BUILD_ELECTRON
 if "%opt%"=="5" goto UPDATE_APP
 if "%opt%"=="6" goto REPAIR_DEPS
-if "%opt%"=="7" exit /b 0
+if "%opt%"=="7" goto RESET_APP_DATA
+if "%opt%"=="8" exit /b 0
 
 echo Pilihan tidak valid.
 timeout /t 1 >nul
@@ -357,6 +361,68 @@ call npm install
 echo.
 echo [SUKSES] Seluruh dependensi aplikasi siap digunakan!
 pause
+goto MAIN_MENU
+
+:: =============================================================================
+:: [7] RESET / FORMAT TOTAL DATA APLIKASI
+:: =============================================================================
+:RESET_APP_DATA
+cls
+color 0C
+echo =====================================================================
+echo          FORMAT TOTAL / RESET DATA APLIKASI KE KONDISI AWAL
+echo =====================================================================
+echo.
+echo PERINGATAN:
+echo Tindakan ini akan mengembalikan aplikasi ke kondisi bersih seperti baru:
+echo 1. Membersihkan cache build internal Vite (dist\ dan node_modules\.vite\).
+echo 2. Membersihkan seluruh sisa file temporary .tmp dan cache compiler.
+echo 3. Mengatur ulang aplikasi agar siap dibuka dengan data awal baru.
+echo.
+echo * Catatan: Anda juga dapat menggunakan tombol "Reset Aplikasi ke Kondisi Baru"
+echo   di dalam menu Pengaturan Profil pada aplikasi kasir untuk memformat
+echo   seluruh database secara aman dan langsung.
+echo =====================================================================
+echo.
+set /p confirm="Ketik Y untuk konfirmasi format bersih [Y/T, Default: T]: "
+if /i not "!confirm!"=="Y" (
+    color 0B
+    goto MAIN_MENU
+)
+
+echo.
+echo [1/3] Membersihkan folder build dist\...
+if exist "dist\" (
+    rmdir /s /q "dist\" >nul 2>nul
+    echo       [OK] Folder dist\ berhasil dibersihkan.
+)
+
+echo [2/3] Membersihkan cache dependency Vite...
+if exist "node_modules\.vite\" (
+    rmdir /s /q "node_modules\.vite\" >nul 2>nul
+    echo       [OK] Cache node_modules\.vite\ berhasil dibersihkan.
+)
+
+del /f /q *.tmp >nul 2>nul
+del /f /q npm-debug.log* >nul 2>nul
+
+echo [3/3] Mengompilasi ulang web build bersih...
+call npm run build
+
+echo.
+color 0A
+echo =====================================================================
+echo [SUKSES] Cache dan build aplikasi telah berhasil diformat bersih!
+echo.
+echo Langkah selanjutnya:
+echo 1. Jalankan aplikasi melalui menu [1].
+echo 2. Di dalam aplikasi, klik "Profil Pertashop" di pojok kanan atas,
+echo    lalu klik tombol "Reset Aplikasi ke Kondisi Baru" untuk memastikan
+echo    seluruh database transaksi lama terhapus total tanpa sisa.
+echo =====================================================================
+echo.
+pause
+color 0B
 goto MAIN_MENU
 
 :: =============================================================================

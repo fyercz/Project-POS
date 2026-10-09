@@ -1,5 +1,6 @@
 @echo off
-chcp 65001 >nul
+cd /d "%~dp0"
+chcp 65001 >nul 2>nul
 title Sistem Manajemen Pertashop
 color 0B
 
