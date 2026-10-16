@@ -373,7 +373,13 @@ export default function App() {
     setPayrolls(nextPayrolls);
   };
 
-  const handleSaveSale = (saleData: Omit<SaleRecord, 'id' | 'createdAt'>) => {
+  // Mengembalikan null bila berhasil disimpan, atau pesan error (string) bila DITOLAK karena
+  // bentrok shift/operator - supaya modal bisa menampilkan pesan yang jelas ke kasir dan TIDAK
+  // menutup diri begitu saja. Sebelumnya penolakan ini hanya console.warn (tidak terlihat sama
+  // sekali oleh kasir), sehingga tombol Simpan tampak "tidak melakukan apa-apa" tanpa penjelasan -
+  // ini bisa terjadi saat dua perangkat (mis. 2 komputer kasir atau HP/tablet manager di jaringan
+  // yang sama) menyimpan data hampir bersamaan.
+  const handleSaveSale = (saleData: Omit<SaleRecord, 'id' | 'createdAt'>): string | null => {
     // Safety check: Prevent duplicate shift or conflict on the same date
     const hasConflict = sales.some((s) => {
       if (editingSale && s.id === editingSale.id) return false;
@@ -381,8 +387,7 @@ export default function App() {
     });
 
     if (hasConflict) {
-      console.warn(`[Rules] Shift '${saleData.shift}' sudah terisi pada ${saleData.transactionDate}. Simpan dibatalkan.`);
-      return;
+      return `Shift '${saleData.shift}' sudah terisi pada ${saleData.transactionDate} (kemungkinan baru saja disimpan dari perangkat/tab lain). Silakan muat ulang halaman dan periksa data terbaru sebelum menyimpan lagi.`;
     }
 
     // Safety check: Prevent duplicate operator on the same date (aturan operasional pemilik)
@@ -394,8 +399,7 @@ export default function App() {
     });
 
     if (hasOperatorConflict) {
-      console.warn(`[Rules] Operator '${saleData.operatorName}' sudah bertugas pada ${saleData.transactionDate}. Simpan dibatalkan.`);
-      return;
+      return `Operator '${saleData.operatorName}' sudah bertugas pada ${saleData.transactionDate} (kemungkinan baru saja disimpan dari perangkat/tab lain). Silakan muat ulang halaman dan periksa data terbaru sebelum menyimpan lagi.`;
     }
 
     const soundingApplies =
@@ -613,6 +617,7 @@ export default function App() {
         StorageService.setPriceHistory(updatedHistory);
       }
     }
+    return null;
   };
 
   const handleImportSales = (

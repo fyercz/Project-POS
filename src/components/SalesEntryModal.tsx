@@ -51,7 +51,9 @@ interface SalesEntryModalProps {
   tankCapacity?: number;
   lastMeterReading?: number;
   editingSale?: SaleRecord | null;
-  onSaveSale: (sale: Omit<SaleRecord, 'id' | 'createdAt'>) => void;
+  // Mengembalikan null bila tersimpan, atau pesan error (string) bila ditolak (mis. bentrok dengan
+  // data dari perangkat lain yang baru masuk) - modal akan menampilkan pesan ini & TIDAK menutup diri.
+  onSaveSale: (sale: Omit<SaleRecord, 'id' | 'createdAt'>) => string | null;
 }
 
 export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
@@ -455,7 +457,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
     // (atau transaksi yang diedit memang sudah punya sounding). Nilai isian otomatis bukan pengukuran.
     const soundingMeasured = hasSounding && (isSoundingTouched || !!editingSale?.hasSounding);
 
-    onSaveSale({
+    const rejectionMessage = onSaveSale({
       transactionDate,
       time,
       shift,
@@ -486,6 +488,13 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       syncToAttendance,
       notes: notes.trim(),
     });
+
+    // Bila ditolak (mis. bentrok dengan data yang baru masuk dari perangkat lain), tampilkan
+    // pesannya dan JANGAN tutup modal - supaya kasir tahu kenapa dan bisa memperbaiki inputnya.
+    if (rejectionMessage) {
+      setErrorMessage(rejectionMessage);
+      return;
+    }
 
     onClose();
   };

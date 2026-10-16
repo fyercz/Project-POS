@@ -338,6 +338,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
     ).getDate();
 
     const newPayrolls: PayrollRecord[] = [];
+    let skippedPaidCount = 0;
 
     employees.filter((e) => e.isActive).forEach((emp, index) => {
       const empAtt = monthAttendance.filter((a) => a.employeeId === emp.id);
@@ -348,6 +349,14 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
       const totalAlpa = empAtt.filter((a) => a.status === 'ALPA').length;
 
       const existingSlip = payrolls.find((p) => p.month === selectedMonth && p.employeeId === emp.id);
+
+      // KUNCI: slip yang sudah DIBAYAR tidak lagi dihitung ulang di sini juga (lihat catatan yang
+      // sama di recalculateMonthlyPayrolls, utils/attendanceSync.ts). Tanpa ini, tombol di layar ini
+      // bisa diam-diam menimpa nominal gaji yang sudah lunas dibayarkan ke karyawan.
+      if (existingSlip && existingSlip.paymentStatus === 'DIBAYAR') {
+        skippedPaidCount++;
+        return;
+      }
 
       // Pertahankan nominal manual jika jumlah hari hadir/shift sama
       const basicSalary =
@@ -411,7 +420,11 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
     });
 
     setToastMessage({
-      text: `Berhasil mengkalkulasi ulang slip gaji untuk ${newPayrolls.length} karyawan pada bulan ${formatMonthYear(selectedMonth)}!`,
+      text: `Berhasil mengkalkulasi ulang slip gaji untuk ${newPayrolls.length} karyawan pada bulan ${formatMonthYear(selectedMonth)}!${
+        skippedPaidCount > 0
+          ? ` (${skippedPaidCount} slip yang sudah DIBAYAR dilewati/tidak diubah - batalkan status bayar dulu bila ingin mengoreksinya.)`
+          : ''
+      }`,
       type: 'success',
     });
   };
