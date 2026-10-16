@@ -29,8 +29,8 @@ Kini file `.bat` telah dioptimalkan agar sangat mudah digunakan di komputer kasi
 - Tidak memunculkan menu pertanyaan: langsung menjalankan server dan membuka jendela desktop kasir seketika.
 - *Tips*: Anda bisa klik kanan `run.bat` (atau `Pertashop.exe`) lalu pilih **Send to ➜ Desktop (create shortcut)**.
 
-### 3. 🔄 `update.bat` / `update.ps1` (1-Klik Auto-Update GitHub Resmi)
-- **Klik ganda file `update.bat`** (atau `update.ps1`) untuk memperbarui sistem kapan saja ke versi paling aktual dari GitHub.
+### 3. 🔄 `update.bat` (1-Klik Auto-Update GitHub Resmi)
+- **Klik ganda file `update.bat`** untuk memperbarui sistem kapan saja ke versi paling aktual dari GitHub.
 - **Mengapa jendela prompt sebelumnya menutup mendadak?**
   1. *Perilaku Windows CMD*: Di Windows, saat file `.bat` menimpa dirinya sendiri dari git/zip, CMD kehilangan posisi file pointer dan langsung menutup (exit) sebelum proses selesai.
   2. *Solusi Runner Terisolasi*: `update.bat` versi baru kini otomatis menduplikasi proses eksekusi ke runner mandiri di `%TEMP%`. File script di folder aplikasi dapat diperbarui dengan aman tanpa mengganggu eksekusi CMD.
