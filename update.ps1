@@ -51,7 +51,7 @@ if ($gitCmd) {
             Write-Host "[3/5] Menerapkan kode program terbaru ke direktori aplikasi..." -ForegroundColor Yellow
             & git branch -M main *>$null
             & git reset --hard origin/main
-            & git clean -fd -e .env *>$null
+            # git clean dihapus: dulu menghapus semua file tak terlacak (mis. file backup JSON) di folder aplikasi.
             $updatedSuccess = $true
         } else {
             Write-Host "[PERINGATAN] Git fetch mengalami kendala, beralih ke download ZIP..." -ForegroundColor Yellow

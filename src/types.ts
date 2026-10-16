@@ -69,6 +69,11 @@ export interface SaleRecord {
   syncToAttendance?: boolean; // Apakah shift ini otomatis dicatat ke Buku Absensi Karyawan
   fuelLossLiters?: number; // Volume susut/losses minyak fisik tangki (Liter)
 
+  // Tautan ke record turunan (agar edit/hapus penjualan ikut membersihkan data turunannya)
+  soundingRecordId?: string; // ID SoundingRecord yang dibuat otomatis dari shift ini
+  attendanceRecordId?: string; // ID AttendanceRecord yang dibuat/diperbarui dari shift ini
+  attendanceCreatedBySale?: boolean; // true jika absensi tsb dibuat baru oleh penjualan ini
+
   notes?: string;
   createdAt: string;
 }

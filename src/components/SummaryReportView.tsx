@@ -69,8 +69,8 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
   onDeleteMonthData,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(7); // 0 = Jan, 7 = Aug (current)
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(() => new Date().getMonth()); // 0 = Jan
   const [hoveredDailyItem, setHoveredDailyItem] = useState<{
     tanggal: string;
     liter: number;

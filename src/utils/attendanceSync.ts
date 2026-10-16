@@ -1,6 +1,31 @@
 import { AttendanceRecord, Employee, PayrollRecord, SaleRecord } from '../types';
 import { getShiftHoursInfo, STANDARD_SHIFTS } from './formatters';
 
+
+/**
+ * Cocokkan nama operator ke data karyawan secara aman.
+ * 1) Nama persis sama (tanpa beda huruf besar/kecil & spasi ganda).
+ * 2) Kata-per-kata: semua kata nama karyawan ada sebagai kata utuh di nama operator
+ *    (mis. "Angga (Lembur)" -> "Angga"), TIDAK cocok sebagian kata ("Anggara" != "Angga").
+ * Jika hasil langkah 2 lebih dari satu karyawan (ambigu), tidak ada yang dipilih.
+ */
+export function findEmployeeByOperatorName(operatorName: string, employees: Employee[]): Employee | undefined {
+  const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const op = norm(operatorName || '');
+  if (!op) return undefined;
+
+  const exact = employees.filter((e) => norm(e.name) === op);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return exact.find((e) => e.isActive) || exact[0];
+
+  const opWords = new Set(op.split(' '));
+  const tokenMatches = employees.filter((e) => {
+    const words = norm(e.name).split(' ').filter(Boolean);
+    return words.length > 0 && words.every((w) => opWords.has(w));
+  });
+  return tokenMatches.length === 1 ? tokenMatches[0] : undefined;
+}
+
 /**
  * Synchronize sales shift entries into employee attendance records.
  * Keeps manual edits intact while ensuring every recorded sale shift has a corresponding
@@ -39,12 +64,7 @@ export function syncSalesToAttendance(
     if (!opName) return;
 
     // Match employee
-    const matchedEmp = employees.find(
-      (e) =>
-        e.name.toLowerCase() === opName.toLowerCase() ||
-        opName.toLowerCase().includes(e.name.toLowerCase()) ||
-        e.name.toLowerCase().includes(opName.toLowerCase())
-    );
+    const matchedEmp = findEmployeeByOperatorName(opName, employees);
 
     if (!matchedEmp) return;
 

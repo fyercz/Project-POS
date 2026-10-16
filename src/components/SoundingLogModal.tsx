@@ -13,7 +13,7 @@ interface SoundingLogModalProps {
   buyPrice?: number;
   onSaveSounding: (record: Omit<SoundingRecord, 'id'>, newStockLiters: number, editingId?: string) => void;
   onDeleteSounding?: (id: string) => void;
-  onDeleteAugustSoundings?: () => void;
+  onDeleteMonthSoundings?: (month: string) => void; // format YYYY-MM
 }
 
 export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
@@ -25,12 +25,22 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
   buyPrice = 12100,
   onSaveSounding,
   onDeleteSounding,
-  onDeleteAugustSoundings,
+  onDeleteMonthSoundings,
 }) => {
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
   const [currentEditId, setCurrentEditId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SoundingRecord | null>(null);
-  const [showAugustConfirm, setShowAugustConfirm] = useState<boolean>(false);
+  const soundingMonths: string[] = Array.from(
+    new Set<string>(soundings.map((r) => (r.date || '').substring(0, 7)).filter((m) => /^\d{4}-\d{2}$/.test(m)))
+  )
+    .sort()
+    .reverse();
+  const [deleteMonth, setDeleteMonth] = useState<string>('');
+  const activeDeleteMonth = soundingMonths.includes(deleteMonth) ? deleteMonth : soundingMonths[0] || '';
+  const monthLabel = (m: string) => {
+    const [y, mo] = m.split('-').map(Number);
+    return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(new Date(y, mo - 1, 1));
+  };
   const [date, setDate] = useState<string>(getTodayDateString());
   const [time, setTime] = useState<string>(getCurrentTimeString());
   const [operatorName, setOperatorName] = useState<string>('Daslam');
@@ -420,18 +430,29 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
           </form>
         ) : (
           <div className="p-6 max-h-[75vh] overflow-y-auto space-y-3">
-            {onDeleteAugustSoundings && soundings.some((s) => s.date.includes('-08-')) && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-3 text-xs mb-2">
-                <span className="text-rose-800 font-medium">
-                  Terdapat {soundings.filter((s) => s.date.includes('-08-')).length} catatan sounding pada bulan Agustus.
+            {onDeleteMonthSoundings && soundingMonths.length > 0 && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs mb-2">
+                <span className="text-rose-800 font-medium flex items-center gap-2">
+                  <span>Hapus sounding bulan:</span>
+                  <select
+                    value={activeDeleteMonth}
+                    onChange={(e) => setDeleteMonth(e.target.value)}
+                    className="px-2 py-1 border border-rose-200 rounded-lg bg-white text-rose-800 font-semibold"
+                  >
+                    {soundingMonths.map((m) => (
+                      <option key={m} value={m}>
+                        {monthLabel(m)} ({soundings.filter((r) => r.date.startsWith(`${m}-`)).length})
+                      </option>
+                    ))}
+                  </select>
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowAugustConfirm(true)}
+                  onClick={() => activeDeleteMonth && onDeleteMonthSoundings(activeDeleteMonth)}
                   className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Hapus Semua Sounding Agustus</span>
+                  <span>Hapus Semua Sounding Bulan Ini</span>
                 </button>
               </div>
             )}
@@ -518,22 +539,6 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
         onClose={() => setDeleteTarget(null)}
       />
 
-      {/* Modal Konfirmasi Hapus Semua Sounding Bulan Agustus */}
-      <ConfirmModal
-        isOpen={showAugustConfirm}
-        title="Hapus Semua Sounding Bulan Agustus"
-        message="Apakah Anda yakin ingin menghapus seluruh catatan hasil sounding pada bulan Agustus? Tindakan ini akan menghapus permanen data sounding fisik tangki bulan Agustus."
-        confirmLabel="Hapus Semua Sounding Agustus"
-        cancelLabel="Batal"
-        isDestructive={true}
-        onConfirm={() => {
-          setShowAugustConfirm(false);
-          if (onDeleteAugustSoundings) {
-            onDeleteAugustSoundings();
-          }
-        }}
-        onClose={() => setShowAugustConfirm(false)}
-      />
     </div>
   );
 };

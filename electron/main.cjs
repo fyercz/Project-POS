@@ -12,10 +12,12 @@ function createWindow() {
     title: 'Sistem Manajemen & Laporan Pertashop',
     backgroundColor: '#0f172a',
     autoHideMenuBar: true, // Menyembunyikan menu bar bawaan browser agar tampilan seperti software POS modern
+    show: false, // Tampil setelah 'ready-to-show' agar tidak berkedip putih
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false // Memperbolehkan akses file lokal & penyimpanan offline
+      sandbox: true,
+      // webSecurity dibiarkan aktif (default). loadFile() + localStorage tetap berjalan tanpa mematikannya.
     }
   });
 
@@ -28,9 +30,18 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http:') || url.startsWith('https:')) {
       shell.openExternal(url);
-      return { action: 'deny' };
     }
-    return { action: 'allow' };
+    // Jendela baru tidak pernah dibuka di dalam aplikasi (mencegah protokol berbahaya / popup liar)
+    return { action: 'deny' };
+  });
+
+  // Cegah halaman utama dinavigasi ke situs luar
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const allowed = url.startsWith('file://') || url.startsWith('http://localhost:3000') || url.startsWith('http://127.0.0.1:3000');
+    if (!allowed) {
+      event.preventDefault();
+      if (url.startsWith('http:') || url.startsWith('https:')) shell.openExternal(url);
+    }
   });
 
   // Jalankan file build HTML lokal

@@ -36,7 +36,7 @@ if command -v git &> /dev/null; then
     if git fetch origin main --prune; then
         git checkout -B main origin/main 2>/dev/null || true
         git reset --hard origin/main
-        git clean -fd -e .env 2>/dev/null || true
+        # git clean dihapus: dulu menghapus semua file tak terlacak (mis. file backup JSON) di folder aplikasi.
         UPDATED_OK=1
         echo -e "${GREEN}[OK] Kode program berhasil diperbarui ke commit GitHub terbaru:${NC}"
         git log -1 --pretty=format:"  Commit : %h (%cd)%n  Pesan  : %s%n  Author : %an" --date=format:"%d-%m-%Y %H:%M" 2>/dev/null || true

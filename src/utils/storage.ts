@@ -62,11 +62,82 @@ function getStorageItem<T>(key: string, defaultValue: T): T {
   }
 }
 
-function setStorageItem<T>(key: string, value: T): void {
+// Perkiraan batas aman localStorage (dalam karakter). Chromium/Firefox membatasi ~5 juta karakter per origin.
+export const STORAGE_SOFT_LIMIT_CHARS = 5_000_000;
+export const STORAGE_ERROR_EVENT = 'pertashop:storage-error';
+
+// Kunci cermin lama yang hanya duplikat dari kunci utama (aman dihapus bila isinya identik / saat ruang penuh)
+const LEGACY_MIRRORS: Record<string, string> = {
+  pertashop_sales: 'pertashop_sales_v5_fresh',
+  pertashop_sales_v5: 'pertashop_sales_v5_fresh',
+  pertashop_sales_permanent_archive: 'pertashop_sales_v5_fresh',
+  pertashop_profile: 'pertashop_profile_v5_fresh',
+  pertashop_products: 'pertashop_products_v5_fresh',
+  pertashop_tank: 'pertashop_tank_v5_fresh',
+  pertashop_price_hist: 'pertashop_price_hist_v5_fresh',
+  pertashop_purchases: 'pertashop_purchases_v5_fresh',
+  pertashop_soundings: 'pertashop_soundings_v5_fresh',
+  pertashop_expenses: 'pertashop_expenses_v5_fresh',
+  pertashop_employees: 'pertashop_employees_v5_fresh',
+  pertashop_attendance: 'pertashop_attendance_v5_fresh',
+  pertashop_payrolls: 'pertashop_payrolls_v5_fresh',
+};
+
+function isQuotaError(error: unknown): boolean {
+  if (!(error instanceof DOMException)) return false;
+  return (
+    error.name === 'QuotaExceededError' ||
+    error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    error.code === 22 ||
+    error.code === 1014
+  );
+}
+
+// Bebaskan ruang dengan menghapus salinan/snapshot yang bisa dibuat ulang (BUKAN data utama)
+function freeRedundantSpace(exceptKey?: string): void {
+  const disposable = [
+    'pertashop_emergency_auto_backup',
+    'pertashop_auto_backup_latest',
+    ...Object.keys(LEGACY_MIRRORS).filter((k) => k !== 'pertashop_sales_permanent_archive'),
+  ];
+  disposable.forEach((k) => {
+    if (k === exceptKey) return;
+    try {
+      localStorage.removeItem(k);
+    } catch {}
+  });
+}
+
+function notifyStorageError(key: string, error: unknown): void {
+  console.error(`Error saving ${key} to localStorage:`, error);
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    window.dispatchEvent(
+      new CustomEvent(STORAGE_ERROR_EVENT, {
+        detail: { key, quota: isQuotaError(error), message: String((error as any)?.message || error) },
+      })
+    );
+  } catch {}
+}
+
+function setStorageItem<T>(key: string, value: T): boolean {
+  const json = JSON.stringify(value);
+  try {
+    localStorage.setItem(key, json);
+    return true;
   } catch (error) {
-    console.error(`Error saving ${key} to localStorage:`, error);
+    if (isQuotaError(error)) {
+      // Coba bebaskan ruang dari salinan cadangan, lalu ulangi sekali
+      freeRedundantSpace(key);
+      try {
+        localStorage.setItem(key, json);
+        return true;
+      } catch (retryError) {
+        notifyStorageError(key, retryError);
+        return false;
+      }
+    }
+    notifyStorageError(key, error);
+    return false;
   }
 }
 
@@ -165,7 +236,6 @@ function rescueSalesFromStorage(): SaleRecord[] {
       // Restore to active and permanent safeguard keys
       setStorageItem(KEYS.SALES, merged);
       setStorageItem(SAFEGUARD_KEYS.SALES_ARCHIVE, merged);
-      setStorageItem(SAFEGUARD_KEYS.SALES_UNVERSIONED, merged);
       return merged;
     }
   }
@@ -201,11 +271,9 @@ function rescuePurchasesFromStorage(): PurchaseOrder[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.orderDate) {
         setStorageItem(KEYS.PURCHASES, parsed);
-        setStorageItem('pertashop_purchases', parsed);
         return parsed;
       } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.purchases) && parsed.purchases.length > 0) {
         setStorageItem(KEYS.PURCHASES, parsed.purchases);
-        setStorageItem('pertashop_purchases', parsed.purchases);
         return parsed.purchases;
       }
     } catch {}
@@ -239,11 +307,9 @@ function rescueSoundingsFromStorage(): SoundingRecord[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0]?.soundingDate || parsed[0]?.stickCm !== undefined)) {
         setStorageItem(KEYS.SOUNDINGS, parsed);
-        setStorageItem('pertashop_soundings', parsed);
         return parsed;
       } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.soundings) && parsed.soundings.length > 0) {
         setStorageItem(KEYS.SOUNDINGS, parsed.soundings);
-        setStorageItem('pertashop_soundings', parsed.soundings);
         return parsed.soundings;
       }
     } catch {}
@@ -278,11 +344,9 @@ function rescueExpensesFromStorage(): ExpenseRecord[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0]?.expenseDate || parsed[0]?.amount !== undefined)) {
         setStorageItem(KEYS.EXPENSES, parsed);
-        setStorageItem('pertashop_expenses', parsed);
         return parsed;
       } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.expenses) && parsed.expenses.length > 0) {
         setStorageItem(KEYS.EXPENSES, parsed.expenses);
-        setStorageItem('pertashop_expenses', parsed.expenses);
         return parsed.expenses;
       }
     } catch {}
@@ -296,8 +360,8 @@ function rescueEmployeesFromStorage(): Employee[] {
   if (rawPrimary !== null) {
     try {
       const parsed = JSON.parse(rawPrimary);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      if (Array.isArray(parsed) && parsed.length === 0) return INITIAL_EMPLOYEES;
+      // Daftar kosong adalah pilihan pengguna (semua karyawan dihapus) - jangan munculkan data contoh lagi
+      if (Array.isArray(parsed)) return parsed;
     } catch {}
   }
 
@@ -317,11 +381,9 @@ function rescueEmployeesFromStorage(): Employee[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.name && parsed[0]?.role) {
         setStorageItem(KEYS.EMPLOYEES, parsed);
-        setStorageItem('pertashop_employees', parsed);
         return parsed;
       } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.employees) && parsed.employees.length > 0) {
         setStorageItem(KEYS.EMPLOYEES, parsed.employees);
-        setStorageItem('pertashop_employees', parsed.employees);
         return parsed.employees;
       }
     } catch {}
@@ -441,90 +503,70 @@ export const StorageService = {
   getProfile: (): PertashopProfile => rescueProfileFromStorage(),
   setProfile: (profile: PertashopProfile) => {
     setStorageItem(KEYS.PROFILE, profile);
-    setStorageItem('pertashop_profile', profile);
   },
 
   getProducts: (): Product[] => getStorageItem(KEYS.PRODUCTS, INITIAL_PRODUCTS),
   setProducts: (products: Product[]) => {
     setStorageItem(KEYS.PRODUCTS, products);
-    setStorageItem('pertashop_products', products);
   },
 
   getTankConfig: (): TankConfig => rescueTankConfigFromStorage(),
   setTankConfig: (tank: TankConfig) => {
     setStorageItem(KEYS.TANK, tank);
-    setStorageItem('pertashop_tank', tank);
   },
 
   getPriceHistory: (): PriceHistory[] => getStorageItem(KEYS.PRICE_HISTORY, INITIAL_PRICE_HISTORY),
   setPriceHistory: (history: PriceHistory[]) => {
     setStorageItem(KEYS.PRICE_HISTORY, history);
-    setStorageItem('pertashop_price_hist', history);
   },
 
   getSales: (): SaleRecord[] => rescueSalesFromStorage(),
-  setSales: (sales: SaleRecord[]) => {
-    setStorageItem(KEYS.SALES, sales);
-    // Double safeguard: Mirror to permanent unversioned key and archive whenever records exist
+  setSales: (sales: SaleRecord[]): boolean => {
+    const ok = setStorageItem(KEYS.SALES, sales);
+    if (!ok) return false;
+    // Satu cermin arsip permanen saja (dulu 4 salinan) agar kuota localStorage tidak cepat habis
     if (Array.isArray(sales) && sales.length > 0) {
       setStorageItem(SAFEGUARD_KEYS.SALES_ARCHIVE, sales);
-      setStorageItem(SAFEGUARD_KEYS.SALES_UNVERSIONED, sales);
-      setStorageItem(SAFEGUARD_KEYS.SALES_V5, sales);
-      // Rolling timestamped snapshot
-      try {
-        localStorage.setItem(
-          SAFEGUARD_KEYS.EMERGENCY_BACKUP,
-          JSON.stringify({
-            savedAt: new Date().toISOString(),
-            sales,
-          })
-        );
-      } catch {}
     } else {
-      // When sales are intentionally empty (reset or all deleted), wipe the safeguard mirrors
       setStorageItem(SAFEGUARD_KEYS.SALES_ARCHIVE, []);
-      setStorageItem(SAFEGUARD_KEYS.SALES_UNVERSIONED, []);
-      setStorageItem(SAFEGUARD_KEYS.SALES_V5, []);
-      try {
-        localStorage.removeItem(SAFEGUARD_KEYS.EMERGENCY_BACKUP);
-      } catch {}
     }
+    // Salinan lama tidak lagi ditulis; hapus agar ruang kembali
+    [SAFEGUARD_KEYS.SALES_UNVERSIONED, SAFEGUARD_KEYS.SALES_V5, SAFEGUARD_KEYS.EMERGENCY_BACKUP].forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+      } catch {}
+    });
+    return true;
   },
 
   getPurchases: (): PurchaseOrder[] => rescuePurchasesFromStorage(),
   setPurchases: (purchases: PurchaseOrder[]) => {
     setStorageItem(KEYS.PURCHASES, purchases);
-    setStorageItem('pertashop_purchases', purchases);
   },
 
   getSoundings: (): SoundingRecord[] => rescueSoundingsFromStorage(),
   setSoundings: (soundings: SoundingRecord[]) => {
     setStorageItem(KEYS.SOUNDINGS, soundings);
-    setStorageItem('pertashop_soundings', soundings);
   },
 
   getExpenses: (): ExpenseRecord[] => rescueExpensesFromStorage(),
   setExpenses: (expenses: ExpenseRecord[]) => {
     setStorageItem(KEYS.EXPENSES, expenses);
-    setStorageItem('pertashop_expenses', expenses);
   },
 
   getEmployees: (): Employee[] => rescueEmployeesFromStorage(),
   setEmployees: (employees: Employee[]) => {
     setStorageItem(KEYS.EMPLOYEES, employees);
-    setStorageItem('pertashop_employees', employees);
   },
 
   getAttendance: (): AttendanceRecord[] => rescueAttendanceFromStorage(),
   setAttendance: (records: AttendanceRecord[]) => {
     setStorageItem(KEYS.ATTENDANCE, records);
-    setStorageItem('pertashop_attendance', records);
   },
 
   getPayrolls: (): PayrollRecord[] => rescuePayrollsFromStorage(),
   setPayrolls: (payrolls: PayrollRecord[]) => {
     setStorageItem(KEYS.PAYROLLS, payrolls);
-    setStorageItem('pertashop_payrolls', payrolls);
   },
 
   getLastSalesDate: (): string | null => getStorageItem(KEYS.LAST_SALES_DATE, null),
@@ -623,6 +665,54 @@ export const StorageService = {
     return [];
   },
 
+  // Hapus salinan lama yang isinya identik dengan kunci utama (aman, tidak menghilangkan data)
+  compactStorage: (): number => {
+    let freed = 0;
+    Object.entries(LEGACY_MIRRORS).forEach(([mirror, primary]) => {
+      if (mirror === SAFEGUARD_KEYS.SALES_ARCHIVE) return; // arsip permanen dipertahankan
+      try {
+        const m = localStorage.getItem(mirror);
+        const p = localStorage.getItem(primary);
+        if (m !== null && p !== null && m === p) {
+          freed += m.length;
+          localStorage.removeItem(mirror);
+        }
+      } catch {}
+    });
+    try {
+      const em = localStorage.getItem(SAFEGUARD_KEYS.EMERGENCY_BACKUP);
+      const primarySales = localStorage.getItem(KEYS.SALES);
+      if (em && primarySales && primarySales !== '[]') {
+        freed += em.length;
+        localStorage.removeItem(SAFEGUARD_KEYS.EMERGENCY_BACKUP);
+      }
+    } catch {}
+    return freed;
+  },
+
+  // Perkiraan pemakaian localStorage (karakter) untuk peringatan dini sebelum penuh
+  getUsageInfo: (): { usedChars: number; percent: number } => {
+    let usedChars = 0;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        usedChars += k.length + (localStorage.getItem(k)?.length || 0);
+      }
+    } catch {}
+    return { usedChars, percent: Math.round((usedChars / STORAGE_SOFT_LIMIT_CHARS) * 100) };
+  },
+
+  // Minta browser agar data situs tidak dihapus otomatis saat disk penuh
+  requestPersistentStorage: async (): Promise<boolean> => {
+    try {
+      if (navigator.storage && navigator.storage.persist) {
+        return await navigator.storage.persist();
+      }
+    } catch {}
+    return false;
+  },
+
   resetToDefault: () => {
     // 1. Wipe all pertashop keys from browser localStorage
     try {
@@ -704,11 +794,8 @@ export const StorageService = {
       lastPoDate: StorageService.getLastPoDate(),
     };
 
-    // Keep an automatic rolling snapshot in localStorage
-    try {
-      localStorage.setItem(SAFEGUARD_KEYS.LATEST_BACKUP, JSON.stringify(backup));
-    } catch {}
-
+    // Catatan: snapshot otomatis ke localStorage dihapus karena menggandakan seluruh data
+    // dan mempercepat habisnya kuota. Backup yang aman adalah file JSON yang diunduh.
     return backup;
   },
 

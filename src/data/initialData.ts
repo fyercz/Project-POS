@@ -78,15 +78,17 @@ export const INITIAL_PRICE_HISTORY: PriceHistory[] = [
   },
 ];
 
+// Catatan: jangan simpan NIK / nomor rekening / nomor HP asli di kode (repo ini publik).
+// Data karyawan diisi lewat menu Absensi & Penggajian dan tersimpan lokal di perangkat.
 export const INITIAL_EMPLOYEES: Employee[] = [
   {
     id: 'emp-001',
-    nik: '3520081204960001',
+    nik: '',
     name: 'Daslam',
     role: 'OPERATOR_DISPENSER',
-    phone: '0812-3456-7890',
+    phone: '',
     bankName: 'BRI',
-    bankAccountNumber: '6338-01-009281-53-4',
+    bankAccountNumber: '',
     dailyRate: 40000,
     overtimeRate: 30000,
     mealAllowanceDaily: 0,
@@ -96,12 +98,12 @@ export const INITIAL_EMPLOYEES: Employee[] = [
   },
   {
     id: 'emp-002',
-    nik: '3520082408980002',
+    nik: '',
     name: 'Angga',
     role: 'OPERATOR_DISPENSER',
-    phone: '0857-9876-5432',
+    phone: '',
     bankName: 'BSI',
-    bankAccountNumber: '7192834011',
+    bankAccountNumber: '',
     dailyRate: 40000,
     overtimeRate: 30000,
     mealAllowanceDaily: 0,

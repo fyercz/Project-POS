@@ -77,7 +77,7 @@ interface AttendancePayrollViewProps {
     paymentTime?: string
   ) => void;
   onUnpaySalary?: (payrollId: string) => void;
-  onBatchSyncAttendance?: (records: AttendanceRecord[]) => void;
+  onBatchSyncAttendance?: (records: AttendanceRecord[], targetMonth?: string) => void;
 }
 
 export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
@@ -99,7 +99,23 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'attendance' | 'payroll' | 'employees'>('payroll');
   
   // Selected Filter Month (YYYY-MM)
-  const [selectedMonth, setSelectedMonth] = useState<string>('2026-08');
+  // Pilihan bulan dinamis: 24 bulan terakhir + 1 bulan ke depan + bulan yang ada di data absensi/gaji
+  const monthOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    const now = new Date();
+    for (let i = -1; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    attendance.forEach((a) => a.date && set.add(a.date.substring(0, 7)));
+    payrolls.forEach((p) => p.month && set.add(p.month));
+    return Array.from(set).filter((m) => /^\d{4}-\d{2}$/.test(m)).sort().reverse();
+  }, [attendance, payrolls]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Modal penjelasan aturan jadwal hitung gaji (2 hari terakhir bulan)
   const [eligibilityWarningModal, setEligibilityWarningModal] = useState<PayrollEligibility | null>(null);
@@ -602,7 +618,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
     );
 
     if (onBatchSyncAttendance) {
-      onBatchSyncAttendance(updatedAttendance);
+      onBatchSyncAttendance(updatedAttendance, selectedMonth);
     } else {
       updatedAttendance.forEach((rec) => onSaveAttendance(rec));
     }
@@ -730,18 +746,11 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="bg-transparent text-white text-xs font-bold font-mono focus:outline-none pr-2 cursor-pointer"
             >
-              <option value="2026-12" className="bg-slate-900 text-white">Desember 2026</option>
-              <option value="2026-11" className="bg-slate-900 text-white">November 2026</option>
-              <option value="2026-10" className="bg-slate-900 text-white">Oktober 2026</option>
-              <option value="2026-09" className="bg-slate-900 text-white">September 2026</option>
-              <option value="2026-08" className="bg-slate-900 text-white">Agustus 2026</option>
-              <option value="2026-07" className="bg-slate-900 text-white">Juli 2026</option>
-              <option value="2026-06" className="bg-slate-900 text-white">Juni 2026</option>
-              <option value="2026-05" className="bg-slate-900 text-white">Mei 2026</option>
-              <option value="2026-04" className="bg-slate-900 text-white">April 2026</option>
-              <option value="2026-03" className="bg-slate-900 text-white">Maret 2026</option>
-              <option value="2026-02" className="bg-slate-900 text-white">Februari 2026</option>
-              <option value="2026-01" className="bg-slate-900 text-white">Januari 2026</option>
+              {monthOptions.map((m) => (
+                <option key={m} value={m} className="bg-slate-900 text-white">
+                  {formatMonthYear(m)}
+                </option>
+              ))}
             </select>
           </div>
 

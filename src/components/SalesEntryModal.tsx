@@ -262,7 +262,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       const defaultCm = Math.round((currentStockLiters / LITERS_PER_CM) * 10) / 10;
       setHasSounding(true);
       setSoundingStickCm(defaultCm);
-      setSoundingCalculatedLiters(Math.round(defaultCm * LITERS_PER_CM));
+      setSoundingCalculatedLiters(Math.round(currentStockLiters));
       setSoundingWaterCm(0);
       setSyncToSoundingLog(true);
       setSyncToAttendance(true);
@@ -354,23 +354,31 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   // Wajib angka bulat (integer)
   const calculatedLiters = Math.max(0, Math.round(rawLiters));
 
-  // Nilai Omset & Profit BBM
-  const totalRevenue = calculatedLiters * unitPrice;
-  const totalProfit = Math.round(calculatedLiters * (unitPrice - buyPrice));
+  // Nilai liter bulat x harga
+  const literValue = calculatedLiters * unitPrice;
 
-  // Selisih nilai pembayaran dengan nilai omset liter bulat (jika ada pembulatan kas)
-  const paymentDifference = totalPayment - totalRevenue;
+  // Selisih nilai pembayaran dengan nilai liter bulat (pembulatan kas)
+  const paymentDifference = totalPayment - literValue;
+
+  // Omset = uang yang benar-benar diterima pada mode pembayaran, agar kas & laporan tidak selisih
+  // akibat pembulatan liter ke bilangan bulat. Mode meter/manual tetap liter x harga.
+  const totalRevenue = inputMode === 'payment' ? totalPayment : literValue;
+  const totalProfit = Math.round(totalRevenue - calculatedLiters * buyPrice);
+
+  // Stok yang tersedia untuk transaksi ini. Saat edit, liter asli transaksi dikembalikan dulu.
+  const availableStockLiters = currentStockLiters + (editingSale ? editingSale.literSold || 0 : 0);
 
   // Theoretical remaining stock after this shift
-  const theoreticalRemainingStock = Math.max(0, currentStockLiters - calculatedLiters);
+  const theoreticalRemainingStock = Math.max(0, availableStockLiters - calculatedLiters);
 
   // Auto-sync sounding dengan sisa stok teoritis sebelum diubah manual oleh operator
   useEffect(() => {
     if (!isSoundingTouched && !editingSale && isOpen) {
+      // Liter diset PERSIS sama dengan stok buku. Tampilan cm boleh dibulatkan, tetapi liternya tidak,
+      // supaya tidak muncul selisih losses/gain palsu +-1 L akibat pembulatan cm x 21 L.
       const expectedRem = Math.max(0, currentStockLiters - calculatedLiters);
-      const cm = Math.round((expectedRem / LITERS_PER_CM) * 10) / 10;
-      setSoundingStickCm(cm);
-      setSoundingCalculatedLiters(Math.round(cm * LITERS_PER_CM));
+      setSoundingStickCm(Math.round((expectedRem / LITERS_PER_CM) * 10) / 10);
+      setSoundingCalculatedLiters(expectedRem);
     }
   }, [calculatedLiters, currentStockLiters, isSoundingTouched, editingSale, isOpen]);
 
@@ -428,9 +436,9 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       return;
     }
 
-    if (calculatedLiters > currentStockLiters) {
+    if (calculatedLiters > availableStockLiters) {
       setErrorMessage(
-        `Penjualan (${calculatedLiters} L) melebihi sisa stok di tangki (${currentStockLiters} L). Silakan catat penerimaan DO BBM di menu Pemesanan atau atur stok tangki di Profil & Tangki.`
+        `Penjualan (${calculatedLiters} L) melebihi sisa stok di tangki (${availableStockLiters} L). Silakan catat penerimaan DO BBM di menu Pemesanan atau atur stok tangki di Profil & Tangki.`
       );
       return;
     }
@@ -442,6 +450,10 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
 
     // Cash in drawer reconcilation
     const physicalCash = showCashReconciliation ? actualCashInHand : paymentCash;
+
+    // Sounding hanya dianggap diukur bila operator benar-benar mengisi/mengubah angka stik
+    // (atau transaksi yang diedit memang sudah punya sounding). Nilai isian otomatis bukan pengukuran.
+    const soundingMeasured = hasSounding && (isSoundingTouched || !!editingSale?.hasSounding);
 
     onSaveSale({
       transactionDate,
@@ -464,13 +476,13 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
       cashDifference: physicalCash - paymentCash,
       teraTestLiters,
       // Sounding Data
-      hasSounding,
-      soundingStickCm: hasSounding ? soundingStickCm : undefined,
-      soundingCalculatedLiters: hasSounding ? soundingCalculatedLiters : undefined,
-      soundingTheoreticalLiters: hasSounding ? theoreticalRemainingStock : undefined,
-      soundingVarianceLiters: hasSounding ? soundingVariance : undefined,
-      soundingWaterCm: hasSounding ? soundingWaterCm : undefined,
-      syncToSoundingLog: hasSounding ? syncToSoundingLog : false,
+      hasSounding: soundingMeasured,
+      soundingStickCm: soundingMeasured ? soundingStickCm : undefined,
+      soundingCalculatedLiters: soundingMeasured ? soundingCalculatedLiters : undefined,
+      soundingTheoreticalLiters: soundingMeasured ? theoreticalRemainingStock : undefined,
+      soundingVarianceLiters: soundingMeasured ? soundingVariance : undefined,
+      soundingWaterCm: soundingMeasured ? soundingWaterCm : undefined,
+      syncToSoundingLog: soundingMeasured ? syncToSoundingLog : false,
       syncToAttendance,
       notes: notes.trim(),
     });
@@ -1112,7 +1124,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 {inputMode === 'payment' && paymentDifference !== 0 && (
                   <div className="mt-1.5 text-[11px]">
                     <span className="text-amber-300 font-mono">
-                      Pembulatan Kas: {paymentDifference > 0 ? `+Rp ${formatRupiah(paymentDifference)}` : `-Rp ${formatRupiah(Math.abs(paymentDifference))}`}
+                      Pembulatan Kas (sudah termasuk omset): {paymentDifference > 0 ? `+Rp ${formatRupiah(paymentDifference)}` : `-Rp ${formatRupiah(Math.abs(paymentDifference))}`}
                     </span>
                   </div>
                 )}
@@ -1198,6 +1210,13 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               </label>
             </div>
 
+            {hasSounding && !isSoundingTouched && !editingSale && (
+              <p className="text-[10px] text-slate-500 mt-1">
+                Angka di bawah terisi otomatis dari stok buku. Ubah sesuai hasil stik celup bila Anda benar-benar mengukur;
+                jika tidak diubah, sounding tidak dicatat dan stok dikurangi sesuai liter terjual.
+              </p>
+            )}
+
             {hasSounding && (
               <div className="space-y-3.5 pt-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1278,10 +1297,8 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                           type="button"
                           onClick={() => {
                             setIsSoundingTouched(false);
-                            const expectedRem = Math.max(0, currentStockLiters - calculatedLiters);
-                            const cm = Math.round((expectedRem / LITERS_PER_CM) * 10) / 10;
-                            setSoundingStickCm(cm);
-                            setSoundingCalculatedLiters(Math.round(cm * LITERS_PER_CM));
+                            setSoundingStickCm(Math.round((theoreticalRemainingStock / LITERS_PER_CM) * 10) / 10);
+                            setSoundingCalculatedLiters(theoreticalRemainingStock);
                           }}
                           className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-semibold mt-0.5 cursor-pointer block"
                         >

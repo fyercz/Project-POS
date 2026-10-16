@@ -12,8 +12,17 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
-    optimizeDeps: {
-      exclude: ['motion', 'motion/react'],
+    build: {
+      rollupOptions: {
+        output: {
+          // Pisahkan library besar agar bundle utama lebih kecil & cache lebih efektif
+          manualChunks: {
+            charts: ['recharts'],
+            xlsx: ['xlsx'],
+            icons: ['lucide-react'],
+          },
+        },
+      },
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

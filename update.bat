@@ -93,7 +93,7 @@ if errorlevel 1 (
 )
 
 :: Bersihkan file sampah tanpa menghapus file konfigurasi .env
-git clean -fd -e .env >nul 2>nul
+rem git clean dihapus: dulu menghapus semua file tak terlacak (mis. file backup JSON) di folder aplikasi.
 set UPDATE_SUCCESS=1
 goto SHOW_COMMIT_INFO
 
