@@ -96,11 +96,6 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
     }
   }, [effectiveDate, selectedProductId, isOpen]);
 
-  if (!isOpen || !selectedProduct) return null;
-
-  const targetMonth = effectiveDate.substring(0, 7); // YYYY-MM
-  const targetMonthLabel = formatMonthYearId(targetMonth);
-
   // Derived margin & percentage (Mendukung hingga 4 digit desimal & angka ganjil bebas tanpa batasan)
   const currentMargin = Math.round((newSellingPrice - newBuyPrice) * 10000) / 10000;
   const marginPercent = newSellingPrice > 0 ? (currentMargin / newSellingPrice) * 100 : 0;
@@ -119,6 +114,16 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
       setMarginInput(currentMargin.toString());
     }
   }, [currentMargin, isEditingMargin]);
+
+  // PENTING (perbaikan bug Rules-of-Hooks): early-return ini HARUS berada SETELAH semua hook
+  // (useState/useMemo/useEffect) dideklarasikan. Sebelumnya return null ini ada di atas beberapa
+  // hook, sehingga saat selectedProduct berubah dari undefined -> ada isinya (atau sebaliknya),
+  // jumlah hook yang dipanggil berbeda antar render dan React melempar error #310 ("Rendered more
+  // hooks than during the previous render"), membuat modal gagal terbuka / nge-crash.
+  if (!isOpen || !selectedProduct) return null;
+
+  const targetMonth = effectiveDate.substring(0, 7); // YYYY-MM
+  const targetMonthLabel = formatMonthYearId(targetMonth);
 
   // Differences against baseline
   const diffSelling = newSellingPrice - baselinePrice.sellingPrice;

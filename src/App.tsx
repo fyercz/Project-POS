@@ -202,7 +202,7 @@ export default function App() {
     const reconciled = [...expenses];
 
     soundings.forEach((snd) => {
-      if (Math.abs(snd.varianceLiters) > 0.001) {
+      if (!snd.varianceExpenseExcluded && Math.abs(snd.varianceLiters) > 0.001) {
         const exists = reconciled.some((e) => e.sourceReferenceId === snd.id);
         if (!exists) {
           const absVar = Math.abs(snd.varianceLiters);
@@ -237,7 +237,7 @@ export default function App() {
     });
 
     purchases.forEach((po) => {
-      if (po.status === 'SELESAI' && po.varianceLiters && Math.abs(po.varianceLiters) > 0.001) {
+      if (!po.varianceExpenseExcluded && po.status === 'SELESAI' && po.varianceLiters && Math.abs(po.varianceLiters) > 0.001) {
         const exists = reconciled.some((e) => e.sourceReferenceId === po.id);
         if (!exists) {
           const absVar = Math.abs(po.varianceLiters);
@@ -344,58 +344,22 @@ export default function App() {
     );
   };
 
-  // Hitung perubahan absensi untuk satu penjualan (fungsi murni: mengembalikan daftar baru)
-  const computeAttendanceForSale = (
-    saleData: Omit<SaleRecord, 'id' | 'createdAt'>,
-    list: AttendanceRecord[],
-    allowUpgrade: boolean
-  ): { list: AttendanceRecord[]; id?: string; created?: boolean } => {
-    const matchedEmp = findEmployeeByOperatorName(saleData.operatorName, employees);
-    if (!matchedEmp) return { list };
-
-    const existingAtt = list.find((a) => a.employeeId === matchedEmp.id && a.date === saleData.transactionDate);
-    const shiftInfo = getShiftHoursInfo(saleData.shift);
-    const isExplicitLembur =
-      saleData.shift.toLowerCase().includes('lembur') ||
-      (saleData.notes || '').toLowerCase().includes('lembur') ||
-      shiftInfo.isFull;
-
-    if (existingAtt) {
-      if (!allowUpgrade) return { list, id: existingAtt.id, created: false };
-      const isExistingShift1 = existingAtt.shift.includes('Shift 1') || existingAtt.checkInTime === '05:30';
-      const isExistingShift2 = existingAtt.shift.includes('Shift 2') || existingAtt.checkInTime === '13:30';
-      const isMultiShift =
-        (isExistingShift1 && shiftInfo.isShift2) ||
-        (isExistingShift2 && shiftInfo.isShift1) ||
-        isExplicitLembur ||
-        (existingAtt.shift !== shiftInfo.shiftName && !existingAtt.shift.includes('Full'));
-
-      const updatedAtt: AttendanceRecord = {
-        ...existingAtt,
-        status: isMultiShift ? 'LEMBUR' : existingAtt.status,
-        overtimeShifts: isMultiShift ? Math.max(1, (existingAtt.overtimeShifts || 0) + 1) : existingAtt.overtimeShifts,
-        shift: isMultiShift ? STANDARD_SHIFTS.FULL_SHIFT.name : shiftInfo.shiftName,
-        checkInTime: isMultiShift ? '05:30' : shiftInfo.checkIn,
-        checkOutTime: isMultiShift ? '19:30' : shiftInfo.checkOut,
-        notes: `${existingAtt.notes || ''} | Catatan Penjualan: ${saleData.literSold} L (${saleData.shift})`.trim(),
-      };
-      return { list: list.map((a) => (a.id === existingAtt.id ? updatedAtt : a)), id: existingAtt.id, created: false };
-    }
-
-    const newAtt: AttendanceRecord = {
-      id: `att-sale-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      employeeId: matchedEmp.id,
-      employeeName: matchedEmp.name,
-      date: saleData.transactionDate,
-      shift: isExplicitLembur ? STANDARD_SHIFTS.FULL_SHIFT.name : shiftInfo.shiftName,
-      status: isExplicitLembur ? 'LEMBUR' : 'HADIR',
-      checkInTime: isExplicitLembur ? '05:30' : shiftInfo.checkIn,
-      checkOutTime: isExplicitLembur ? '19:30' : shiftInfo.checkOut,
-      overtimeShifts: isExplicitLembur ? 1 : 0,
-      notes: `Otomatis sinkron dari penjualan shift (${saleData.literSold} L). ${saleData.notes || ''}`.trim(),
-      createdAt: `${saleData.transactionDate} ${saleData.time || shiftInfo.closingTime}`,
-    };
-    return { list: [newAtt, ...list], id: newAtt.id, created: true };
+  // Karena satu operator hanya boleh tercatat SATU penjualan per tanggal (lihat pengecekan
+  // hasOperatorConflict di bawah), setiap pasangan (karyawan, tanggal) maksimal berasal dari
+  // satu transaksi penjualan. Ini membuat sinkronisasi absensi aman dihitung ulang dari nol
+  // setiap kali tanpa risiko salah gabung dengan transaksi operator lain.
+  const resyncAttendanceForDate = (
+    dateStr: string,
+    salesSnapshot: SaleRecord[],
+    attList: AttendanceRecord[]
+  ): { list: AttendanceRecord[]; recordId?: string; created: boolean } => {
+    const daySales = salesSnapshot.filter((s) => s.transactionDate === dateStr);
+    if (daySales.length === 0) return { list: attList, created: false };
+    const matchedEmp = findEmployeeByOperatorName(daySales[0].operatorName, employees);
+    const hadBefore = !!matchedEmp && attList.some((a) => a.employeeId === matchedEmp.id && a.date === dateStr);
+    const { updatedAttendance } = syncSalesToAttendance(daySales, attList, employees);
+    const rec = matchedEmp ? updatedAttendance.find((a) => a.employeeId === matchedEmp.id && a.date === dateStr) : undefined;
+    return { list: updatedAttendance, recordId: rec?.id, created: !hadBefore };
   };
 
   // Terapkan daftar absensi baru + hitung ulang slip gaji untuk bulan-bulan yang terdampak
@@ -485,41 +449,44 @@ export default function App() {
         soundingRecordId = undefined;
       }
 
-      // --- Absensi terkait (tanpa menghitung lembur berulang setiap kali edit) ---
-      const norm = (v: string) => v.trim().toLowerCase();
-      const keyChanged =
-        original.transactionDate !== saleData.transactionDate ||
-        norm(original.operatorName) !== norm(saleData.operatorName) ||
-        original.shift !== saleData.shift;
+      // --- Absensi terkait ---
+      // Pakai array penjualan HASIL EDIT untuk resync, supaya tanggal lama & baru merefleksikan
+      // keadaan sesungguhnya setelah perubahan ini (aman dihitung ulang berkali-kali / idempoten).
+      const provisionalSale: SaleRecord = { ...saleData, id: original.id, createdAt: original.createdAt };
+      const salesAfterEdit = sales.map((s) => (s.id === original.id ? provisionalSale : s));
+
       let attendanceRecordId = original.attendanceRecordId;
       let attendanceCreatedBySale = original.attendanceCreatedBySale;
       let nextAttendance = attendance;
 
-      if (keyChanged || saleData.syncToAttendance === false) {
-        if (original.attendanceCreatedBySale && original.attendanceRecordId) {
-          nextAttendance = nextAttendance.filter((a) => a.id !== original.attendanceRecordId);
-        }
+      // Hapus dulu absensi lama yang dibuat otomatis oleh sale ini, jika tanggal/operator berubah
+      // atau sinkronisasi dimatikan (karena operator hanya boleh 1 penjualan/hari, aman dihapus
+      // outright tanpa bentrok dengan transaksi lain).
+      const dateOrOperatorChanged =
+        original.transactionDate !== saleData.transactionDate ||
+        original.operatorName.trim().toLowerCase() !== saleData.operatorName.trim().toLowerCase();
+      if (
+        original.attendanceCreatedBySale &&
+        original.attendanceRecordId &&
+        (dateOrOperatorChanged || saleData.syncToAttendance === false)
+      ) {
+        nextAttendance = nextAttendance.filter((a) => a.id !== original.attendanceRecordId);
         attendanceRecordId = undefined;
         attendanceCreatedBySale = undefined;
-        if (saleData.syncToAttendance !== false) {
-          const r = computeAttendanceForSale(saleData, nextAttendance, true);
-          nextAttendance = r.list;
-          attendanceRecordId = r.id;
+      }
+
+      if (saleData.syncToAttendance !== false) {
+        const r = resyncAttendanceForDate(saleData.transactionDate, salesAfterEdit, nextAttendance);
+        nextAttendance = r.list;
+        if (r.recordId) {
+          attendanceRecordId = r.recordId;
           attendanceCreatedBySale = r.created;
         }
-      } else if (!original.attendanceRecordId) {
-        // Data lama tanpa tautan: tautkan ke absensi yang ada, jangan menaikkan lembur lagi
-        const r = computeAttendanceForSale(saleData, nextAttendance, false);
-        nextAttendance = r.list;
-        attendanceRecordId = r.id;
-        attendanceCreatedBySale = r.created;
       }
       commitAttendance(nextAttendance, [original.transactionDate.substring(0, 7), saleData.transactionDate.substring(0, 7)]);
 
       const updatedSale: SaleRecord = {
-        ...saleData,
-        id: original.id,
-        createdAt: original.createdAt,
+        ...provisionalSale,
         soundingRecordId,
         attendanceRecordId,
         attendanceCreatedBySale,
@@ -590,8 +557,9 @@ export default function App() {
       let attendanceRecordId: string | undefined;
       let attendanceCreatedBySale: boolean | undefined;
       if (saleData.syncToAttendance !== false) {
-        const r = computeAttendanceForSale(saleData, attendance, true);
-        attendanceRecordId = r.id;
+        const provisionalSale: SaleRecord = { ...saleData, id: saleId, createdAt: '' };
+        const r = resyncAttendanceForDate(saleData.transactionDate, [provisionalSale, ...sales], attendance);
+        attendanceRecordId = r.recordId;
         attendanceCreatedBySale = r.created;
         commitAttendance(r.list, [saleData.transactionDate.substring(0, 7)]);
       }
@@ -609,14 +577,22 @@ export default function App() {
       StorageService.setLastSalesDate(saleData.transactionDate);
     }
 
-    // Auto-sync price history if this month doesn't have an explicit entry yet
+    // Auto-sync price history if this month doesn't have an explicit entry yet.
+    // PENTING: hanya dibuat bila harga di input penjualan SAMA PERSIS dengan harga resmi produk
+    // saat ini (sekadar backfill histori bulan tsb). Bila berbeda - entah itu perubahan harga
+    // yang disengaja atau sekadar salah ketik kasir - tarif resmi bulan tidak diubah di sini.
+    // Perubahan tarif resmi WAJIB lewat menu "Ubah Harga" yang meminta konfirmasi eksplisit.
+    // Tanpa penjagaan ini, satu salah ketik di satu shift bisa mengubah "tarif resmi" sebulan
+    // penuh yang dipakai laporan lain, sampai disadari dan diperbaiki manual.
     if (saleData.unitPrice > 0) {
       const saleMonth = saleData.transactionDate.substring(0, 7);
       const existingHist = priceHistory.find(
         (h) => h.productId === saleData.productId && h.effectiveDate.startsWith(saleMonth)
       );
-      if (!existingHist) {
-        const prod = products.find((p) => p.id === saleData.productId) || primaryProduct;
+      const prodForCheck = products.find((p) => p.id === saleData.productId) || primaryProduct;
+      const matchesOfficialPrice = Math.abs(saleData.unitPrice - prodForCheck.currentPrice) < 1;
+      if (!existingHist && matchesOfficialPrice) {
+        const prod = prodForCheck;
         const buyPrice = saleData.buyPriceSnapshot || prod.buyPrice;
         const newHistEntry: PriceHistory = {
           id: `price-hist-${Date.now()}`,
@@ -828,8 +804,9 @@ export default function App() {
     setSales(sales.filter((s) => s.id !== saleId));
   };
 
-  const processMonthlyBatches = (batches: MonthlyBatchPayload[]) => {
-    if (!batches || batches.length === 0) return;
+  const processMonthlyBatches = (batches: MonthlyBatchPayload[]): string[] => {
+    if (!batches || batches.length === 0) return [];
+    const skippedMonths: string[] = [];
 
     let allSales = [...sales];
     let allPurchases = [...purchases];
@@ -846,6 +823,20 @@ export default function App() {
       const month = parseInt(monthStr, 10);
       const daysInMonth = new Date(year, month, 0).getDate();
       const endOfMonthDate = `${targetMonth}-${String(daysInMonth).padStart(2, '0')}`;
+
+      // Cegah duplikasi: bila bulan ini SUDAH ADA data penjualan/DO (dari input manual, impor,
+      // atau rekap historis sebelumnya) dan pengguna TIDAK memilih "ganti data bulan", lewati
+      // batch ini sepenuhnya. Tanpa pengecekan ini, menjalankan rekap historis dua kali untuk
+      // bulan yang sama akan menduplikasi seluruh penjualan & DO dengan ID yang identik.
+      const monthAlreadyHasData =
+        allSales.some((s) => s.transactionDate.startsWith(targetMonth)) ||
+        allPurchases.some(
+          (p) => p.orderDate.startsWith(targetMonth) || (p.actualDeliveryDate && p.actualDeliveryDate.startsWith(targetMonth))
+        );
+      if (monthAlreadyHasData && !batchData.replaceExistingMonthData) {
+        skippedMonths.push(targetMonth);
+        return;
+      }
 
       // Remove existing data for targetMonth if replace requested
       if (batchData.replaceExistingMonthData) {
@@ -866,6 +857,19 @@ export default function App() {
         let remainder = batchData.totalLitersSold - (baseLiterPerShift * totalShifts);
         let currentMeter = batchData.meterAwal ?? 100000;
 
+        // Proporsikan tunai/non-tunai SESUAI TOTAL yang diinput pengguna untuk bulan ini,
+        // bukan asumsi karangan "QRIS 15%". Dengan ini, jumlah seluruh shift akan sama persis
+        // dengan batchData.cashPayment & batchData.nonCashPayment yang dimasukkan pemilik.
+        const totalRevenueForMonth = batchData.totalLitersSold * batchData.unitPrice;
+        const cashRatio = totalRevenueForMonth > 0 ? batchData.cashPayment / totalRevenueForMonth : 1;
+        const nonCashRatio = totalRevenueForMonth > 0 ? batchData.nonCashPayment / totalRevenueForMonth : 0;
+
+        // Nama operator TIDAK ditanam ke kode. Diambil dari 2 karyawan aktif pertama (urut nama);
+        // bila karyawan belum didata, pakai label generik agar tidak salah atribusi ke orang tertentu.
+        const activeEmpNames = employees.filter((e) => e.isActive).sort((a, b) => a.name.localeCompare(b.name));
+        const shift1OperatorName = activeEmpNames[0]?.name || 'Operator Shift 1';
+        const shift2OperatorName = activeEmpNames[1]?.name || activeEmpNames[0]?.name || 'Operator Shift 2';
+
         for (let day = 1; day <= daysInMonth; day++) {
           const dateStr = `${targetMonth}-${String(day).padStart(2, '0')}`;
 
@@ -878,15 +882,15 @@ export default function App() {
           currentMeter = meterAkhir1;
           const s1Rev = s1Liters * batchData.unitPrice;
           const s1Profit = s1Liters * (batchData.unitPrice - batchData.buyPrice);
-          const s1Qris = Math.round(s1Rev * 0.15);
-          const s1Cash = s1Rev - s1Qris;
+          const s1Qris = Math.round(s1Rev * nonCashRatio);
+          const s1Cash = Math.round(s1Rev * cashRatio);
 
           newSalesForMonth.push({
             id: `sale-hist-${targetMonth}-${String(day).padStart(2, '0')}-s1`,
             transactionDate: dateStr,
             time: '06:00',
             shift: 'Shift 1 (05.30 - 13.30)',
-            operatorName: 'Daslam',
+            operatorName: shift1OperatorName,
             productId: primaryProduct.id,
             productName: primaryProduct.name,
             meterAwal: meterAwal1,
@@ -915,15 +919,15 @@ export default function App() {
           currentMeter = meterAkhir2;
           const s2Rev = s2Liters * batchData.unitPrice;
           const s2Profit = s2Liters * (batchData.unitPrice - batchData.buyPrice);
-          const s2Qris = Math.round(s2Rev * 0.15);
-          const s2Cash = s2Rev - s2Qris;
+          const s2Qris = Math.round(s2Rev * nonCashRatio);
+          const s2Cash = Math.round(s2Rev * cashRatio);
 
           newSalesForMonth.push({
             id: `sale-hist-${targetMonth}-${String(day).padStart(2, '0')}-s2`,
             transactionDate: dateStr,
             time: '14:00',
             shift: 'Shift 2 (13.30 - 19.30)',
-            operatorName: 'Angga',
+            operatorName: shift2OperatorName,
             productId: primaryProduct.id,
             productName: primaryProduct.name,
             meterAwal: meterAwal2,
@@ -1232,10 +1236,23 @@ export default function App() {
         return updated;
       });
     }
+    return skippedMonths;
   };
 
   const handleSaveMonthlyBatch = (batchData: MonthlyBatchPayload) => {
-    processMonthlyBatches([batchData]);
+    const skippedMonths = processMonthlyBatches([batchData]);
+    if (skippedMonths.length > 0) {
+      setConfirmConfig({
+        isOpen: true,
+        title: 'Bulan Ini Sudah Memiliki Data',
+        message: `Rekap untuk ${formatMonthYearId(batchData.targetMonth)} DIBATALKAN karena bulan ini sudah memiliki data penjualan/DO (dari input manual, impor, atau rekap sebelumnya). Centang "Ganti Data Bulan Ini" bila Anda memang ingin menimpa data lama, lalu coba lagi.`,
+        confirmLabel: 'Mengerti',
+        cancelLabel: '',
+        isDestructive: true,
+        onConfirm: () => {},
+      });
+      return;
+    }
     const lossLit = (batchData.expenses.lossesLiters && batchData.expenses.lossesLiters > 0)
       ? batchData.expenses.lossesLiters
       : (batchData.expenses.lossesMinyak > 0 && batchData.buyPrice > 0 ? parseFloat((batchData.expenses.lossesMinyak / batchData.buyPrice).toFixed(1)) : 0);
@@ -1265,7 +1282,11 @@ export default function App() {
   };
 
   const handleSaveMultiMonthBatches = (batches: MonthlyBatchPayload[]) => {
-    processMonthlyBatches(batches);
+    const skippedMonths = processMonthlyBatches(batches);
+    const skippedNote =
+      skippedMonths.length > 0
+        ? ` ${skippedMonths.length} periode DILEWATI karena sudah memiliki data (${skippedMonths.map(formatMonthYearId).join(', ')}) - centang "Ganti Data Bulan Ini" pada periode tsb bila ingin menimpanya.`
+        : '';
     const totalLossLit = batches.reduce((acc, b) => {
       const l = (b.expenses.lossesLiters && b.expenses.lossesLiters > 0)
         ? b.expenses.lossesLiters
@@ -1277,7 +1298,7 @@ export default function App() {
     setConfirmConfig({
       isOpen: true,
       title: 'Import Multi-Bulan Berhasil',
-      message: `Berhasil mengimpor rekapitulasi data historis untuk ${batches.length} periode bulan secara batch (termasuk DO Pertamina, penjualan nozzle, beban opEx, dan gaji akhir bulan).${lossNote}`,
+      message: `Berhasil mengimpor rekapitulasi data historis untuk ${batches.length - skippedMonths.length} dari ${batches.length} periode bulan yang diminta (termasuk DO Pertamina, penjualan nozzle, beban opEx, dan gaji akhir bulan).${lossNote}${skippedNote}`,
       confirmLabel: 'Selesai',
       cancelLabel: 'Tutup',
       isDestructive: false,
@@ -1305,20 +1326,29 @@ export default function App() {
     const effectiveDateOnly = priceData.effectiveDate.substring(0, 10);
     const syncScope = priceData.syncScope || (priceData.autoUpdateMonthSales === false ? 'NONE' : 'FROM_EFFECTIVE_DATE');
 
-    // 1. Update Product Master
-    const updatedProducts = products.map((p) => {
-      if (p.id === priceData.productId) {
-        return {
-          ...p,
-          currentPrice: priceData.newPrice,
-          buyPrice: priceData.newBuyPrice,
-          marginPerLiter: newMargin,
-        };
-      }
-      return p;
-    });
-    setProducts(updatedProducts);
-    StorageService.setProducts(updatedProducts);
+    // 1. Update Product Master - HANYA bila tanggal efektif ini adalah yang PALING BARU di antara
+    // seluruh histori harga produk. Mengoreksi tarif bulan LAMA (tanggal efektif mundur) tidak
+    // boleh menimpa harga resmi yang sedang berlaku sekarang dengan angka historis tersebut.
+    const latestExistingDate = priceHistory
+      .filter((h) => h.productId === priceData.productId && h.effectiveDate.substring(0, 10) !== effectiveDateOnly)
+      .reduce((latest, h) => (h.effectiveDate > latest ? h.effectiveDate : latest), '');
+    const isLatestPrice = !latestExistingDate || priceData.effectiveDate >= latestExistingDate;
+
+    if (isLatestPrice) {
+      const updatedProducts = products.map((p) => {
+        if (p.id === priceData.productId) {
+          return {
+            ...p,
+            currentPrice: priceData.newPrice,
+            buyPrice: priceData.newBuyPrice,
+            marginPerLiter: newMargin,
+          };
+        }
+        return p;
+      });
+      setProducts(updatedProducts);
+      StorageService.setProducts(updatedProducts);
+    }
 
     // 2. Add / Update Price History (by exact date to preserve early-month and mid-month entries)
     const existingHistIdx = priceHistory.findIndex(
@@ -1552,14 +1582,30 @@ export default function App() {
     const targetOrder = purchases.find((p) => p.id === orderId);
     if (!targetOrder) return;
 
-    // Hitung volume riil yang masuk ke tangki dengan proteksi batas kapasitas maksimal
-    const stockBefore = receivingData.soundingBeforeLiters !== undefined
-      ? receivingData.soundingBeforeLiters
-      : tank.currentStockLiters;
     const maxCapacity = tank.totalCapacityLiters;
-    const availableSpace = Math.max(0, maxCapacity - stockBefore);
-    const effectiveStockAdded = Math.min(availableSpace, receivingData.actualLitersReceived);
-    const safeResultingStock = Math.min(maxCapacity, Math.max(0, stockBefore + effectiveStockAdded));
+    const isEditOfCompleted = targetOrder.status === 'SELESAI';
+
+    let effectiveStockAdded: number;
+    let safeResultingStock: number;
+
+    if (isEditOfCompleted) {
+      // KOREKSI data DO yang sudah SELESAI dibongkar: data "sounding sebelum bongkar" di form ini
+      // sudah usang (banyak penjualan mungkin terjadi sesudahnya), jadi jangan jadikan dasar hitung.
+      // Cukup terapkan SELISIH antara volume efektif lama vs baru ke stok tangki SAAT INI.
+      const oldAdded = getDoAddedLiters(targetOrder);
+      const stockWithoutThisDO = Math.max(0, tank.currentStockLiters - oldAdded);
+      const availableSpace = Math.max(0, maxCapacity - stockWithoutThisDO);
+      effectiveStockAdded = Math.min(availableSpace, Math.max(0, receivingData.actualLitersReceived));
+      safeResultingStock = Math.min(maxCapacity, Math.max(0, tank.currentStockLiters + (effectiveStockAdded - oldAdded)));
+    } else {
+      // Penerimaan BARU: hitung dari sounding sebelum bongkar yang baru saja diukur fisik
+      const stockBefore = receivingData.soundingBeforeLiters !== undefined
+        ? receivingData.soundingBeforeLiters
+        : tank.currentStockLiters;
+      const availableSpace = Math.max(0, maxCapacity - stockBefore);
+      effectiveStockAdded = Math.min(availableSpace, receivingData.actualLitersReceived);
+      safeResultingStock = Math.min(maxCapacity, Math.max(0, stockBefore + effectiveStockAdded));
+    }
 
     const updatedOrders = purchases.map((order) => {
       if (order.id === orderId) {
@@ -1579,8 +1625,10 @@ export default function App() {
     setTank((prev) => ({
       ...prev,
       currentStockLiters: safeResultingStock,
-      lastSoundingDate: receivingData.actualDeliveryDate,
-      lastSoundingLiters: safeResultingStock,
+      // Tanda sounding fisik hanya diperbarui saat BONGKAR PERTAMA KALI (pengukuran nyata).
+      // Mengoreksi data DO yang sudah selesai bukan sounding fisik baru.
+      lastSoundingDate: isEditOfCompleted ? prev.lastSoundingDate : receivingData.actualDeliveryDate,
+      lastSoundingLiters: isEditOfCompleted ? prev.lastSoundingLiters : safeResultingStock,
     }));
 
     // Otomatis sinkronisasi selisih volume DO (Loss / Gain) ke pembukuan beban operasional
@@ -1689,18 +1737,30 @@ export default function App() {
   const handleSaveSounding = (recordData: Omit<SoundingRecord, 'id'>, newStockLiters: number, editingId?: string) => {
     const idToUpdate = editingId || editingSounding?.id;
     const finalRecordId = idToUpdate || `snd-${Date.now()}`;
+    const soundKey = (r: Pick<SoundingRecord, 'date' | 'time'>) => `${r.date}T${r.time || '00:00'}`;
+
+    // Hanya terapkan ke stok tangki SAAT INI bila record ini adalah sounding PALING BARU
+    // (berdasarkan tanggal & jam). Mengedit sounding lama (mis. koreksi typo bulan lalu) tidak
+    // boleh menimpa stok hari ini yang sudah berubah akibat penjualan/DO sesudahnya.
+    const othersForComparison = soundings.filter((s) => s.id !== idToUpdate);
+    const isLatest = !othersForComparison.some((s) => soundKey(s) > soundKey(recordData));
 
     if (idToUpdate) {
+      // Pertahankan status "dikecualikan dari beban otomatis" bila sebelumnya sudah ditetapkan,
+      // supaya mengedit angka sounding tidak diam-diam memunculkan lagi beban yang sengaja dihapus.
+      const prevExcluded = soundings.find((s) => s.id === idToUpdate)?.varianceExpenseExcluded;
       const updated = soundings.map((s) =>
-        s.id === idToUpdate ? { ...recordData, id: idToUpdate } : s
+        s.id === idToUpdate ? { ...recordData, id: idToUpdate, varianceExpenseExcluded: prevExcluded } : s
       );
       setSoundings(updated);
-      setTank((prev) => ({
-        ...prev,
-        currentStockLiters: newStockLiters,
-        lastSoundingDate: recordData.date,
-        lastSoundingLiters: recordData.calculatedLiters,
-      }));
+      if (isLatest) {
+        setTank((prev) => ({
+          ...prev,
+          currentStockLiters: newStockLiters,
+          lastSoundingDate: recordData.date,
+          lastSoundingLiters: recordData.calculatedLiters,
+        }));
+      }
       setEditingSounding(null);
     } else {
       const newRecord: SoundingRecord = {
@@ -1709,12 +1769,14 @@ export default function App() {
       };
       setSoundings([newRecord, ...soundings]);
 
-      setTank((prev) => ({
-        ...prev,
-        currentStockLiters: newStockLiters,
-        lastSoundingDate: recordData.date,
-        lastSoundingLiters: recordData.calculatedLiters,
-      }));
+      if (isLatest) {
+        setTank((prev) => ({
+          ...prev,
+          currentStockLiters: newStockLiters,
+          lastSoundingDate: recordData.date,
+          lastSoundingLiters: recordData.calculatedLiters,
+        }));
+      }
     }
 
     // Otomatis catat selisih loss atau gain sounding ke dalam pembukuan keuangan
@@ -1938,13 +2000,36 @@ export default function App() {
     }
   };
 
+  // Tandai sumber (sounding/DO) agar beban losses/gain otomatisnya TIDAK dibuat ulang saat
+  // aplikasi dibuka kembali, setelah pengguna sengaja menghapus beban tersebut secara manual.
+  const markVarianceSourceExcluded = (removedExpenses: ExpenseRecord[]) => {
+    const soundingIds = new Set(
+      removedExpenses
+        .filter((e) => (e.sourceType === 'SOUNDING_TANGKI' || e.sourceType === 'CLOSING_SHIFT') && e.sourceReferenceId)
+        .map((e) => e.sourceReferenceId!)
+    );
+    const purchaseIds = new Set(
+      removedExpenses.filter((e) => e.sourceType === 'PENERIMAAN_DO' && e.sourceReferenceId).map((e) => e.sourceReferenceId!)
+    );
+    if (soundingIds.size > 0) {
+      setSoundings((prev) => prev.map((s) => (soundingIds.has(s.id) ? { ...s, varianceExpenseExcluded: true } : s)));
+    }
+    if (purchaseIds.size > 0) {
+      setPurchases((prev) => prev.map((p) => (purchaseIds.has(p.id) ? { ...p, varianceExpenseExcluded: true } : p)));
+    }
+  };
+
   const handleDeleteExpense = (expenseId: string) => {
+    const removed = expenses.find((e) => e.id === expenseId);
     setExpenses(expenses.filter((e) => e.id !== expenseId));
+    if (removed) markVarianceSourceExcluded([removed]);
   };
 
   const handleDeleteExpensesByMonth = (monthKey: string) => {
+    const removed = expenses.filter((e) => e.date.startsWith(monthKey));
     const remaining = expenses.filter((e) => !e.date.startsWith(monthKey));
     setExpenses(remaining);
+    markVarianceSourceExcluded(removed);
   };
 
   const handleOpenPrintSummaryModal = (mode: 'MONTHLY' | 'YEARLY', month: string, year: number) => {

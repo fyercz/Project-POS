@@ -823,6 +823,72 @@ export const StorageService = {
     if (!parsed.profile || !Array.isArray(parsed.products) || !parsed.tank) {
       throw new Error('Struktur file backup tidak sesuai (field profil/produk/tangki tidak ditemukan).');
     }
+
+    const warnings: string[] = [];
+    // Saring baris yang rusak/tidak lengkap per tabel, alih-alih memuatnya mentah-mentah dan
+    // berisiko membuat layar kosong/putih atau salah hitung di tempat lain (mis. transactionDate
+    // undefined dipanggil .startsWith()). Baris yang gagal validasi DIBUANG, bukan membatalkan
+    // seluruh restore - dan jumlahnya dilaporkan lewat validationWarnings.
+    function sanitizeArray<T>(
+      raw: any,
+      label: string,
+      isValid: (row: any) => boolean
+    ): T[] {
+      if (!Array.isArray(raw)) return [];
+      const valid: T[] = [];
+      let dropped = 0;
+      raw.forEach((row) => {
+        if (row && typeof row === 'object' && isValid(row)) {
+          valid.push(row as T);
+        } else {
+          dropped++;
+        }
+      });
+      if (dropped > 0) {
+        warnings.push(`${dropped} baris ${label} dilewati karena datanya tidak lengkap/rusak.`);
+      }
+      return valid;
+    }
+
+    const isStr = (v: any) => typeof v === 'string' && v.length > 0;
+    const isNum = (v: any) => typeof v === 'number' && !isNaN(v);
+
+    const sales = sanitizeArray<SaleRecord>(
+      parsed.sales,
+      'penjualan',
+      (r) => isStr(r.id) && isStr(r.transactionDate) && isStr(r.shift) && isStr(r.operatorName) && isNum(r.literSold)
+    );
+    const purchases = sanitizeArray<PurchaseOrder>(
+      parsed.purchases,
+      'DO Pertamina',
+      (r) => isStr(r.id) && isStr(r.orderDate) && isStr(r.status) && isNum(r.volumeLiters)
+    );
+    const soundings = sanitizeArray<SoundingRecord>(
+      parsed.soundings,
+      'sounding',
+      (r) => isStr(r.id) && isStr(r.date) && isNum(r.calculatedLiters)
+    );
+    const expenses = sanitizeArray<ExpenseRecord>(
+      parsed.expenses,
+      'pengeluaran',
+      (r) => isStr(r.id) && isStr(r.date) && isStr(r.category) && isNum(r.amount)
+    );
+    const employees = sanitizeArray<Employee>(
+      parsed.employees,
+      'karyawan',
+      (r) => isStr(r.id) && isStr(r.name)
+    );
+    const attendance = sanitizeArray<AttendanceRecord>(
+      parsed.attendance,
+      'absensi',
+      (r) => isStr(r.id) && isStr(r.employeeId) && isStr(r.date) && isStr(r.status)
+    );
+    const payrolls = sanitizeArray<PayrollRecord>(
+      parsed.payrolls,
+      'slip gaji',
+      (r) => isStr(r.id) && isStr(r.employeeId) && isStr(r.month) && isNum(r.netSalary)
+    );
+
     return {
       appName: parsed.appName || 'Sistem Manajemen & Laporan Pertashop',
       schemaVersion: parsed.schemaVersion || 1,
@@ -834,15 +900,16 @@ export const StorageService = {
       products: parsed.products,
       tank: parsed.tank,
       priceHistory: Array.isArray(parsed.priceHistory) ? parsed.priceHistory : [],
-      sales: Array.isArray(parsed.sales) ? parsed.sales : [],
-      purchases: Array.isArray(parsed.purchases) ? parsed.purchases : [],
-      soundings: Array.isArray(parsed.soundings) ? parsed.soundings : [],
-      expenses: Array.isArray(parsed.expenses) ? parsed.expenses : [],
-      employees: Array.isArray(parsed.employees) ? parsed.employees : [],
-      attendance: Array.isArray(parsed.attendance) ? parsed.attendance : [],
-      payrolls: Array.isArray(parsed.payrolls) ? parsed.payrolls : [],
+      sales,
+      purchases,
+      soundings,
+      expenses,
+      employees,
+      attendance,
+      payrolls,
       lastSalesDate: parsed.lastSalesDate || null,
       lastPoDate: parsed.lastPoDate || null,
+      validationWarnings: warnings,
     };
   },
 

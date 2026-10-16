@@ -45,108 +45,99 @@ export function syncSalesToAttendance(
     ? sales.filter((s) => s.transactionDate.startsWith(targetMonth))
     : sales;
 
-  // Sort chronologically ascending so day progression and overtime accumulation works properly
-  const sortedSales = [...relevantSales].sort((a, b) =>
-    a.transactionDate.localeCompare(b.transactionDate) || (a.time || '').localeCompare(b.time || '')
-  );
-
-  const attendanceMap = new Map<string, AttendanceRecord>();
-
-  // Populate map with existing attendance records
-  currentAttendance.forEach((att) => {
-    const key = `${att.employeeId}_${att.date}`;
-    attendanceMap.set(key, { ...att });
-  });
-
-  // Process sales
-  sortedSales.forEach((sale) => {
+  // Kelompokkan penjualan per karyawan + tanggal, agar hasil akhirnya DIHITUNG ULANG DARI NOL
+  // setiap kali fungsi ini dipanggil (idempoten). Versi lama menambah +1 lembur pada data yang
+  // sudah ada setiap kali disinkron ulang (mis. saat ubah harga, impor, atau klik tombol sinkron),
+  // sehingga lembur terus membengkak walau penjualan yang disinkron sama persis.
+  const groups = new Map<string, { emp: Employee; date: string; sales: SaleRecord[] }>();
+  relevantSales.forEach((sale) => {
     const opName = sale.operatorName.trim();
     if (!opName) return;
-
-    // Match employee
     const matchedEmp = findEmployeeByOperatorName(opName, employees);
-
     if (!matchedEmp) return;
-
     const key = `${matchedEmp.id}_${sale.transactionDate}`;
+    const g = groups.get(key);
+    if (g) g.sales.push(sale);
+    else groups.set(key, { emp: matchedEmp, date: sale.transactionDate, sales: [sale] });
+  });
+
+  const attendanceMap = new Map<string, AttendanceRecord>();
+  currentAttendance.forEach((att) => {
+    attendanceMap.set(`${att.employeeId}_${att.date}`, { ...att });
+  });
+
+  groups.forEach(({ emp, date, sales: daySales }, key) => {
+    const shiftInfos = daySales.map((s) => ({ sale: s, info: getShiftHoursInfo(s.shift) }));
+    const isExplicitLembur = daySales.some(
+      (s) =>
+        s.shift.toLowerCase().includes('lembur') ||
+        s.operatorName.toLowerCase().includes('lembur') ||
+        (s.notes || '').toLowerCase().includes('lembur')
+    );
+    const hasFull = shiftInfos.some((x) => x.info.isFull);
+    const hasShift1 = shiftInfos.some((x) => x.info.isShift1);
+    const hasShift2 = shiftInfos.some((x) => x.info.isShift2);
+    // Lembur HANYA terjadi bila operator menutupi lebih dari satu shift / shift penuh / ditandai eksplisit.
+    // Dihitung dari jumlah shift DISTINCT pada hari itu (maks. 1 nilai lembur per hari), bukan akumulasi.
+    const isMultiShift = isExplicitLembur || hasFull || (hasShift1 && hasShift2);
+
+    const totalLiters = daySales.reduce((acc, s) => acc + (s.literSold || 0), 0);
+    const shiftLabels = Array.from(new Set(daySales.map((s) => s.shift))).join(', ');
+
+    const finalShiftName = isMultiShift ? STANDARD_SHIFTS.FULL_SHIFT.name : shiftInfos[0].info.shiftName;
+    const finalCheckIn = isMultiShift ? '05:30' : shiftInfos[0].info.checkIn;
+    const finalCheckOut = isMultiShift ? '19:30' : shiftInfos[0].info.checkOut;
+    const finalStatus = isMultiShift ? 'LEMBUR' : 'HADIR';
+    const finalOvertime = isMultiShift ? 1 : 0;
+    // Tanda penanda agar catatan ini bisa dibedakan dari catatan manual dan diregenerasi bersih
+    // (tanpa menumpuk teks "Multi-Shift: ... | Multi-Shift: ..." setiap sinkron ulang)
+    const autoNotePrefix = '[Auto-Sinkron Penjualan]';
+    const autoNote = `${autoNotePrefix} ${totalLiters} L total (${shiftLabels})`;
+
     const existing = attendanceMap.get(key);
-
-    const shiftInfo = getShiftHoursInfo(sale.shift);
-    const shiftLower = sale.shift.toLowerCase();
-    const notesLower = (sale.notes || '').toLowerCase();
-    const opLower = opName.toLowerCase();
-
-    const isExplicitLembur =
-      shiftLower.includes('lembur') ||
-      opLower.includes('lembur') ||
-      notesLower.includes('lembur');
-
-    const standardCheckIn = isExplicitLembur ? '05:30' : shiftInfo.checkIn;
-    const standardCheckOut = isExplicitLembur ? '19:30' : shiftInfo.checkOut;
-    const standardShiftName = isExplicitLembur ? STANDARD_SHIFTS.FULL_SHIFT.name : shiftInfo.shiftName;
-
     if (existing) {
-      // Check if this is a secondary distinct shift on the same day (Operator worked Shift 1 and also Shift 2)
-      const isExistingShift1 = existing.shift.includes('Shift 1') || existing.checkInTime === '05:30';
-      const isNewShift2 = shiftInfo.isShift2;
-      const isExistingShift2 = existing.shift.includes('Shift 2') || existing.checkInTime === '13:30';
-      const isNewShift1 = shiftInfo.isShift1;
+      // Pertahankan catatan manual yang ditulis operator/admin; hanya ganti bagian auto-note.
+      const manualNotes = (existing.notes || '')
+        .split('|')
+        .map((x) => x.trim())
+        .filter((x) => x && !x.startsWith(autoNotePrefix))
+        .join(' | ');
+      const mergedNotes = manualNotes ? `${manualNotes} | ${autoNote}` : autoNote;
 
-      const isMultiShift =
-        (isExistingShift1 && isNewShift2) ||
-        (isExistingShift2 && isNewShift1) ||
-        isExplicitLembur ||
-        shiftInfo.isFull;
+      const changed =
+        existing.status !== finalStatus ||
+        existing.overtimeShifts !== finalOvertime ||
+        existing.shift !== finalShiftName ||
+        existing.checkInTime !== finalCheckIn ||
+        existing.checkOutTime !== finalCheckOut ||
+        existing.notes !== mergedNotes;
 
-      if (isMultiShift) {
-        existing.status = 'LEMBUR';
-        existing.overtimeShifts = Math.max(1, (existing.overtimeShifts || 0) + 1);
-        existing.shift = STANDARD_SHIFTS.FULL_SHIFT.name;
-        existing.checkInTime = '05:30';
-        existing.checkOutTime = '19:30';
-        if (!existing.notes?.includes(`${sale.literSold} L`)) {
-          existing.notes = `${existing.notes || ''} | Multi-Shift: ${sale.literSold} L (${sale.shift})`.trim();
-        }
+      if (changed) {
+        attendanceMap.set(key, {
+          ...existing,
+          status: finalStatus,
+          overtimeShifts: finalOvertime,
+          shift: finalShiftName,
+          checkInTime: finalCheckIn,
+          checkOutTime: finalCheckOut,
+          notes: mergedNotes,
+        });
         updatedCount++;
-      } else {
-        // Single shift: verify and synchronize shift and working hours if they were mismatched
-        let modified = false;
-        if (existing.shift !== standardShiftName) {
-          existing.shift = standardShiftName;
-          modified = true;
-        }
-        if (existing.checkInTime !== standardCheckIn) {
-          existing.checkInTime = standardCheckIn;
-          modified = true;
-        }
-        if (existing.checkOutTime !== standardCheckOut) {
-          existing.checkOutTime = standardCheckOut;
-          modified = true;
-        }
-        if (!existing.notes?.includes(`${sale.literSold} L`)) {
-          existing.notes = `${existing.notes || ''} | Penjualan: ${sale.literSold} L`.trim();
-          modified = true;
-        }
-        if (modified) {
-          updatedCount++;
-        }
       }
     } else {
-      // Create new attendance entry (single shift default is HADIR, 0 lembur)
       const newRec: AttendanceRecord = {
-        id: `att-sale-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        employeeId: matchedEmp.id,
-        employeeName: matchedEmp.name,
-        date: sale.transactionDate,
-        shift: standardShiftName,
-        status: isExplicitLembur ? 'LEMBUR' : 'HADIR',
-        checkInTime: standardCheckIn,
-        checkOutTime: standardCheckOut,
-        overtimeShifts: isExplicitLembur ? 1 : 0,
-        notes: `Sinkron penjualan shift (${sale.literSold} L - ${sale.shift}). ${sale.notes || ''}`.trim(),
-        createdAt: `${sale.transactionDate} ${sale.time || standardCheckIn}`,
+        id: `att-sale-${emp.id}-${date}`,
+        employeeId: emp.id,
+        employeeName: emp.name,
+        date,
+        shift: finalShiftName,
+        status: finalStatus,
+        checkInTime: finalCheckIn,
+        checkOutTime: finalCheckOut,
+        overtimeShifts: finalOvertime,
+        notes: autoNote,
+        createdAt: `${date} ${shiftInfos[0].sale.time || finalCheckIn}`,
       };
-
       attendanceMap.set(key, newRec);
       addedCount++;
     }
@@ -239,6 +230,15 @@ export interface PayrollEligibility {
   endEligibilityDay: number;
   status: 'PAST_MONTH' | 'ACTIVE_WINDOW' | 'TOO_EARLY' | 'FUTURE_MONTH';
   message: string;
+}
+
+
+// Apakah targetMonth (YYYY-MM) adalah bulan berjalan atau di masa depan relatif terhadap tanggal sekarang
+function isCurrentOrFutureMonth(targetMonth: string, referenceDate: Date = new Date()): boolean {
+  const [y, m] = targetMonth.split('-').map(Number);
+  const targetVal = y * 12 + m;
+  const currentVal = referenceDate.getFullYear() * 12 + (referenceDate.getMonth() + 1);
+  return targetVal >= currentVal;
 }
 
 export function isPayrollCalculationAllowed(
@@ -342,6 +342,14 @@ export function recalculateMonthlyPayrolls(
 
     const existingSlip = existingIndex >= 0 ? updatedPayrolls[existingIndex] : null;
 
+    // KUNCI: slip yang sudah berstatus DIBAYAR tidak lagi dihitung ulang otomatis. Nominal yang
+    // sudah dibayarkan ke karyawan adalah fakta final; absensi yang berubah belakangan (koreksi,
+    // impor ulang, dsb.) tidak boleh diam-diam mengubah nominal slip yang sudah lunas. Untuk
+    // mengoreksi slip yang sudah dibayar, batalkan status bayar (Unpay) terlebih dahulu.
+    if (existingSlip && existingSlip.paymentStatus === 'DIBAYAR') {
+      return;
+    }
+
     // Jika belum ada slip gaji dan belum memasuki 2 hari terakhir bulan tersebut (dan tidak di-force), jangan buat slip prematur
     if (!existingSlip && !eligibility.allowed && !forceCreate) {
       return;
@@ -397,8 +405,13 @@ export function recalculateMonthlyPayrolls(
       grossSalary,
       totalDeductions,
       netSalary,
-      paymentStatus: existingSlip?.paymentStatus || (targetMonth === '2026-08' ? 'DRAFT' : 'DIBAYAR'),
-      paymentDate: existingSlip?.paymentDate || (targetMonth === '2026-08' ? undefined : `${targetMonth}-28`),
+      // Bulan BERJALAN/masa depan: slip baru default DRAFT (belum dibayar, menunggu aksi "Bayar Gaji").
+      // Bulan yang SUDAH LEWAT (mis. input rekap historis): default DIBAYAR, karena secara riil
+      // gaji bulan lalu pasti sudah dibayarkan. Catatan: status ini TIDAK membuat beban pengeluaran
+      // otomatis — beban "GAJI_OPERATOR" hanya tercatat saat tombol Bayar Gaji ditekan (lihat
+      // handlePaySalary di App.tsx), supaya pembukuan tidak kehilangan jejak transaksi gaji.
+      paymentStatus: existingSlip?.paymentStatus || (isCurrentOrFutureMonth(targetMonth) ? 'DRAFT' : 'DIBAYAR'),
+      paymentDate: existingSlip?.paymentDate || (isCurrentOrFutureMonth(targetMonth) ? undefined : `${targetMonth}-${String(daysInMonth).padStart(2, '0')}`),
       paymentSource: existingSlip?.paymentSource || 'REKENING_BANK',
       notes:
         existingSlip?.notes ||

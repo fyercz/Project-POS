@@ -310,3 +310,16 @@ export function addDays(dateStr: string, days: number): string {
     return dateStr;
   }
 }
+
+/**
+ * Total beban operasional bersih dari daftar ExpenseRecord, dengan GAIN_MINYAK (surplus BBM)
+ * diperlakukan sebagai PENGURANG beban (bukan beban tambahan), karena surplus menambah laba.
+ * Konvensi ini dipakai konsisten di semua layar laporan (Rekap, Cetak P&L, Analisis) supaya
+ * laba bersih yang ditampilkan tidak berbeda-beda antar halaman untuk data yang sama.
+ */
+export function sumExpensesNetOfFuelGain(expenses: { category: string; amount: number }[]): number {
+  return expenses.reduce((acc, curr) => {
+    if (curr.category === 'GAIN_MINYAK') return acc - curr.amount;
+    return acc + curr.amount;
+  }, 0);
+}

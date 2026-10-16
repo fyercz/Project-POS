@@ -20,7 +20,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import { Product, SaleRecord, TankConfig, ExpenseRecord, EXPENSE_RATES } from '../types';
-import { formatRupiah, formatNumber, formatLiter, formatShortDate } from '../utils/formatters';
+import { formatRupiah, formatNumber, formatLiter, formatShortDate, sumExpensesNetOfFuelGain } from '../utils/formatters';
 import { DailySalesTrendChart, ShiftFilterOption } from './DailySalesTrendChart';
 
 interface AnalyticsViewProps {
@@ -99,7 +99,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     .filter((e) => e.category === 'LAINNYA' || (e.category as string) === 'LAIN_LAIN')
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
+  // Surplus BBM (GAIN_MINYAK) mengurangi beban, bukan menambah - disamakan dengan konvensi di Rekap & Cetak P&L
+  const totalExpenses = sumExpensesNetOfFuelGain(expenses);
   const netProfit = totalGrossProfit - totalExpenses;
   const netProfitMarginRatio = totalGrossProfit > 0 ? (netProfit / totalGrossProfit) * 100 : 0;
 

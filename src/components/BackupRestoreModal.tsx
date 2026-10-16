@@ -477,6 +477,18 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     </div>
                   </div>
 
+                  {parsedPreview.validationWarnings && parsedPreview.validationWarnings.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-800 space-y-1">
+                      <p className="font-bold">Sebagian baris data dilewati karena rusak/tidak lengkap:</p>
+                      <ul className="list-disc list-inside space-y-0.5">
+                        {parsedPreview.validationWarnings.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                      <p>Data yang masih valid tetap bisa dipulihkan seperti biasa.</p>
+                    </div>
+                  )}
+
                   <div className="pt-2 flex justify-end">
                     <button
                       type="button"

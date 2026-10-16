@@ -152,11 +152,17 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
   const varianceLiters = actualLitersReceived - order.volumeLiters;
 
   const handleAutoAdjustToMaxCapacity = () => {
-    const safeVolume = availableSpace;
-    setActualLitersReceived(safeVolume);
-    const newAfter = soundingBeforeLiters + safeVolume;
+    // PENTING: actualLitersReceived (volume yang benar-benar dibongkar dari mobil tangki) TIDAK
+    // diubah di sini. Mengubahnya ke volume muat tangki akan membuat sistem mencatat sisa yang
+    // tidak tertampung sebagai "losses minyak" dalam rupiah - padahal BBM itu TIDAK hilang,
+    // hanya tidak muat ke tangki (biasanya dibawa kembali oleh mobil tangki / dikirim ulang).
+    // Yang disesuaikan hanya tampilan sounding setelah bongkar dan stok tangki (dibatasi App.tsx
+    // via effectiveStockAdded); selisih DO vs diterima tetap dihitung dari volume RIIL dari truk.
+    const newAfter = Math.min(tank.totalCapacityLiters, soundingBeforeLiters + actualLitersReceived);
     setSoundingAfterLiters(newAfter);
     setSoundingAfterCm(Math.round((newAfter / LITERS_PER_CM) * 10) / 10);
+    const overflowNote = `Catatan: ${formatLiter(overflowAmount)} tidak tertampung di tangki (kapasitas penuh) - BUKAN losses, kemungkinan dibawa kembali oleh mobil tangki / perlu pengiriman susulan.`;
+    setNotes((prev) => (prev.includes(overflowNote) ? prev : `${prev ? prev + ' ' : ''}${overflowNote}`));
   };
 
   const executeCompleteReceiving = (overrideReceived?: number) => {

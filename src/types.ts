@@ -117,7 +117,10 @@ export interface PurchaseOrder {
   varianceLiters?: number; // Selisih DO vs Diterima
   density?: number; // g/ml (e.g. 0.745)
   temperature?: number; // °C (e.g. 29.5)
-  
+  // true bila beban losses/gain otomatis dari selisih DO ini sudah dihapus manual oleh pengguna -
+  // mencegah beban yang sama muncul lagi secara otomatis setiap aplikasi dibuka ulang.
+  varianceExpenseExcluded?: boolean;
+
   notes?: string;
   createdAt: string;
   completedAt?: string;
@@ -147,6 +150,9 @@ export interface SoundingRecord {
   varianceLiters: number; // calculatedLiters - systemStockLiters (Loss/Gain)
   waterBottomCm: number; // Deteksi pasta air di dasar tangki (harus 0)
   notes?: string;
+  // true bila beban losses/gain otomatis dari selisih ini sudah dihapus manual oleh pengguna -
+  // mencegah beban yang sama muncul lagi secara otomatis setiap aplikasi dibuka ulang.
+  varianceExpenseExcluded?: boolean;
 }
 
 export interface PertashopProfile {
@@ -297,6 +303,9 @@ export interface PertashopBackupData {
   payrolls: PayrollRecord[];
   lastSalesDate?: string | null;
   lastPoDate?: string | null;
+  // Diisi oleh validateAndParseBackup: daftar baris yang dibuang karena rusak/tidak lengkap,
+  // supaya pengguna tahu ada data yang hilang dari file backup alih-alih diam-diam gagal nanti.
+  validationWarnings?: string[];
 }
 
 

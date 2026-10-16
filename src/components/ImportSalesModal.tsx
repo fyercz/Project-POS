@@ -116,15 +116,20 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   };
 
   // Helper to parse date formats
-  const parseDateString = (val: any): string => {
-    if (!val) return getTodayDateString();
+  // Mengembalikan null bila nilai TIDAK KOSONG tapi gagal diuraikan sebagai tanggal, supaya
+  // pemanggil bisa menandai baris tsb sebagai error alih-alih diam-diam memakai tanggal hari ini
+  // (yang sebelumnya menyamarkan data rusak sebagai transaksi hari ini tanpa peringatan apa pun).
+  const parseDateStringOrNull = (val: any): string | null => {
+    if (val === undefined || val === null || val === '') return null;
     if (typeof val === 'number') {
       const dateObj = XLSX.SSF.parse_date_code(val);
       if (dateObj) {
         return `${dateObj.y}-${String(dateObj.m).padStart(2, '0')}-${String(dateObj.d).padStart(2, '0')}`;
       }
+      return null;
     }
     const str = String(val).trim();
+    if (!str) return null;
     if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
     const ddmmyyyy = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
     if (ddmmyyyy) {
@@ -137,7 +142,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
     if (!isNaN(parsed.getTime())) {
       return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
     }
-    return getTodayDateString();
+    return null;
   };
 
   // Helper to parse time
@@ -169,13 +174,15 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         normalized[cleanKey] = row[k];
       });
 
-      const dateVal =
-        normalized['tanggal'] ||
-        normalized['tgl'] ||
-        normalized['date'] ||
-        normalized['transactiondate'] ||
-        getTodayDateString();
-      const transactionDate = parseDateString(dateVal);
+      const dateValRaw =
+        normalized['tanggal'] || normalized['tgl'] || normalized['date'] || normalized['transactiondate'];
+      let transactionDate = parseDateStringOrNull(dateValRaw);
+      if (dateValRaw && transactionDate === null) {
+        errors.push(`Tanggal "${dateValRaw}" tidak dikenali formatnya - baris ini TIDAK diimpor (gunakan DD/MM/YYYY atau YYYY-MM-DD).`);
+        transactionDate = getTodayDateString();
+      } else if (!dateValRaw) {
+        transactionDate = getTodayDateString();
+      }
 
       const timeVal = normalized['jam'] || normalized['waktu'] || normalized['time'] || getCurrentTimeString();
       const time = parseTimeString(timeVal);
@@ -208,14 +215,14 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       const meterAwalRaw = normalized['standawal'] || normalized['meterawal'] || normalized['awal'];
       const meterAkhirRaw = normalized['standakhir'] || normalized['meterakhir'] || normalized['akhir'];
 
-      const meterAwal = meterAwalRaw !== undefined && meterAwalRaw !== '' ? parseFloat(meterAwalRaw) : undefined;
-      const meterAkhir = meterAkhirRaw !== undefined && meterAkhirRaw !== '' ? parseFloat(meterAkhirRaw) : undefined;
+      const meterAwal = meterAwalRaw !== undefined && meterAwalRaw !== '' ? parseSafeNumber(meterAwalRaw) : undefined;
+      const meterAkhir = meterAkhirRaw !== undefined && meterAkhirRaw !== '' ? parseSafeNumber(meterAkhirRaw) : undefined;
 
       let literSold = 0;
       const literRaw = normalized['liter'] || normalized['litersold'] || normalized['jumlah'] || normalized['volume'];
 
       if (literRaw !== undefined && literRaw !== '') {
-        literSold = parseFloat(literRaw) || 0;
+        literSold = parseSafeNumber(literRaw) || 0;
       } else if (meterAwal !== undefined && meterAkhir !== undefined) {
         literSold = Math.max(0, meterAkhir - meterAwal);
       }
@@ -225,38 +232,38 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       }
 
       const unitPrice =
-        parseFloat(normalized['hargajual'] || normalized['harga'] || normalized['unitprice']) ||
+        parseSafeNumber(normalized['hargajual'] || normalized['harga'] || normalized['unitprice']) ||
         matchedProduct.currentPrice;
       const buyPriceSnapshot =
-        parseFloat(normalized['hargabeli'] || normalized['hargatebus'] || normalized['buyprice']) ||
+        parseSafeNumber(normalized['hargabeli'] || normalized['hargatebus'] || normalized['buyprice']) ||
         matchedProduct.buyPrice;
 
       const totalRevenue =
-        parseFloat(normalized['omzet'] || normalized['totalomzet'] || normalized['totalrevenue'] || normalized['total']) ||
+        parseSafeNumber(normalized['omzet'] || normalized['totalomzet'] || normalized['totalrevenue'] || normalized['total']) ||
         literSold * unitPrice;
       const totalProfit =
-        parseFloat(normalized['laba'] || normalized['profit'] || normalized['margin']) ||
+        parseSafeNumber(normalized['laba'] || normalized['profit'] || normalized['margin']) ||
         literSold * (unitPrice - buyPriceSnapshot);
 
-      const paymentQris = parseFloat(normalized['qris'] || normalized['paymentqris'] || normalized['nontunai']) || 0;
-      const paymentEdc = parseFloat(normalized['edc'] || normalized['paymentedc'] || normalized['debit']) || 0;
+      const paymentQris = parseSafeNumber(normalized['qris'] || normalized['paymentqris'] || normalized['nontunai']) || 0;
+      const paymentEdc = parseSafeNumber(normalized['edc'] || normalized['paymentedc'] || normalized['debit']) || 0;
       const totalDigital = paymentQris + paymentEdc;
 
       const paymentCashRaw = normalized['tunai'] || normalized['cash'] || normalized['paymentcash'];
       const paymentCash =
         paymentCashRaw !== undefined && paymentCashRaw !== ''
-          ? parseFloat(paymentCashRaw) || 0
+          ? parseSafeNumber(paymentCashRaw) || 0
           : Math.max(0, totalRevenue - totalDigital);
 
       const actualCashRaw = normalized['uangkasir'] || normalized['actualcash'] || normalized['kasfisik'];
       const actualCashInHand =
         actualCashRaw !== undefined && actualCashRaw !== ''
-          ? parseFloat(actualCashRaw) || 0
+          ? parseSafeNumber(actualCashRaw) || 0
           : paymentCash;
 
       const cashDifference = actualCashInHand - paymentCash;
       const teraTestLiters =
-        parseFloat(normalized['tera'] || normalized['ujitera'] || normalized['teratestliters']) || 5;
+        parseSafeNumber(normalized['tera'] || normalized['ujitera'] || normalized['teratestliters']) || 5;
 
       const soundingStickRaw =
         normalized['soundingstick'] ||
@@ -266,15 +273,15 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         normalized['tinggistick'] ||
         normalized['sounding'];
       const soundingStickCm =
-        soundingStickRaw !== undefined && soundingStickRaw !== '' ? parseFloat(soundingStickRaw) : undefined;
+        soundingStickRaw !== undefined && soundingStickRaw !== '' ? parseSafeNumber(soundingStickRaw) : undefined;
 
       const soundingCalculatedLiters =
         soundingStickCm !== undefined
-          ? parseFloat(normalized['volumesounding'] || normalized['soundingcalculatedliters']) || Math.round(soundingStickCm * 21)
+          ? parseSafeNumber(normalized['volumesounding'] || normalized['soundingcalculatedliters']) || Math.round(soundingStickCm * 21)
           : undefined;
 
       const soundingWaterCm =
-        parseFloat(normalized['ujipastaair'] || normalized['pastaair'] || normalized['watercm']) || 0;
+        parseSafeNumber(normalized['ujipastaair'] || normalized['pastaair'] || normalized['watercm']) || 0;
 
       const lossesRaw =
         normalized['lossessusuttangkil'] ??
@@ -376,21 +383,23 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
         normalized['dopertamina'] || normalized['nodo'] || normalized['nomordo'] || poNumber
       ).trim();
 
-      const orderDateVal =
-        normalized['tanggalorder'] ||
-        normalized['tanggal'] ||
-        normalized['tgl'] ||
-        normalized['orderdate'] ||
-        getTodayDateString();
-      const orderDate = parseDateString(orderDateVal);
+      const orderDateValRaw =
+        normalized['tanggalorder'] || normalized['tanggal'] || normalized['tgl'] || normalized['orderdate'];
+      let orderDate = parseDateStringOrNull(orderDateValRaw);
+      if (orderDateValRaw && orderDate === null) {
+        errors.push(`Tanggal order "${orderDateValRaw}" tidak dikenali formatnya - baris ini TIDAK diimpor.`);
+        orderDate = getTodayDateString();
+      } else if (!orderDateValRaw) {
+        orderDate = getTodayDateString();
+      }
 
-      const actualDeliveryDateVal =
-        normalized['tanggaltiba'] ||
-        normalized['tanggalterima'] ||
-        normalized['tglterima'] ||
-        normalized['actualdeliverydate'] ||
-        orderDate;
-      const actualDeliveryDate = parseDateString(actualDeliveryDateVal);
+      const actualDeliveryDateValRaw =
+        normalized['tanggaltiba'] || normalized['tanggalterima'] || normalized['tglterima'] || normalized['actualdeliverydate'];
+      let actualDeliveryDate = actualDeliveryDateValRaw ? parseDateStringOrNull(actualDeliveryDateValRaw) : orderDate;
+      if (actualDeliveryDateValRaw && actualDeliveryDate === null) {
+        errors.push(`Tanggal tiba "${actualDeliveryDateValRaw}" tidak dikenali formatnya - baris ini TIDAK diimpor.`);
+        actualDeliveryDate = orderDate;
+      }
 
       const prodNameRaw = String(normalized['produk'] || normalized['product'] || defaultProduct.name).trim();
       const matchedProduct =
@@ -413,7 +422,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       const rawKL = normalized['volumekl'] || normalized['kl'] || normalized['pecahan'];
 
       if (rawVol !== undefined && rawVol !== '') {
-        const parsedV = parseFloat(rawVol) || 0;
+        const parsedV = parseSafeNumber(rawVol) || 0;
         if (parsedV <= 10) {
           // Inputted in KL e.g. 2 or 3
           volumeKL = Math.min(5, Math.max(1, Math.round(parsedV))) as OrderVolumePecahan;
@@ -423,7 +432,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
           volumeKL = Math.min(5, Math.max(1, Math.round(parsedV / 1000))) as OrderVolumePecahan;
         }
       } else if (rawKL !== undefined && rawKL !== '') {
-        const parsedKL = parseFloat(rawKL) || 2;
+        const parsedKL = parseSafeNumber(rawKL) || 2;
         volumeKL = Math.min(5, Math.max(1, Math.round(parsedKL))) as OrderVolumePecahan;
         volumeLiters = volumeKL * 1000;
       } else {
@@ -436,12 +445,12 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       }
 
       const buyPricePerLiter =
-        parseFloat(normalized['hargabeli'] || normalized['hargatebus'] || normalized['buyprice'] || normalized['harga']) ||
+        parseSafeNumber(normalized['hargabeli'] || normalized['hargatebus'] || normalized['buyprice'] || normalized['harga']) ||
         matchedProduct.buyPrice ||
         12100;
 
       const totalAmount =
-        parseFloat(normalized['total'] || normalized['totalamount'] || normalized['totalharga'] || normalized['nominal']) ||
+        parseSafeNumber(normalized['total'] || normalized['totalamount'] || normalized['totalharga'] || normalized['nominal']) ||
         volumeLiters * buyPricePerLiter;
 
       const supplyDepot = String(
@@ -472,7 +481,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
       const status = rawStatus === 'DIPESAN' || rawStatus === 'PENGIRIMAN' || rawStatus === 'BATAL' ? rawStatus : 'SELESAI';
 
       const actualLitersReceived =
-        parseFloat(normalized['literditerima'] || normalized['actualliters'] || normalized['volumeterima']) ||
+        parseSafeNumber(normalized['literditerima'] || normalized['actualliters'] || normalized['volumeterima']) ||
         volumeLiters;
 
       const varianceLiters = actualLitersReceived - volumeLiters;
@@ -515,9 +524,65 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
   };
 
   // Handle file upload with multi-sheet support
+
+  // Parser teks berpembatas (CSV/TSV) bersama, dipakai untuk tempel teks DAN file .csv yang diunggah.
+  // File .csv SENGAJA tidak dilewatkan ke XLSX.read: SheetJS akan menebak format Amerika untuk
+  // tanggal/angka pada teks CSV mentah (mis. "01/10/2026" dibaca 10 Januari, "15.850" dibaca 15,85),
+  // yang salah untuk format Indonesia. Dengan parser teks ini, nilai tetap berupa string dan
+  // diuraikan oleh parseDateString/parseSafeNumber yang sudah memahami format Indonesia.
+  const parseDelimitedText = (text: string): any[] => {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length === 0) return [];
+    const firstLine = lines[0];
+    let delimiter = '\t';
+    if (firstLine.includes('\t')) delimiter = '\t';
+    else if (firstLine.includes(';')) delimiter = ';';
+    else if (firstLine.includes(',')) delimiter = ',';
+
+    const headers = firstLine.split(delimiter).map((h) => h.trim().replace(/^["']|["']$/g, ''));
+    const rows: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const values = lines[i].split(delimiter).map((v) => v.trim().replace(/^["']|["']$/g, ''));
+      const rowObj: Record<string, any> = {};
+      headers.forEach((h, idx) => {
+        rowObj[h] = values[idx] !== undefined ? values[idx] : '';
+      });
+      rows.push(rowObj);
+    }
+    return rows;
+  };
+
   const handleFileUpload = (file: File) => {
     setFileName(file.name);
     setIsProcessing(true);
+
+    const isCsv = file.name.toLowerCase().endsWith('.csv') || file.type === 'text/csv';
+
+    if (isCsv) {
+      // Jalur khusus CSV: baca sebagai teks biasa, JANGAN lewat XLSX.read (lihat catatan parseDelimitedText).
+      const textReader = new FileReader();
+      textReader.onload = (e) => {
+        try {
+          const rows = parseDelimitedText(String(e.target?.result || ''));
+          const parsedSales = processRawSalesData(rows);
+          setParsedRows(parsedSales);
+          setParsedDoRows([]);
+          setPreviewTab('sales');
+        } catch (err) {
+          console.error('Error parsing CSV:', err);
+          alert('Gagal membaca file CSV. Pastikan formatnya sesuai template.');
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      textReader.onerror = () => {
+        setIsProcessing(false);
+        alert('Gagal membaca file.');
+      };
+      textReader.readAsText(file, 'UTF-8');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -609,27 +674,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
     if (!pastedText.trim()) return;
     setIsProcessing(true);
     try {
-      const lines = pastedText.trim().split(/\r?\n/);
-      if (lines.length === 0) return;
-
-      const firstLine = lines[0];
-      let delimiter = '\t';
-      if (firstLine.includes('\t')) delimiter = '\t';
-      else if (firstLine.includes(';')) delimiter = ';';
-      else if (firstLine.includes(',')) delimiter = ',';
-
-      const headers = firstLine.split(delimiter).map((h) => h.trim().replace(/^["']|["']$/g, ''));
-      const rows: any[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const values = lines[i].split(delimiter).map((v) => v.trim().replace(/^["']|["']$/g, ''));
-        const rowObj: Record<string, any> = {};
-        headers.forEach((h, idx) => {
-          rowObj[h] = values[idx] !== undefined ? values[idx] : '';
-        });
-        rows.push(rowObj);
-      }
+      const rows = parseDelimitedText(pastedText);
 
       setFileName(`Pasted Text (${rows.length} Baris - ${pasteType === 'sales' ? 'Penjualan' : 'Delivery Order'})`);
 

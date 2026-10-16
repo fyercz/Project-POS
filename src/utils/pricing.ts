@@ -253,18 +253,18 @@ export function recalculateSaleWithPrice(
 ): SaleRecord {
   const newRevenue = Math.round(sale.literSold * newSellingPrice);
   const newProfit = Math.round(sale.literSold * (newSellingPrice - newBuyPrice));
-  const nonCash = (sale.paymentQris || 0) + (sale.paymentEdc || 0);
-  const newExpectedCash = Math.max(0, newRevenue - nonCash);
-  const prevDiff = sale.cashDifference || 0;
 
+  // PENTING: paymentCash, paymentQris, paymentEdc, actualCashInHand, dan cashDifference TIDAK
+  // disentuh. Angka-angka itu adalah FAKTA FISIK uang yang sudah disetor/dihitung kasir pada shift
+  // tersebut. Mengoreksi harga jual/beli sebulan kemudian tidak boleh menulis ulang sejarah setoran
+  // kas - itu akan menyembunyikan selisih kas yang sesungguhnya dan membuat data tidak bisa
+  // diaudit. Hanya angka "buku" (omset & laba) yang ikut berubah mengikuti tarif baru.
   return {
     ...sale,
     unitPrice: newSellingPrice,
     buyPriceSnapshot: newBuyPrice,
     totalRevenue: newRevenue,
     totalProfit: newProfit,
-    paymentCash: newExpectedCash,
-    actualCashInHand: newExpectedCash + prevDiff,
   };
 }
 
