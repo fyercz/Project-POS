@@ -17,6 +17,35 @@ class PertashopApp
 
         if (!isRunning)
         {
+            // PENTING: Pertashop.exe bisa dibuat (menu [2] di Pertashop.bat) TANPA pernah
+            // menjalankan "npm install" terlebih dahulu. Tanpa pengecekan ini, klik ganda
+            // Pertashop.exe pada komputer yang belum pernah di-install akan diam-diam gagal
+            // total - jendela CMD memang sengaja disembunyikan (lihat di bawah), sehingga
+            // kasir tidak pernah melihat pesan error "npm run dev" gagal sama sekali, dan
+            // hanya akan melihat jendela browser kosong "tidak bisa terhubung" tanpa penjelasan.
+            string nodeModulesPath = Path.Combine(currentDir, "node_modules");
+            if (!Directory.Exists(nodeModulesPath))
+            {
+                // Tampilkan jendela terminal (TIDAK disembunyikan) khusus untuk proses instalasi
+                // ini saja, supaya kasir melihat progres & pesan error npm yang sesungguhnya
+                // alih-alih layar kosong yang membingungkan.
+                ProcessStartInfo installPsi = new ProcessStartInfo();
+                installPsi.FileName = "cmd.exe";
+                installPsi.Arguments = "/c title Menyiapkan Pertashop (Sekali Saja)... && echo Dependensi belum terpasang, memasang sekarang. Mohon tunggu... && echo. && npm install && echo. && echo Selesai, aplikasi akan terbuka otomatis... && timeout /t 2";
+                installPsi.WorkingDirectory = currentDir;
+                installPsi.WindowStyle = ProcessWindowStyle.Normal;
+                installPsi.UseShellExecute = false;
+
+                try
+                {
+                    using (Process installProc = Process.Start(installPsi))
+                    {
+                        installProc.WaitForExit();
+                    }
+                }
+                catch { }
+            }
+
             // Jalankan server di latar belakang secara tersembunyi (tanpa jendela CMD hitam)
             ProcessStartInfo psi = new ProcessStartInfo();
             psi.FileName = "cmd.exe";
