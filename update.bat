@@ -22,13 +22,36 @@ if not "%~1"=="RUNNING_FROM_TEMP" (
     echo ===============================================================================
     echo.
     echo [INFO] Menyiapkan modul pembaruan mandiri di latar belakang...
-    copy /y "%~f0" "%TEMP%\pertashop_updater_runner.bat" >nul 2>nul
-    if errorlevel 1 (
-        echo [PERINGATAN] Gagal menyalin runner ke %%TEMP%%, melanjutkan di direktori aktif...
+    set "RUNNER=%TEMP%\pertashop_updater_runner.bat"
+    copy /y "%~f0" "!RUNNER!" >nul 2>nul
+
+    :: Pastikan file salinan benar-benar ada dan tidak kosong (mis. diblokir antivirus secara
+    :: diam-diam) sebelum mencoba memanggilnya - jika gagal, lanjutkan di direktori aktif saja
+    :: daripada menutup jendela tanpa penjelasan.
+    set "RUNNER_OK=0"
+    if exist "!RUNNER!" (
+        for %%F in ("!RUNNER!") do if %%~zF GTR 0 set "RUNNER_OK=1"
+    )
+    if "!RUNNER_OK!"=="0" (
+        echo [PERINGATAN] Gagal menyiapkan modul sementara di %%TEMP%%, melanjutkan di direktori aktif...
+        echo              ^(Proses update tetap berjalan normal, hanya tanpa pengaman tambahan ini^)
         goto DO_UPDATE
     )
-    cmd.exe /c ""%TEMP%\pertashop_updater_runner.bat" RUNNING_FROM_TEMP "%APP_DIR%""
+
+    :: Panggil salinan di %TEMP% dengan "call" (BUKAN "cmd.exe /c" dengan tanda kutip bersarang -
+    :: pola itu rawan gagal secara diam-diam pada sebagian kombinasi Windows/path, menyebabkan
+    :: jendela tertutup tiba-tiba di tengah proses tanpa pesan apa pun). "call" ke file .bat lain
+    :: tetap memberi proteksi yang sama: begitu kontrol berpindah ke salinan di %TEMP%, file asli
+    :: di folder aplikasi ini aman ditimpa oleh git/unduhan ZIP tanpa mengganggu proses yang sedang
+    :: berjalan, karena yang sedang dibaca cmd.exe sekarang adalah file di %TEMP%, bukan file ini.
+    call "!RUNNER!" RUNNING_FROM_TEMP "%APP_DIR%"
     set "EXIT_CODE=!ERRORLEVEL!"
+    if not "!EXIT_CODE!"=="0" (
+        echo.
+        echo [PERINGATAN] Proses update di modul sementara berhenti dengan kode !EXIT_CODE!.
+        echo              Jika layar tertutup sebelum ini, jalankan ulang update.bat untuk mencoba lagi.
+        pause
+    )
     exit /b !EXIT_CODE!
 )
 
