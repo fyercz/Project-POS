@@ -1,0 +1,14 @@
+# File .bat/.cmd ditandai BINER (-text) secara sengaja, BUKAN "text eol=crlf".
+#
+# Alasan: dengan "text eol=crlf", git MENYAMARKAN perbedaan CRLF vs LF sebagai
+# "tidak ada perubahan" (dinormalisasi diam-diam saat commit/diff) - ini terbukti
+# membuat perbaikan line-ending sebelumnya nyaris tidak ter-commit tanpa disadari.
+# Dengan "-text", git menyimpan & mengirim file ini APA ADANYA, byte demi byte,
+# baik lewat "git clone/pull" MAUPUN lewat fitur "Download ZIP" di GitHub -
+# dan perubahan line-ending di masa depan akan selalu terlihat jelas sebagai diff
+# yang sesungguhnya, bukan tersembunyi oleh normalisasi otomatis.
+*.bat -text
+*.cmd -text
+
+# Skrip Unix tetap LF seperti seharusnya (aman pakai normalisasi teks biasa).
+*.sh text eol=lf
