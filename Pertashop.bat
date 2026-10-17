@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
-chcp 65001 >nul 2>nul
+:: CATATAN: "chcp 65001" (ganti ke UTF-8) SENGAJA DIHAPUS - pada sebagian build Windows
+:: perintah ini membuat cmd.exe kehilangan posisi baca file .bat dan keluar mendadak
+:: tanpa pesan di awal eksekusi. File ini 100%% ASCII polos, jadi tidak membutuhkannya.
 cd /d "%~dp0"
 title Sistem Manajemen dan Laporan Pertashop
 color 0B

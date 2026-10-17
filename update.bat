@@ -1,6 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
-chcp 65001 >nul 2>nul
+:: CATATAN: "chcp 65001" (ganti ke UTF-8) SENGAJA DIHAPUS. Pada sebagian build Windows,
+:: perintah ini membuat cmd.exe kehilangan posisi baca file .bat dan langsung keluar
+:: TANPA PESAN APA PUN tepat di awal - persis gejala "jendela tertutup tanpa teks apa pun".
+:: File ini sudah diverifikasi 100%% ASCII polos (tidak ada karakter spesial/Unicode),
+:: jadi codepage bawaan Windows (437/850) sudah cukup dan lebih aman.
 title Pembaruan Otomatis Sistem Pertashop dari GitHub
 color 0B
 
