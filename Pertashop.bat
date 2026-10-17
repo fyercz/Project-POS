@@ -5,6 +5,11 @@ cd /d "%~dp0"
 title Sistem Manajemen dan Laporan Pertashop
 color 0B
 
+:: Jalankan "Pertashop.bat run" (tanpa tanda kutip) untuk langsung membuka aplikasi tanpa
+:: menu - buat file pintasan 1 baris berisi "call Pertashop.bat run" bila ingin tombol
+:: 1-klik untuk pergantian shift, tanpa perlu menekan [1] + Enter setiap kali.
+if /i "%~1"=="run" goto RUN_APP
+
 :MAIN_MENU
 cls
 echo ===============================================================================

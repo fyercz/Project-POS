@@ -676,7 +676,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   <div>
                     <strong className="text-slate-900 block">Export Code & Jalankan di Komputer Kasir</strong>
                     <p className="text-slate-500 mt-0.5">
-                      Unduh kode aplikasi via menu <strong>Export to ZIP</strong> di AI Studio. Buka folder aplikasi di komputer kasir Pertashop dan jalankan <code>run.bat</code>.
+                      Unduh kode aplikasi via menu <strong>Export to ZIP</strong> di AI Studio. Buka folder aplikasi di komputer kasir Pertashop dan jalankan <code>Pertashop.bat</code>.
                     </p>
                   </div>
                 </div>

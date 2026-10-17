@@ -198,8 +198,7 @@ echo  * Seluruh file program, skrip, dan modul sekarang 100%% AKTUAL sesuai GitH
 echo  * Data transaksi penjualan, laporan, dan profil kasir tetap utuh dan aman.
 echo.
 echo  Silakan jalankan aplikasi dengan membuka:
-echo  - run.bat        (Buka langsung kasir desktop)
-echo  - Pertashop.bat  (Menu utama lengkap)
+echo  - Pertashop.bat  (Menu utama lengkap, pilih [1] untuk langsung buka kasir)
 echo  - Pertashop.exe  (Jika menggunakan file .exe mandiri)
 echo ===============================================================================
 echo.

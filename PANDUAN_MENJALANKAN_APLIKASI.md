@@ -24,10 +24,10 @@ Kini file `.bat` telah dioptimalkan agar sangat mudah digunakan di komputer kasi
 - `[5] 🔄 Periksa Pembaruan Sistem (Auto-Update GitHub)`: Otomatis tersinkronisasi ke repository resmi **`https://github.com/fyercz/Project-POS.git`** untuk menarik update kode & modul terbaru.
 - `[6] ⚙️ Install / Perbaiki Dependensi`: Memperbaiki paket library jika ada kendala.
 
-### 2. ⚡ `run.bat` (1-Klik Langsung Buka Aplikasi Kasir)
-- **Klik ganda file `run.bat`** saat pergantian shift.
-- Tidak memunculkan menu pertanyaan: langsung menjalankan server dan membuka jendela desktop kasir seketika.
-- *Tips*: Anda bisa klik kanan `run.bat` (atau `Pertashop.exe`) lalu pilih **Send to ➜ Desktop (create shortcut)**.
+### 2. ⚡ Buka Langsung Tanpa Menu (1-Klik, untuk Pergantian Shift)
+- Pilihan tercepat: gunakan **shortcut Desktop** yang dibuat lewat menu `[3] Pasang Shortcut di Desktop Komputer` di `Pertashop.bat` - klik ganda ikonnya langsung membuka aplikasi tanpa menu sama sekali.
+- Cara manual (tanpa shortcut): buat file teks baru bernama `Buka Kasir.bat` berisi satu baris `call Pertashop.bat run`, simpan di folder yang sama, lalu klik ganda file itu kapan pun untuk langsung menjalankan server tanpa menunggu menu muncul.
+- *Tips*: Klik kanan file `Buka Kasir.bat` (atau `Pertashop.exe`) lalu pilih **Send to ➜ Desktop (create shortcut)** agar bisa diakses dari Desktop.
 
 ### 3. 🔄 `update.bat` (1-Klik Auto-Update GitHub Resmi)
 - **Klik ganda file `update.bat`** untuk memperbarui sistem kapan saja ke versi paling aktual dari GitHub.
@@ -88,7 +88,7 @@ Fitur **Export Code (ZIP / GitHub)** hanya mengunduh *source code* program aplik
    - File JSON (contoh: `backup_pertashop_4P.633.08_2026-09-10.json`) akan tersimpan di komputer Anda. Simpan file ini di flashdisk atau Google Drive.
 2. **Export & Jalankan Aplikasi di Komputer Kasir**:
    - Download ZIP dari menu AI Studio & ekstrak di komputer kasir.
-   - Jalankan `run.bat` di komputer kasir.
+   - Jalankan `Pertashop.bat` di komputer kasir (pilih menu [1]).
 3. **Pemulihan (Restore)**:
    - Di aplikasi baru, buka menu **"Backup & Restore"**.
    - Pilih tab **"2. Restore / Muat Data"**.
