@@ -242,8 +242,20 @@ goto MAIN_MENU
 :UPDATE_APP
 cls
 if exist "update.bat" (
-    call update.bat
-    goto MAIN_MENU
+    echo =====================================================================
+    echo          MEMBUKA MODUL PEMBARUAN DI JENDELA TERPISAH
+    echo =====================================================================
+    echo.
+    echo [INFO] Proses update (termasuk Pertashop.bat ini sendiri) akan
+    echo        berjalan di jendela terpisah. Jendela menu ini akan DITUTUP
+    echo        sekarang - ini NORMAL, bukan error.
+    echo.
+    echo        Setelah update selesai, buka kembali Pertashop.bat untuk
+    echo        melanjutkan ke menu seperti biasa.
+    echo.
+    timeout /t 3 /nobreak >nul
+    start "Update Pertashop" "update.bat"
+    exit /b 0
 )
 
 echo =====================================================================
