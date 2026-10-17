@@ -31,12 +31,13 @@ Kini file `.bat` telah dioptimalkan agar sangat mudah digunakan di komputer kasi
 
 ### 3. 🔄 `update.bat` (1-Klik Auto-Update GitHub Resmi)
 - **Klik ganda file `update.bat`** untuk memperbarui sistem kapan saja ke versi paling aktual dari GitHub.
-- **Mengapa jendela prompt sebelumnya menutup mendadak?**
-  1. *Perilaku Windows CMD*: Di Windows, saat file `.bat` menimpa dirinya sendiri dari git/zip, CMD kehilangan posisi file pointer dan langsung menutup (exit) sebelum proses selesai.
-  2. *Solusi Runner Terisolasi*: `update.bat` versi baru kini otomatis menduplikasi proses eksekusi ke runner mandiri di `%TEMP%`. File script di folder aplikasi dapat diperbarui dengan aman tanpa mengganggu eksekusi CMD.
-  3. *Verifikasi Lengkap*: Script menyelesaikan seluruh tahapan: git reset / download ZIP, `npm install`, `npm run build`, pembaruan `Pertashop.exe`, dan berhenti di layar konfirmasi status commit (tidak akan menutup sendiri sampai Anda menekan sembarang tombol).
-  4. Seluruh data transaksi penjualan Anda tetap 100% AMAN di LocalStorage!
-  5. Setelah update selesai, jika tampilan belum berubah di browser kasir, tekan **`Ctrl + F5`** (Hard Refresh).
+- **Mengapa jendela prompt pernah menutup mendadak? (sudah diperbaiki)**
+  Masalah ini ternyata punya tiga akar penyebab berbeda, ditemukan dan diperbaiki satu per satu:
+  1. *Perilaku Windows CMD saat menimpa diri sendiri*: saat file `.bat` menimpa dirinya sendiri dari git/zip ketika sedang berjalan, CMD bisa kehilangan posisi baca file dan langsung keluar sebelum proses selesai. **Solusi**: `update.bat` menyalin dirinya ke runner mandiri di `%TEMP%` lebih dulu, baru menjalankan proses update dari sana - file asli di folder aplikasi aman ditimpa karena yang sedang dibaca CMD adalah salinannya.
+  2. *Line ending file yang salah*: kedua file `.bat` ternyata memakai line ending gaya Unix (LF) sejak awal dibuat, padahal file `.bat` Windows butuh CRLF. Ini membuat CMD tersandung di blok `if (...)` multi-baris yang banyak dipakai di kedua skrip. **Solusi**: dikonversi penuh ke CRLF, dan ditambahkan `.gitattributes` supaya tidak berubah lagi di masa depan.
+  3. *Cara menu memanggil proses update*: menu `[5]` di `Pertashop.bat` sebelumnya memakai `call update.bat`, yang membuat `Pertashop.bat` sendiri tetap jadi proses aktif selagi `update.bat` menimpa SEMUA file termasuk `Pertashop.bat` itu sendiri. **Solusi**: sekarang `Pertashop.bat` membuka `update.bat` di jendela proses terpisah lalu langsung keluar - jendela menu tertutup itu NORMAL, bukan error; buka `Pertashop.bat` lagi setelah update selesai.
+
+  Setelah ketiga perbaikan ini: seluruh data transaksi penjualan Anda tetap 100% AMAN di LocalStorage (tidak pernah tersentuh proses update), dan proses update akan berhenti di layar konfirmasi status commit (tidak menutup sendiri sampai Anda menekan sembarang tombol). Jika tampilan belum berubah di browser kasir setelah update, tekan **`Ctrl + F5`** (Hard Refresh).
 
 ---
 
