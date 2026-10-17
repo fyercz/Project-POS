@@ -1,247 +1,115 @@
 @echo off
-setlocal enabledelayedexpansion
-:: CATATAN: "chcp 65001" (ganti ke UTF-8) SENGAJA DIHAPUS. Pada sebagian build Windows,
-:: perintah ini membuat cmd.exe kehilangan posisi baca file .bat dan langsung keluar
-:: TANPA PESAN APA PUN tepat di awal - persis gejala "jendela tertutup tanpa teks apa pun".
-:: File ini sudah diverifikasi 100%% ASCII polos (tidak ada karakter spesial/Unicode),
-:: jadi codepage bawaan Windows (437/850) sudah cukup dan lebih aman.
-title Pembaruan Otomatis Sistem Pertashop dari GitHub
-color 0B
-
-:: 1. Pastikan direktori kerja adalah folder aplikasi tempat update.bat berada
-cd /d "%~dp0"
-set "APP_DIR=%~dp0"
-if "%APP_DIR:~-1%"=="\" set "APP_DIR=%APP_DIR:~0,-1%"
-
-:: -----------------------------------------------------------------------------
-:: PENGAMAN UTAMA: CEGAH JENDELA PROMPT MENUTUP MENDADAK
-:: Di Windows cmd.exe, jika file .bat menimpa dirinya sendiri saat git reset/xcopy,
-:: cmd.exe akan kehilangan pointer baris file dan langsung keluar (exit) mendadak.
-:: Solusi: Salin script ke folder sementara %TEMP% dan jalankan proses update dari sana.
-:: -----------------------------------------------------------------------------
-if not "%~1"=="RUNNING_FROM_TEMP" (
-    echo ===============================================================================
-    echo          SISTEM MANAJEMEN DAN LAPORAN PERTASHOP
-    echo                  AUTO-UPDATE DARI GITHUB RESMI
-    echo ===============================================================================
-    echo.
-    echo [INFO] Menyiapkan modul pembaruan mandiri di latar belakang...
-    set "RUNNER=%TEMP%\pertashop_updater_runner.bat"
-    copy /y "%~f0" "!RUNNER!" >nul 2>nul
-
-    :: Pastikan file salinan benar-benar ada dan tidak kosong (mis. diblokir antivirus secara
-    :: diam-diam) sebelum mencoba memanggilnya - jika gagal, lanjutkan di direktori aktif saja
-    :: daripada menutup jendela tanpa penjelasan.
-    set "RUNNER_OK=0"
-    if exist "!RUNNER!" (
-        for %%F in ("!RUNNER!") do if %%~zF GTR 0 set "RUNNER_OK=1"
-    )
-    if "!RUNNER_OK!"=="0" (
-        echo [PERINGATAN] Gagal menyiapkan modul sementara di %%TEMP%%, melanjutkan di direktori aktif...
-        echo              ^(Proses update tetap berjalan normal, hanya tanpa pengaman tambahan ini^)
-        goto DO_UPDATE
-    )
-
-    :: Panggil salinan di %TEMP% dengan "call" (BUKAN "cmd.exe /c" dengan tanda kutip bersarang -
-    :: pola itu rawan gagal secara diam-diam pada sebagian kombinasi Windows/path, menyebabkan
-    :: jendela tertutup tiba-tiba di tengah proses tanpa pesan apa pun). "call" ke file .bat lain
-    :: tetap memberi proteksi yang sama: begitu kontrol berpindah ke salinan di %TEMP%, file asli
-    :: di folder aplikasi ini aman ditimpa oleh git/unduhan ZIP tanpa mengganggu proses yang sedang
-    :: berjalan, karena yang sedang dibaca cmd.exe sekarang adalah file di %TEMP%, bukan file ini.
-    call "!RUNNER!" RUNNING_FROM_TEMP "%APP_DIR%"
-    set "EXIT_CODE=!ERRORLEVEL!"
-    if not "!EXIT_CODE!"=="0" (
-        echo.
-        echo [PERINGATAN] Proses update di modul sementara berhenti dengan kode !EXIT_CODE!.
-        echo              Jika layar tertutup sebelum ini, jalankan ulang update.bat untuk mencoba lagi.
-        pause
-    )
-    exit /b !EXIT_CODE!
+rem Pertashop POS - ambil kode terbaru dari GitHub lalu build ulang.
+rem Data transaksi tersimpan di localStorage browser kasir - TIDAK disentuh sama sekali
+rem oleh proses ini, apa pun hasilnya.
+rem
+rem Skrip ini berpindah ke salinan di folder TEMP tanpa "call" (tidak kembali lagi),
+rem karena update.bat sendiri ikut ditimpa oleh git saat proses update berjalan.
+if not "%~1"=="--dari-temp" (
+    copy /y "%~f0" "%TEMP%\pertashop-update.bat" >nul
+    "%TEMP%\pertashop-update.bat" --dari-temp "%~dp0"
 )
-
-:: Jika dipanggil dari runner %TEMP%:
-set "APP_DIR=%~2"
-cd /d "%APP_DIR%"
-
-:DO_UPDATE
-echo ===============================================================================
-echo          SISTEM MANAJEMEN DAN LAPORAN PERTASHOP
-echo                  AUTO-UPDATE DARI GITHUB RESMI
-echo ===============================================================================
-echo.
-echo  Lokasi Folder Aplikasi: %APP_DIR%
-echo  Repository Target     : https://github.com/fyercz/Project-POS.git
-echo  Cabang (Branch)       : main
-echo.
-echo  * Seluruh data transaksi penjualan kasir dijamin 100%% AMAN
-echo    karena tersimpan di penyimpanan lokal browser (LocalStorage).
-echo ===============================================================================
-echo.
-
+setlocal
+title Pertashop POS - Update
+cd /d "%~2"
 set "REPO_URL=https://github.com/fyercz/Project-POS.git"
 set "ZIP_URL=https://github.com/fyercz/Project-POS/archive/refs/heads/main.zip"
-set UPDATE_SUCCESS=0
 
-:: 1. Periksa ketersediaan Git
+echo ===============================================================================
+echo          SISTEM MANAJEMEN DAN LAPORAN PERTASHOP - AUTO-UPDATE
+echo ===============================================================================
+echo.
+
 where git >nul 2>nul
 if errorlevel 1 (
-    echo [INFO] Program Git tidak terdeteksi pada Windows ini.
-    echo        Menggunakan metode download langsung via PowerShell (ZIP)...
+    echo [PERINGATAN] Git tidak ditemukan di komputer ini. Mengunduh ZIP langsung dari GitHub...
     goto DOWNLOAD_ZIP
 )
 
-echo [1/5] Memeriksa koneksi dan repositori Git...
-if not exist ".git\" (
-    echo       - Menginisialisasi repositori Git lokal...
-    git init >nul 2>nul
-    git remote add origin %REPO_URL% 2>nul || git remote set-url origin %REPO_URL% 2>nul
-    git branch -M main >nul 2>nul
-) else (
-    git remote set-url origin %REPO_URL% 2>nul || git remote add origin %REPO_URL% 2>nul
-)
+echo [1/4] Menyiapkan repositori Git...
+if not exist ".git" (git init -q & git remote add origin %REPO_URL% 2>nul)
+git remote set-url origin %REPO_URL% 2>nul || git remote add origin %REPO_URL% 2>nul
 
-echo [2/5] Menarik pembaruan kode terbaru dari GitHub (origin/main)...
-git fetch origin main --prune
+echo [2/4] Mengambil kode terbaru dari GitHub (origin/main)...
+git fetch origin main
 if errorlevel 1 (
-    echo.
-    echo [PERINGATAN] Git fetch mengalami kendala (koneksi/autentikasi).
-    echo             Beralih ke metode download cadangan via PowerShell...
+    echo [PERINGATAN] Git fetch gagal ^(koneksi/autentikasi^). Beralih ke unduhan ZIP...
     goto DOWNLOAD_ZIP
 )
-
-echo [3/5] Menerapkan kode program terbaru ke direktori aplikasi...
-:: Sinkronkan cabang lokal ke origin/main
-git branch -M main >nul 2>nul
 git reset --hard origin/main
 if errorlevel 1 (
-    echo.
-    echo [PERINGATAN] Git reset mengalami kendala, mencoba download langsung...
+    echo [PERINGATAN] Git reset gagal. Beralih ke unduhan ZIP...
     goto DOWNLOAD_ZIP
 )
+git branch -M main >nul 2>nul
+goto AFTER_CODE_UPDATE
 
-:: Bersihkan file sampah tanpa menghapus file konfigurasi .env
-rem git clean dihapus: dulu menghapus semua file tak terlacak (mis. file backup JSON) di folder aplikasi.
-set UPDATE_SUCCESS=1
-goto SHOW_COMMIT_INFO
-
-:: =============================================================================
-:: METODE CADANGAN: UNDUH ZIP VIA POWERSHELL
-:: =============================================================================
 :DOWNLOAD_ZIP
-echo.
-echo [METODE CADANGAN] Mengunduh arsip kode sumber terbaru dari GitHub...
-echo                    URL: %ZIP_URL%
-echo.
+set "ZIP_TEMP=%TEMP%\pertashop-update.zip"
+set "EXTRACT_TEMP=%TEMP%\pertashop-extracted"
+if exist "%ZIP_TEMP%" del /f /q "%ZIP_TEMP%" >nul 2>nul
+if exist "%EXTRACT_TEMP%" rmdir /s /q "%EXTRACT_TEMP%" >nul 2>nul
+echo       Mengunduh arsip kode sumber dari GitHub...
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol='Tls12'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -Uri '%ZIP_URL%' -OutFile '%ZIP_TEMP%'"
+if errorlevel 1 goto GAGAL
+echo       Mengekstrak pembaruan ke folder sementara...
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; Expand-Archive -Path '%ZIP_TEMP%' -DestinationPath '%EXTRACT_TEMP%' -Force"
+if errorlevel 1 goto GAGAL
+echo       Menyalin file terbaru ke folder aplikasi...
+for /d %%D in ("%EXTRACT_TEMP%\*") do xcopy /s /e /y /q "%%D\*" ".\" >nul
+del /f /q "%ZIP_TEMP%" >nul 2>nul
+rmdir /s /q "%EXTRACT_TEMP%" >nul 2>nul
 
-set "ZIP_TEMP_FILE=%TEMP%\pertashop_update_temp.zip"
-set "EXTRACT_TEMP_DIR=%TEMP%\pertashop_extracted"
-
-if exist "!ZIP_TEMP_FILE!" del /f /q "!ZIP_TEMP_FILE!" >nul 2>nul
-if exist "!EXTRACT_TEMP_DIR!\" rmdir /s /q "!EXTRACT_TEMP_DIR!" >nul 2>nul
-
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -Uri '%ZIP_URL%' -OutFile '!ZIP_TEMP_FILE!'"
-if errorlevel 1 (
-    echo [ERROR] Gagal mengunduh file update dari GitHub via PowerShell!
-    echo         Pastikan komputer kasir terhubung ke internet.
-    goto ERR_END
-)
-
-echo [INFO] Mengekstrak pembaruan ke folder sementara...
-powershell -Command "$ProgressPreference = 'SilentlyContinue'; Expand-Archive -Path '!ZIP_TEMP_FILE!' -DestinationPath '!EXTRACT_TEMP_DIR!' -Force"
-if errorlevel 1 (
-    echo [ERROR] Gagal mengekstrak file arsip update!
-    if exist "!ZIP_TEMP_FILE!" del /f /q "!ZIP_TEMP_FILE!" >nul 2>nul
-    goto ERR_END
-)
-
-echo [INFO] Menyalin file terbaru ke folder aplikasi...
-if exist "!EXTRACT_TEMP_DIR!\Project-POS-main\" (
-    xcopy /s /e /y /q "!EXTRACT_TEMP_DIR!\Project-POS-main\*" "%APP_DIR%\" >nul 2>nul
-) else (
-    for /d %%D in ("!EXTRACT_TEMP_DIR!\*") do (
-        xcopy /s /e /y /q "%%D\*" "%APP_DIR%\" >nul 2>nul
-    )
-)
-
-:: Bersihkan file sementara di %TEMP%
-if exist "!EXTRACT_TEMP_DIR!\" rmdir /s /q "!EXTRACT_TEMP_DIR!" >nul 2>nul
-if exist "!ZIP_TEMP_FILE!" del /f /q "!ZIP_TEMP_FILE!" >nul 2>nul
-set UPDATE_SUCCESS=1
-
-:SHOW_COMMIT_INFO
-echo.
-echo [4/5] Membersihkan cache lama dan memverifikasi dependensi...
-if exist "node_modules\.vite\" rmdir /s /q "node_modules\.vite\" >nul 2>nul
-if exist "dist\" rmdir /s /q "dist\" >nul 2>nul
+:AFTER_CODE_UPDATE
+echo [3/4] Membersihkan cache lama...
+if exist "node_modules\.vite" rmdir /s /q "node_modules\.vite" >nul 2>nul
+if exist "dist" rmdir /s /q "dist" >nul 2>nul
 del /f /q *.tmp npm-debug.log* >nul 2>nul
 
 where npm >nul 2>nul
-if not errorlevel 1 (
-    echo       - Memverifikasi paket library (npm install)...
-    call npm prune >nul 2>nul
-    call npm install
-    echo.
-    echo       - Mengompilasi aplikasi web (Vite build)...
-    call npm run build
-) else (
-    echo [PERINGATAN] Node.js/npm tidak ditemukan di PATH sistem Windows.
-    echo             Silakan pastikan Node.js terpasang untuk menjalankan aplikasi kasir.
+if errorlevel 1 (
+    echo [PERINGATAN] Node.js/npm tidak ditemukan di PATH. Pasang Node.js versi LTS
+    echo              dari https://nodejs.org lalu jalankan update.bat ini lagi.
+    pause
+    exit /b 1
 )
 
-:: Rebuild Pertashop.exe jika compiler Windows ada
+echo [4/4] Memasang ulang dependensi dan membangun aplikasi...
+call npm install --no-audit --no-fund
+if errorlevel 1 goto GAGAL
+call npm run build
+if errorlevel 1 goto GAGAL
+
+rem Build ulang Pertashop.exe bila compiler .NET tersedia (opsional - tidak menggagalkan
+rem update bila tidak ada; Pertashop.bat tetap bisa dipakai tanpa file .exe ini)
 set "CSC="
-if exist "%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" (
-    set "CSC=%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-) else if exist "%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\csc.exe" (
-    set "CSC=%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
-)
-if defined CSC (
-    if exist "launcher\PertashopApp.cs" (
-        echo.
-        echo [5/5] Memperbarui file executable Pertashop.exe...
-        if exist "assets\icon.ico" (
-            "%CSC%" /nologo /target:winexe /win32icon:"assets\icon.ico" /out:"Pertashop.exe" "launcher\PertashopApp.cs" >nul 2>nul
-        ) else (
-            "%CSC%" /nologo /target:winexe /out:"Pertashop.exe" "launcher\PertashopApp.cs" >nul 2>nul
-        )
-    )
-)
+if exist "%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" set "CSC=%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+if not defined CSC if exist "%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\csc.exe" set "CSC=%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+if defined CSC if exist "launcher\PertashopApp.cs" if exist "assets\icon.ico" "%CSC%" /nologo /target:winexe /win32icon:"assets\icon.ico" /out:"Pertashop.exe" "launcher\PertashopApp.cs" >nul 2>nul
 
 echo.
 echo ===============================================================================
 echo  [SUKSES] APLIKASI PERTASHOP TELAH BERHASIL DIPERBARUI KE VERSI TERKINI!
 echo ===============================================================================
 where git >nul 2>nul
-if not errorlevel 1 (
-    if exist ".git\" (
-        echo.
-        echo  Status Versi Kode Terbaru:
-        git log -1 --pretty=format:"  - Commit ID : %%h%%n  - Tanggal   : %%ci%%n  - Catatan   : %%s" 2>nul
-        echo.
-    )
-)
+if not errorlevel 1 if exist ".git" git log -1 --pretty=format:"  Versi sekarang : %%h - %%s" 2>nul & echo.
 echo.
-echo  * Seluruh file program, skrip, dan modul sekarang 100%% AKTUAL sesuai GitHub.
-echo  * Data transaksi penjualan, laporan, dan profil kasir tetap utuh dan aman.
-echo.
-echo  Silakan jalankan aplikasi dengan membuka:
-echo  - Pertashop.bat  (Menu utama lengkap, pilih [1] untuk langsung buka kasir)
-echo  - Pertashop.exe  (Jika menggunakan file .exe mandiri)
+echo  * Seluruh data transaksi, laporan, dan profil kasir tetap 100%% AMAN
+echo    (tersimpan di penyimpanan browser, tidak pernah disentuh proses update ini).
+echo  * Jalankan Pertashop.bat untuk membuka aplikasi.
 echo ===============================================================================
 echo.
 echo Tekan sembarang tombol untuk menutup jendela ini...
 pause >nul
 exit /b 0
 
-:ERR_END
-color 0C
+:GAGAL
 echo.
 echo ===============================================================================
-echo  [PERINGATAN] Pembaruan belum berhasil diselesaikan secara otomatis.
-echo  Silakan periksa koneksi internet komputer Anda, atau unduh kode ZIP manual
-echo  dari: https://github.com/fyercz/Project-POS
+echo  [GAGAL] Pembaruan belum berhasil diselesaikan secara otomatis.
+echo  Pastikan koneksi internet aktif, atau unduh ZIP manual dari:
+echo  https://github.com/fyercz/Project-POS  ^(tombol hijau Code - Download ZIP^)
 echo ===============================================================================
 echo.
-echo Tekan sembarang tombol untuk menutup jendela ini...
-pause >nul
+pause
 exit /b 1
