@@ -179,13 +179,13 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
 
       const dateValRaw =
         normalized['tanggal'] || normalized['tgl'] || normalized['date'] || normalized['transactiondate'];
-      let transactionDate = parseDateStringOrNull(dateValRaw);
-      if (dateValRaw && transactionDate === null) {
+      const parsedTransactionDate = parseDateStringOrNull(dateValRaw);
+      if (dateValRaw && parsedTransactionDate === null) {
         errors.push(`Tanggal "${dateValRaw}" tidak dikenali formatnya - baris ini TIDAK diimpor (gunakan DD/MM/YYYY atau YYYY-MM-DD).`);
-        transactionDate = getTodayDateString();
-      } else if (!dateValRaw) {
-        transactionDate = getTodayDateString();
       }
+      // Selalu string (tidak pernah null): pakai hasil parsing bila valid, kalau tidak (kosong
+      // atau gagal diuraikan) jatuh ke hari ini - baris tetap ditandai error di atas bila relevan.
+      const transactionDate: string = parsedTransactionDate ?? getTodayDateString();
 
       const timeVal = normalized['jam'] || normalized['waktu'] || normalized['time'] || getCurrentTimeString();
       const time = parseTimeString(timeVal);
@@ -388,21 +388,21 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
 
       const orderDateValRaw =
         normalized['tanggalorder'] || normalized['tanggal'] || normalized['tgl'] || normalized['orderdate'];
-      let orderDate = parseDateStringOrNull(orderDateValRaw);
-      if (orderDateValRaw && orderDate === null) {
+      const parsedOrderDate = parseDateStringOrNull(orderDateValRaw);
+      if (orderDateValRaw && parsedOrderDate === null) {
         errors.push(`Tanggal order "${orderDateValRaw}" tidak dikenali formatnya - baris ini TIDAK diimpor.`);
-        orderDate = getTodayDateString();
-      } else if (!orderDateValRaw) {
-        orderDate = getTodayDateString();
       }
+      // Selalu string (tidak pernah null) - lihat catatan serupa di parsing tanggal penjualan di atas.
+      const orderDate: string = parsedOrderDate ?? getTodayDateString();
 
       const actualDeliveryDateValRaw =
         normalized['tanggaltiba'] || normalized['tanggalterima'] || normalized['tglterima'] || normalized['actualdeliverydate'];
-      let actualDeliveryDate = actualDeliveryDateValRaw ? parseDateStringOrNull(actualDeliveryDateValRaw) : orderDate;
-      if (actualDeliveryDateValRaw && actualDeliveryDate === null) {
+      const parsedActualDeliveryDate = actualDeliveryDateValRaw ? parseDateStringOrNull(actualDeliveryDateValRaw) : null;
+      if (actualDeliveryDateValRaw && parsedActualDeliveryDate === null) {
         errors.push(`Tanggal tiba "${actualDeliveryDateValRaw}" tidak dikenali formatnya - baris ini TIDAK diimpor.`);
-        actualDeliveryDate = orderDate;
       }
+      // Jatuh ke orderDate (sudah pasti string) bila tanggal tiba kosong/tidak valid.
+      const actualDeliveryDate: string = parsedActualDeliveryDate ?? orderDate;
 
       const prodNameRaw = String(normalized['produk'] || normalized['product'] || defaultProduct.name).trim();
       const matchedProduct =
@@ -620,7 +620,9 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
           } else {
             // Check headers in first sheet if not matched by sheet name
             if (json.length > 0) {
-              const firstRowKeys = Object.keys(json[0]).map((k) => k.toLowerCase().replace(/[\s_]/g, ''));
+              // sheet_to_json mengembalikan unknown[] (bukan any[]) di bawah TypeScript strict -
+              // baris spreadsheet memang selalu berupa objek biasa saat runtime, jadi aman di-cast.
+              const firstRowKeys = Object.keys(json[0] as Record<string, unknown>).map((k) => k.toLowerCase().replace(/[\s_]/g, ''));
               const isDoSheet = firstRowKeys.some((k) => k.includes('nodo') || k.includes('tbbm') || k.includes('volumekl'));
               if (isDoSheet) {
                 detectedDoRows = [...detectedDoRows, ...json];
