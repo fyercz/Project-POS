@@ -14,6 +14,9 @@
     "preview": "vite preview --port=3000 --strictPort",
     "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:bats": "bats tests/bats/",
     "electron:start": "electron electron/main.cjs",
     "build:exe": "vite build && electron-builder --win",
     "dev:lan": "vite --port=3000 --strictPort --host=0.0.0.0"
@@ -57,10 +60,11 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
-    "electron": "33.4.11",
-    "electron-builder": "25.1.8"
+    "vitest": "^5.0.5"
   }
 }

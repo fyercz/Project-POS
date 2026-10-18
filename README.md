@@ -86,7 +86,11 @@ npm install      # pasang dependensi
 npm run dev      # jalankan server pengembangan (http://localhost:3000)
 npm run build    # build produksi ke folder dist/
 npm run lint     # periksa tipe TypeScript (tsc --noEmit)
+npm test         # jalankan unit test (Vitest)
+npm run test:bats # jalankan test skrip shell (butuh bats-core terpasang)
 ```
+
+Lihat **[TESTING.md](./TESTING.md)** untuk strategi testing lengkap (unit test logika bisnis, test skrip shell, dan CI yang menjalankan `.bat` di Windows sungguhan).
 
 ---
 

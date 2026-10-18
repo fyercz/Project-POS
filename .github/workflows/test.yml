@@ -1,0 +1,40 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Logika bisnis TypeScript: type-check, unit test, dan build produksi.
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+
+  # Skrip Unix (run.sh, install.sh, update.sh) - dijalankan sungguhan, bukan cuma dibaca.
+  shell-script-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y bats
+      - run: npm run test:bats
+
+  # Skrip Windows (Pertashop.bat, update.bat) - dijalankan di Windows SUNGGUHAN.
+  # Ini satu-satunya lapisan yang benar-benar mengeksekusi cmd.exe; mesin pengembangan
+  # (sandbox Linux) hanya bisa melakukan pemeriksaan statis (lihat tests/unit/batchScripts.test.ts).
+  windows-batch-tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Jalankan update.bat sungguhan melawan GitHub palsu lokal
+        shell: powershell
+        run: .\tests\windows\test-update-bat.ps1
