@@ -21,7 +21,7 @@ eksekusi penuh.
 **Kedua file ini TIDAK setara risikonya untuk dipecah** - ini poin terpenting dari rekomendasi
 ini:
 
-### `AttendancePayrollView.tsx`: RISIKO RENDAH, bisa dikerjakan sekarang
+### `AttendancePayrollView.tsx`: RISIKO RENDAH, bisa dikerjakan sekarang (✅ SELESAI)
 
 7 modal di dalamnya (Cetak Slip Gaji, Catat Absensi, Tambah Karyawan, Konfirmasi Pembayaran
 Batch, Edit Nominal Gaji, Jadwal Hitung Gaji, Toast) sudah menjadi unit JSX yang cukup
@@ -54,6 +54,42 @@ sesi-sesi perbaikan sebelumnya.
 menyentuh area itu untuk alasan lain** (mis. menambah fitur baru di bagian penjualan - saat itu
 pindahkan handler terkait penjualan ke `useSalesLogic.ts` sebagai bagian dari pekerjaan fitur
 itu, bukan proyek terpisah).
+
+### Update (setelah 3 domain berhasil dipindah): bukti konkret, bukan lagi dugaan
+
+Rekomendasi di atas ditulis SEBELUM benar-benar membaca kode handler satu-satu. Setelah
+berhasil memindahkan 3 domain (Karyawan/Absensi/Gaji, Beban & Pengeluaran, Sounding - masing-
+masing diverifikasi fungsional penuh di browser, termasuk efek samping lintas-domainnya),
+giliran domain Penjualan dibaca TUNTAS sebelum diputuskan untuk dipindah juga. Hasilnya
+berbeda jauh dari tiga domain sebelumnya:
+
+- **`handleSaveSale`** (~240 baris SATU fungsi) menyentuh SEMUA domain sekaligus DALAM SATU
+  ALUR: sales, soundings, expenses (lewat syncFuelVarianceToExpenses), attendance+payrolls
+  (lewat commitAttendance), tank, priceHistory, products - plus deteksi bentrok shift/operator,
+  aturan "hanya sounding di transaksi TERBARU yang menimpa stok", dan backfill histori harga
+  bersyarat ketat.
+- **`handleUpdateProductPrice`** (domain "Harga", dikira lebih terisolasi) TERNYATA SAMA
+  TERJALINNYA: satu perubahan harga mengoreksi ulang sales, attendance, payrolls, purchases,
+  DAN expenses sekaligus secara retroaktif.
+- Ditambah `handleImportSales` (~144 baris), `handleDeleteSale` (menyentuh 5 domain), dan 2
+  handler batch bulanan - total domain Penjualan+Harga+DO diperkirakan 600-900+ baris kalau
+  dipindah sepenuhnya, dan ini FUNGSI PALING KRITIS di seluruh aplikasi (mencatat transaksi
+  kasir yang sesungguhnya).
+
+**Keputusan setelah membaca kode sungguhan (bukan lagi dugaan)**: domain Penjualan/Harga/DO
+TIDAK dipindah dalam sesi perbaikan tech debt ini. Beda dengan 3 domain yang berhasil - yang
+masing-masing punya 1-2 keterkaitan lintas-domain yang bisa diverifikasi tuntas satu-satu -
+domain ini adalah TITIK TEMU semua domain lain sekaligus, bukan sekadar "satu domain dengan
+beberapa keterkaitan". Memindahkannya secara mekanis (pola yang sama seperti 3 domain
+sebelumnya) berisiko tinggi menimbulkan regresi di fungsi paling kritis aplikasi tanpa
+benar-benar mengurangi kompleksitasnya (cuma dipindah lokasinya, bukan disederhanakan).
+
+**Rekomendasi final untuk domain ini**: kalau suatu saat perlu disentuh, JANGAN coba
+memindahkannya mekanis seperti 3 domain lain. Perlu desain ulang strategi state terlebih
+dahulu (mis. state machine eksplisit untuk alur simpan-penjualan, atau memecah handleSaveSale
+jadi beberapa langkah eksplisit yang masing-masing bisa diuji terpisah) - sebagai proyek
+tersendiri dengan waktu dan pengujian yang sepadan, bukan sebagai "langkah lanjutan" dari
+pemecahan komponen yang sudah selesai.
 
 ---
 
@@ -98,7 +134,8 @@ berkembang ke multi-lokasi atau volume data sudah benar-benar jadi masalah haria
 
 | Item | Keputusan | Kapan |
 |---|---|---|
-| Pecah `AttendancePayrollView.tsx` (7 modal) | Kerjakan, risiko rendah, pola sudah terbukti | Bisa mulai kapan saja, satu modal per sesi |
-| Pecah `App.tsx` | JANGAN sebagai proyek terpisah | Bertahap saat menyentuh area itu untuk alasan lain |
+| Pecah `AttendancePayrollView.tsx` (7 modal) | ✅ **SELESAI** - 2.882 → 1.760 baris (-39%), 6 modal dipindah, semua diverifikasi fungsional | - |
+| Pecah `App.tsx`: domain Karyawan/Absensi/Gaji, Beban, Sounding + utilitas `fuelVarianceSync` | ✅ **SELESAI** - 2.680 → 2.398 baris (-10.5%), 3 domain dipindah, semua diverifikasi fungsional termasuk efek samping lintas-domain | - |
+| Pecah `App.tsx`: domain Penjualan/Harga/DO | ❌ **TIDAK dipindah** setelah dibaca tuntas - titik temu semua domain lain sekaligus (~600-900 baris), bukan "satu domain dengan beberapa keterkaitan" seperti 3 yang sudah selesai. Butuh desain ulang strategi state, bukan ekstraksi mekanis | Proyek tersendiri dengan waktu/pengujian sepadan, kalau memang diperlukan |
 | Migrasi ke IndexedDB | Siapkan rencana, jangan eksekusi sekarang | Saat volume data jadi masalah nyata (bukan sebelum itu) |
 | Backend terpusat / SQLite | Jangan dikerjakan | Hanya kalau bisnis berkembang multi-lokasi |
