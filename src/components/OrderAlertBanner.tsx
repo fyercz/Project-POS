@@ -65,11 +65,15 @@ export const OrderAlertBanner: React.FC<OrderAlertBannerProps> = ({
               </span>
             </div>
 
-            <h3 className="text-sm sm:text-base font-bold mt-1 text-slate-900">
+            {/* h2 (bukan h3): banner ini tampil SEBELUM StockTankGauge (h2 "Stok Pertamax 92...")
+                dalam urutan DOM, jadi memakai h3 di sini membuat h3 muncul mendahului h2-nya -
+                urutan heading yang salah/melompat. Keduanya sama-sama tentang topik stok tangki,
+                jadi wajar berada di level yang sama (h2) sebagai bagian terpisah. */}
+            <h2 className="text-sm sm:text-base font-bold mt-1 text-slate-900">
               {isCritical
                 ? 'Stok Pertamax di Bawah Batas Kritis! Segera Pesan DO Pertamina'
                 : 'Stok Tangki Mendekati Batas Siaga! Waktunya Pemesanan DO'}
-            </h3>
+            </h2>
 
             <p className="text-xs text-slate-600 mt-0.5">
               Ruang kosong tangki (<span className="italic">ullage</span>):{' '}

@@ -119,9 +119,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h1 className="text-base font-extrabold text-white tracking-tight">
+                  {/* Bukan <h1>: ini logo/merek di sidebar yang muncul di SETIAP halaman, bukan
+                      judul halaman. Memakai h1 di sini membuat setiap halaman punya DUA H1
+                      (ini + judul layar aktif), melanggar praktik "satu H1 per halaman". */}
+                  <p className="text-base font-extrabold text-white tracking-tight">
                     PERTASHOP
-                  </h1>
+                  </p>
                   <span className="text-red-500 font-semibold text-xs tracking-wider">
                     v2.0
                   </span>
