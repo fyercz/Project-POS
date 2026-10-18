@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { PertashopProfile, PertashopBackupData } from '../types';
 import { StorageService } from '../utils/storage';
+import { getErrorLog, clearErrorLog, formatErrorLogAsText } from '../utils/errorLog';
 
 interface BackupRestoreModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showErrorLog, setShowErrorLog] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [parsedPreview, setParsedPreview] = useState<PertashopBackupData | null>(null);
   const [rawJsonInput, setRawJsonInput] = useState('');
@@ -66,6 +68,19 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     StorageService.downloadBackupJSON(profile);
     setSuccessMsg('File backup JSON berhasil diunduh ke komputer Anda!');
     setTimeout(() => setSuccessMsg(null), 4000);
+  };
+
+  const handleDownloadErrorLog = () => {
+    const text = formatErrorLogAsText(getErrorLog());
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Log_Error_Pertashop_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleCopyClipboard = async () => {
@@ -386,6 +401,54 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     <span>Unduh File Backup (.json)</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Log Error Lokal - lihat src/utils/errorLog.ts. 100% lokal, tidak pernah
+                  dikirim kemana pun; cuma dicatat di komputer ini supaya pemilik tahu kalau
+                  ada crash, bukan cuma layar putih kosong tanpa jejak. */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <button
+                  type="button"
+                  onClick={() => setShowErrorLog((v) => !v)}
+                  className="w-full flex items-center justify-between gap-3 cursor-pointer"
+                >
+                  <div className="text-left">
+                    <h4 className="font-bold text-sm text-slate-800">Riwayat Error Aplikasi (Lokal)</h4>
+                    <p className="text-slate-500 text-xs mt-0.5">
+                      {getErrorLog().length === 0
+                        ? 'Belum ada error tercatat di komputer ini.'
+                        : `${getErrorLog().length} kejadian tercatat - tidak pernah dikirim kemana pun, tersimpan di komputer ini saja.`}
+                    </p>
+                  </div>
+                  <AlertTriangle className="w-5 h-5 text-slate-400 shrink-0" />
+                </button>
+                {showErrorLog && (
+                  <div className="mt-3 pt-3 border-t border-slate-200 space-y-3">
+                    <pre className="text-[10px] font-mono bg-white border border-slate-200 rounded-lg p-3 max-h-40 overflow-y-auto whitespace-pre-wrap text-slate-600">
+                      {formatErrorLogAsText(getErrorLog())}
+                    </pre>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDownloadErrorLog}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Unduh sebagai .txt
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearErrorLog();
+                          setShowErrorLog(false);
+                        }}
+                        className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-300 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        Bersihkan Riwayat
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

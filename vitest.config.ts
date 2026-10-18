@@ -12,7 +12,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
+      // import.meta.dirname (bukan __dirname): sama seperti perbaikan di vite.config.ts.
+      '@': path.resolve(import.meta.dirname, '.'),
     },
   },
   test: {
