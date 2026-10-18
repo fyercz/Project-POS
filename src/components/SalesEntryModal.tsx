@@ -37,6 +37,7 @@ import {
 } from '../utils/formatters';
 import { getEffectivePriceForDate, formatMonthYearId, getNextSalesInputDateAndShift } from '../utils/pricing';
 import { useModalA11y } from '../hooks/useModalA11y';
+import { IconButton } from './ui/IconButton';
 
 interface SalesEntryModalProps {
   isOpen: boolean;
@@ -535,14 +536,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Tutup"
-            className="text-blue-200 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <IconButton onClick={onClose} label="Tutup" icon={<X className="w-5 h-5" />} colorClassName="text-blue-200 hover:text-white" />
         </div>
 
         {/* Modal Form */}

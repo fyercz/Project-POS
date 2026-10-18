@@ -79,12 +79,26 @@ npm run build     # build produksi
 CI (`.github/workflows/test.yml`) menjalankan keempatnya plus eksekusi Windows sungguhan
 otomatis setiap push/PR ke `main`.
 
+## 4. Test komponen React (`tests/component/*.test.tsx`, Vitest + React Testing Library)
+
+**Cakupan**: interaksi form/modal yang sebelumnya hanya diverifikasi manual lewat Playwright
+ad-hoc (dan hasilnya hilang begitu sesi chat berakhir). Dimulai dari `SalesEntryModal` karena
+form paling kompleks dan paling sering dipakai kasir: judul modal, tombol Simpan yang nonaktif
+saat ada bentrok shift, Escape menutup modal, modal tidak merender apa pun saat `isOpen=false`.
+
+Jalan di environment `jsdom` (dikonfigurasi di `vitest.config.ts`, berlaku untuk SEMUA test
+termasuk unit test fungsi murni di atas - tidak ada downside berarti menjalankan test fungsi
+murni di atas jsdom, dan ini menghindari perlu dua config vitest terpisah).
+
+Install: `npm install -D @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom`
+(sudah tercakup di `package.json`, otomatis terpasang lewat `npm install`).
+
 ## Yang Belum Dicakup (Peluang ke Depan)
 
-- **Test komponen React** (interaksi form, modal) — saat ini hanya diverifikasi manual
-  lewat Playwright ad-hoc. Kandidat kuat: `SalesEntryModal`, karena punya logika validasi
-  shift/operator yang kompleks.
+- **Test komponen untuk modal lain** — baru `SalesEntryModal` yang tercakup. Kandidat
+  berikutnya: `PriceManagementModal` (logika margin yang kompleks) dan `ReceiveFuelModal`
+  (logika kapasitas tangki & overflow).
 - **Test end-to-end lintas-layar** (mis. "simpan penjualan → cek stok tangki berkurang →
-  cek laporan bulanan berubah") — perlu Playwright asli dengan browser, bukan Vitest.
+  cek laporan bulanan berubah") — perlu Playwright asli dengan browser, bukan Vitest/jsdom.
 - **Test `Pertashop.exe`** (`launcher/PertashopApp.cs`) — baru diverifikasi lewat kompilasi
   Mono + smoke-test alur logika (lihat riwayat commit), belum ada test otomatis permanen.
