@@ -72,7 +72,6 @@ Masalah lain tidak ada di sini? Buka halaman [Issues](https://github.com/fyercz/
 Pertashop.bat / update.bat      Peluncur & pembaru untuk Windows
 run.sh / update.sh / install.sh Peluncur, pembaru & pemasang dependensi untuk Linux/macOS
 launcher/PertashopApp.cs        Sumber Pertashop.exe (launcher desktop tanpa jendela CMD)
-electron/main.cjs               Pembungkus Electron (opsional, untuk build aplikasi desktop)
 src/                            Kode sumber aplikasi (React + TypeScript)
 src/App.tsx                     Logika bisnis utama (penjualan, stok, gaji, dsb.)
 src/components/                 Tampilan tiap menu/modal
@@ -90,7 +89,7 @@ npm test         # jalankan unit test (Vitest)
 npm run test:bats # jalankan test skrip shell (butuh bats-core terpasang)
 ```
 
-Lihat **[TESTING.md](./TESTING.md)** untuk strategi testing lengkap (unit test logika bisnis, test skrip shell, dan CI yang menjalankan `.bat` di Windows sungguhan).
+Lihat **[ARCHITECTURE.md](./ARCHITECTURE.md)** untuk model data & aturan bisnis kunci (wajib dibaca sebelum mengubah logika di `App.tsx`), dan **[TESTING.md](./TESTING.md)** untuk strategi testing lengkap (unit test logika bisnis, test skrip shell, dan CI yang menjalankan `.bat` di Windows sungguhan).
 
 ---
 

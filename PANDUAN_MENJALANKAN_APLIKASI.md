@@ -20,9 +20,8 @@ Kini file `.bat` telah dioptimalkan agar sangat mudah digunakan di komputer kasi
 - `[1] 🚀 Buka Aplikasi Kasir`: Membuka sistem langsung dalam jendela aplikasi kasir modern tanpa tab/address bar.
 - `[2] 📦 Buat File "Pertashop.exe"`: Menghasilkan file `Pertashop.exe` berlogo resmi hanya dalam 1-2 detik tanpa perlu download modul berat.
 - `[3] 📌 Pasang Shortcut di Desktop Komputer`: Otomatis membuat icon shortcut dengan logo Pertashop di Desktop layar kasir.
-- `[4] 🛠️ Buat Installer Setup .EXE`: Untuk membuat installer paket Electron (.exe setup).
-- `[5] 🔄 Periksa Pembaruan Sistem (Auto-Update GitHub)`: Otomatis tersinkronisasi ke repository resmi **`https://github.com/fyercz/Project-POS.git`** untuk menarik update kode & modul terbaru.
-- `[6] ⚙️ Install / Perbaiki Dependensi`: Memperbaiki paket library jika ada kendala.
+- `[4] 🔄 Periksa Pembaruan Sistem (Auto-Update GitHub)`: Otomatis tersinkronisasi ke repository resmi **`https://github.com/fyercz/Project-POS.git`** untuk menarik update kode & modul terbaru.
+- `[5] ⚙️ Install / Perbaiki Dependensi`: Memperbaiki paket library jika ada kendala.
 
 ### 2. ⚡ Buka Langsung Tanpa Menu (1-Klik, untuk Pergantian Shift)
 - Pilihan tercepat: gunakan **shortcut Desktop** yang dibuat lewat menu `[3] Pasang Shortcut di Desktop Komputer` di `Pertashop.bat` - klik ganda ikonnya langsung membuka aplikasi tanpa menu sama sekali.
@@ -35,7 +34,7 @@ Kini file `.bat` telah dioptimalkan agar sangat mudah digunakan di komputer kasi
   Masalah ini ternyata punya tiga akar penyebab berbeda, ditemukan dan diperbaiki satu per satu:
   1. *Perilaku Windows CMD saat menimpa diri sendiri*: saat file `.bat` menimpa dirinya sendiri dari git/zip ketika sedang berjalan, CMD bisa kehilangan posisi baca file dan langsung keluar sebelum proses selesai. **Solusi**: `update.bat` menyalin dirinya ke runner mandiri di `%TEMP%` lebih dulu, baru menjalankan proses update dari sana - file asli di folder aplikasi aman ditimpa karena yang sedang dibaca CMD adalah salinannya.
   2. *Line ending file yang salah*: kedua file `.bat` ternyata memakai line ending gaya Unix (LF) sejak awal dibuat, padahal file `.bat` Windows butuh CRLF. Ini membuat CMD tersandung di blok `if (...)` multi-baris yang banyak dipakai di kedua skrip. **Solusi**: dikonversi penuh ke CRLF, dan ditambahkan `.gitattributes` supaya tidak berubah lagi di masa depan.
-  3. *Cara menu memanggil proses update*: menu `[5]` di `Pertashop.bat` sebelumnya memakai `call update.bat`, yang membuat `Pertashop.bat` sendiri tetap jadi proses aktif selagi `update.bat` menimpa SEMUA file termasuk `Pertashop.bat` itu sendiri. **Solusi**: sekarang `Pertashop.bat` membuka `update.bat` di jendela proses terpisah lalu langsung keluar - jendela menu tertutup itu NORMAL, bukan error; buka `Pertashop.bat` lagi setelah update selesai.
+  3. *Cara menu memanggil proses update*: menu `[4]` di `Pertashop.bat` sebelumnya memakai `call update.bat`, yang membuat `Pertashop.bat` sendiri tetap jadi proses aktif selagi `update.bat` menimpa SEMUA file termasuk `Pertashop.bat` itu sendiri. **Solusi**: sekarang `Pertashop.bat` membuka `update.bat` di jendela proses terpisah lalu langsung keluar - jendela menu tertutup itu NORMAL, bukan error; buka `Pertashop.bat` lagi setelah update selesai.
 
   Setelah ketiga perbaikan ini: seluruh data transaksi penjualan Anda tetap 100% AMAN di LocalStorage (tidak pernah tersentuh proses update), dan proses update akan berhenti di layar konfirmasi status commit (tidak menutup sendiri sampai Anda menekan sembarang tombol). Jika tampilan belum berubah di browser kasir setelah update, tekan **`Ctrl + F5`** (Hard Refresh).
 
@@ -43,7 +42,7 @@ Kini file `.bat` telah dioptimalkan agar sangat mudah digunakan di komputer kasi
 
 ### 🌐 Repository Resmi GitHub
 - **URL**: `https://github.com/fyercz/Project-POS.git`
-- Seluruh pembaruan di repository ini dapat langsung ditarik ke komputer kasir kapan saja menggunakan menu `[5]` di `Pertashop.bat`.
+- Seluruh pembaruan di repository ini dapat langsung ditarik ke komputer kasir kapan saja menggunakan menu `[4]` di `Pertashop.bat`.
 
 ---
 

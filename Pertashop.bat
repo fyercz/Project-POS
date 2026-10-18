@@ -24,24 +24,22 @@ echo.
 echo   [1] Buka Aplikasi Kasir (Mode Desktop Mandiri)
 echo   [2] Buat File Pertashop.exe (Dengan Logo Resmi)
 echo   [3] Pasang Shortcut di Desktop Komputer (Dengan Logo Pertashop)
-echo   [4] Buat Installer Setup .EXE (Electron Package)
-echo   [5] Periksa Pembaruan Sistem dari GitHub (Auto-Update)
-echo   [6] Install atau Perbaiki Dependensi Aplikasi
-echo   [7] Reset / Format Total Data Aplikasi ke Kondisi Bersih Baru
-echo   [8] Keluar
+echo   [4] Periksa Pembaruan Sistem dari GitHub (Auto-Update)
+echo   [5] Install atau Perbaiki Dependensi Aplikasi
+echo   [6] Reset / Format Total Data Aplikasi ke Kondisi Bersih Baru
+echo   [7] Keluar
 echo.
 echo ===============================================================================
-set /p opt="Pilih nomor menu (1-8) [Default: 1]: "
+set /p opt="Pilih nomor menu (1-7) [Default: 1]: "
 
 if "%opt%"=="" set opt=1
 if "%opt%"=="1" goto RUN_APP
 if "%opt%"=="2" goto BUILD_EXE
 if "%opt%"=="3" goto CREATE_SHORTCUT
-if "%opt%"=="4" goto BUILD_ELECTRON
-if "%opt%"=="5" goto UPDATE_APP
-if "%opt%"=="6" goto REPAIR_DEPS
-if "%opt%"=="7" goto RESET_APP_DATA
-if "%opt%"=="8" exit /b 0
+if "%opt%"=="4" goto UPDATE_APP
+if "%opt%"=="5" goto REPAIR_DEPS
+if "%opt%"=="6" goto RESET_APP_DATA
+if "%opt%"=="7" exit /b 0
 
 echo Pilihan tidak valid.
 timeout /t 1 >nul
@@ -190,54 +188,7 @@ if not "%CSC%"=="" (
 exit /b 0
 
 :: =============================================================================
-:: [4] BUAT INSTALLER ELECTRON
-:: =============================================================================
-:BUILD_ELECTRON
-cls
-echo =====================================================================
-echo          PEMBUAT FILE INSTALLER SETUP .EXE (ELECTRON)
-echo =====================================================================
-echo.
-
-where node >nul 2>nul
-if errorlevel 1 goto ERR_NO_NODE
-
-if exist "node_modules\electron\" goto START_VITE_BUILD
-echo Mengunduh paket electron dan builder (memerlukan koneksi internet)...
-call npm install --save-dev --legacy-peer-deps electron electron-builder
-if errorlevel 1 (
-    echo [ERROR] Gagal mengunduh paket Electron.
-    pause
-    goto MAIN_MENU
-)
-
-:START_VITE_BUILD
-echo Mengompilasi web assets (Vite)...
-call npm run build
-if errorlevel 1 (
-    echo [ERROR] Build Vite gagal!
-    pause
-    goto MAIN_MENU
-)
-
-echo Mengemas aplikasi menjadi file .exe...
-call npx electron-builder --win --x64
-if errorlevel 1 (
-    echo [ERROR] Pembuatan installer .exe gagal!
-    pause
-    goto MAIN_MENU
-)
-
-echo.
-echo =====================================================================
-echo [SUKSES] File installer telah dibuat di folder dist-electron\
-echo =====================================================================
-if exist "dist-electron\" start "" explorer dist-electron
-pause
-goto MAIN_MENU
-
-:: =============================================================================
-:: [5] UPDATE APLIKASI DARI GITHUB
+:: [4] UPDATE APLIKASI DARI GITHUB
 :: =============================================================================
 :UPDATE_APP
 cls
@@ -285,7 +236,7 @@ start "Update Pertashop" "update.bat"
 exit /b 0
 
 :: =============================================================================
-:: [6] REPAIR DEPENDENCIES
+:: [5] REPAIR DEPENDENCIES
 :: =============================================================================
 :REPAIR_DEPS
 cls
@@ -307,7 +258,7 @@ pause
 goto MAIN_MENU
 
 :: =============================================================================
-:: [7] RESET / FORMAT TOTAL DATA APLIKASI
+:: [6] RESET / FORMAT TOTAL DATA APLIKASI
 :: =============================================================================
 :RESET_APP_DATA
 cls
