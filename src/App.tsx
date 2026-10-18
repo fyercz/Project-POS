@@ -26,6 +26,7 @@ import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { StorageService, STORAGE_ERROR_EVENT } from './utils/storage';
 import { syncSalesToAttendance, recalculateMonthlyPayrolls, findEmployeeByOperatorName, isPayrollLocked } from './utils/attendanceSync';
 import { useAttendancePayrollLogic } from './hooks/useAttendancePayrollLogic';
+import { useExpenseLogic } from './hooks/useExpenseLogic';
 import { recalculateSaleWithPrice, recalculatePurchaseWithPrice, formatMonthYearId, getEffectivePriceForDate } from './utils/pricing';
 import {
   Product,
@@ -1983,67 +1984,24 @@ export default function App() {
   };
 
   // Expense Handlers
-  const handleOpenAddExpense = (cat?: ExpenseCategoryType) => {
-    setEditingExpense(null);
-    setSelectedExpenseCategory(cat || 'GAJI_OPERATOR');
-    setIsExpenseModalOpen(true);
-  };
-
-  const handleEditExpense = (expense: ExpenseRecord) => {
-    setEditingExpense(expense);
-    setSelectedExpenseCategory(expense.category);
-    setIsExpenseModalOpen(true);
-  };
-
-  const handleSaveExpense = (expenseData: Omit<ExpenseRecord, 'id' | 'createdAt'>) => {
-    if (editingExpense) {
-      const updated = expenses.map((e) =>
-        e.id === editingExpense.id
-          ? { ...expenseData, id: editingExpense.id, createdAt: editingExpense.createdAt }
-          : e
-      );
-      setExpenses(updated);
-    } else {
-      const newExpense: ExpenseRecord = {
-        ...expenseData,
-        id: `exp-${Date.now()}`,
-        createdAt: `${getTodayDateString()} ${getCurrentTimeString()}`,
-      };
-      setExpenses([newExpense, ...expenses]);
-    }
-  };
-
-  // Tandai sumber (sounding/DO) agar beban losses/gain otomatisnya TIDAK dibuat ulang saat
-  // aplikasi dibuka kembali, setelah pengguna sengaja menghapus beban tersebut secara manual.
-  const markVarianceSourceExcluded = (removedExpenses: ExpenseRecord[]) => {
-    const soundingIds = new Set(
-      removedExpenses
-        .filter((e) => (e.sourceType === 'SOUNDING_TANGKI' || e.sourceType === 'CLOSING_SHIFT') && e.sourceReferenceId)
-        .map((e) => e.sourceReferenceId!)
-    );
-    const purchaseIds = new Set(
-      removedExpenses.filter((e) => e.sourceType === 'PENERIMAAN_DO' && e.sourceReferenceId).map((e) => e.sourceReferenceId!)
-    );
-    if (soundingIds.size > 0) {
-      setSoundings((prev) => prev.map((s) => (soundingIds.has(s.id) ? { ...s, varianceExpenseExcluded: true } : s)));
-    }
-    if (purchaseIds.size > 0) {
-      setPurchases((prev) => prev.map((p) => (purchaseIds.has(p.id) ? { ...p, varianceExpenseExcluded: true } : p)));
-    }
-  };
-
-  const handleDeleteExpense = (expenseId: string) => {
-    const removed = expenses.find((e) => e.id === expenseId);
-    setExpenses(expenses.filter((e) => e.id !== expenseId));
-    if (removed) markVarianceSourceExcluded([removed]);
-  };
-
-  const handleDeleteExpensesByMonth = (monthKey: string) => {
-    const removed = expenses.filter((e) => e.date.startsWith(monthKey));
-    const remaining = expenses.filter((e) => !e.date.startsWith(monthKey));
-    setExpenses(remaining);
-    markVarianceSourceExcluded(removed);
-  };
+  // Logika Beban & Pengeluaran diekstrak ke hook terpisah - lihat catatan lengkap di
+  // src/hooks/useExpenseLogic.ts (domain kedua dari rekomendasi #7 untuk App.tsx).
+  const {
+    handleOpenAddExpense,
+    handleEditExpense,
+    handleSaveExpense,
+    handleDeleteExpense,
+    handleDeleteExpensesByMonth,
+  } = useExpenseLogic({
+    expenses,
+    setExpenses,
+    setSoundings,
+    setPurchases,
+    editingExpense,
+    setEditingExpense,
+    setSelectedExpenseCategory,
+    setIsExpenseModalOpen,
+  });
 
   const handleOpenPrintSummaryModal = (mode: 'MONTHLY' | 'YEARLY', month: string, year: number) => {
     setSummaryPrintMode(mode);
