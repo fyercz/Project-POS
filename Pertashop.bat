@@ -241,124 +241,48 @@ goto MAIN_MENU
 :: =============================================================================
 :UPDATE_APP
 cls
-if exist "update.bat" (
-    echo =====================================================================
-    echo          MEMBUKA MODUL PEMBARUAN DI JENDELA TERPISAH
-    echo =====================================================================
+:: PENTING: update.bat TIDAK PERNAH dijalankan inline di sini (lewat "call" atau logika
+:: git reset langsung di proses Pertashop.bat ini). Itu persis bug yang pernah membuat
+:: jendela force-close - git reset --hard menimpa Pertashop.bat sendiri selagi file ini
+:: masih aktif dibaca cmd.exe. Satu-satunya cara aman: proses update SELALU dijalankan
+:: di jendela proses terpisah (lihat di bawah), termasuk saat update.bat perlu diunduh
+:: ulang terlebih dahulu karena hilang dari folder.
+if exist "update.bat" goto LAUNCH_UPDATE
+
+echo =====================================================================
+echo          MENGUNDUH MODUL PEMBARUAN (update.bat tidak ditemukan)
+echo =====================================================================
+echo.
+echo [INFO] File update.bat tidak ada di folder ini. Mengunduh salinan resmi
+echo        dari GitHub terlebih dahulu...
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol='Tls12'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/fyercz/Project-POS/main/update.bat' -OutFile 'update.bat'"
+if errorlevel 1 (
     echo.
-    echo [INFO] Proses update (termasuk Pertashop.bat ini sendiri) akan
-    echo        berjalan di jendela terpisah. Jendela menu ini akan DITUTUP
-    echo        sekarang - ini NORMAL, bukan error.
+    echo [GAGAL] Tidak bisa mengunduh update.bat. Pastikan internet aktif,
+    echo         atau unduh manual dari https://github.com/fyercz/Project-POS
+    echo         ^(tombol hijau Code - Download ZIP^).
     echo.
-    echo        Setelah update selesai, buka kembali Pertashop.bat untuk
-    echo        melanjutkan ke menu seperti biasa.
-    echo.
-    timeout /t 3 /nobreak >nul
-    start "Update Pertashop" "update.bat"
-    exit /b 0
+    pause
+    goto MAIN_MENU
 )
+echo [OK] update.bat berhasil diunduh.
+echo.
 
+:LAUNCH_UPDATE
 echo =====================================================================
-echo          PEMBARUAN APLIKASI OTOMATIS DARI GITHUB
-echo =====================================================================
-echo.
-
-where git >nul 2>nul
-if errorlevel 1 goto ERR_NO_GIT
-
-set REPO_URL=https://github.com/fyercz/Project-POS.git
-
-if exist ".git\" goto SYNC_GIT_REMOTE
-echo [INFO] Menghubungkan folder aplikasi ke GitHub resmi...
-echo        %REPO_URL%
-echo.
-git init
-git remote add origin %REPO_URL%
-git branch -M main
-echo [OK] Repository berhasil dihubungkan!
-echo.
-goto DO_PULL_CODE
-
-:SYNC_GIT_REMOTE
-git remote set-url origin %REPO_URL% 2>nul
-if errorlevel 1 git remote add origin %REPO_URL% 2>nul
-
-:DO_PULL_CODE
-echo [1/5] Menghubungi GitHub (fyercz/Project-POS) dan menarik update...
-git fetch origin main --prune 2>nul
-git checkout -B main origin/main >nul 2>nul
-git reset --hard origin/main
-if errorlevel 1 goto FALLBACK_PULL
-goto DO_CLEANUP
-
-:FALLBACK_PULL
-echo [INFO] Menghubungkan branch ke versi origin/main...
-git pull --rebase origin main 2>nul
-git reset --hard origin/main 2>nul
-
-:DO_CLEANUP
-echo.
-echo [2/5] Memverifikasi integritas file dan membersihkan file usang...
-if exist "buka-desktop.bat" (
-    del /f /q "buka-desktop.bat" >nul 2>nul
-    echo       - Menghapus script lama: buka-desktop.bat
-)
-if exist "buat-aplikasi-exe.bat" (
-    del /f /q "buat-aplikasi-exe.bat" >nul 2>nul
-    echo       - Menghapus script lama: buat-aplikasi-exe.bat
-)
-if exist "buat-exe-cepat.bat" (
-    del /f /q "buat-exe-cepat.bat" >nul 2>nul
-    echo       - Menghapus script lama: buat-exe-cepat.bat
-)
-if exist "install.bat" (
-    del /f /q "install.bat" >nul 2>nul
-    echo       - Menghapus script lama: install.bat
-)
-
-del /f /q *.tmp >nul 2>nul
-del /f /q npm-debug.log* >nul 2>nul
-
-if exist "dist\" (
-    rmdir /s /q "dist\" >nul 2>nul
-    echo       - Membersihkan cache build: dist\
-)
-if exist "node_modules\.vite\" (
-    rmdir /s /q "node_modules\.vite\" >nul 2>nul
-    echo       - Membersihkan cache dependency: node_modules\.vite\
-)
-echo       [OK] File usang dan cache build lama berhasil dibersihkan!
-
-echo.
-echo [3/5] Memverifikasi dependensi dan membuang paket pustaka usang...
-call npm prune
-call npm install
-
-echo.
-echo [4/5] Mengompilasi pembaruan aplikasi web (Vite Build)...
-call npm run build
-
-echo.
-echo [5/5] Memverifikasi dan memperbarui file executable (Pertashop.exe)...
-if exist "Pertashop.exe" (
-    echo       Memperbarui file Pertashop.exe dengan build terbaru...
-    call :BUILD_EXE_SILENT
-    echo       [OK] File Pertashop.exe berhasil diperbarui!
-)
-
-echo.
-echo =====================================================================
-echo [SUKSES] Sistem Pertashop telah berhasil diverifikasi dan diperbarui!
-echo.
-echo Ringkasan Hasil Update:
-echo 1. Kode program terbaru dari GitHub telah terpasang.
-echo 2. File script usang dan cache lama telah dibersihkan secara bersih.
-echo 3. Paket pustaka telah diverifikasi dan disinkronkan.
-echo 4. Seluruh data penjualan kasir dijamin 100%% AMAN di komputer ini.
+echo          MEMBUKA MODUL PEMBARUAN DI JENDELA TERPISAH
 echo =====================================================================
 echo.
-pause
-goto MAIN_MENU
+echo [INFO] Proses update (termasuk Pertashop.bat ini sendiri) akan
+echo        berjalan di jendela terpisah. Jendela menu ini akan DITUTUP
+echo        sekarang - ini NORMAL, bukan error.
+echo.
+echo        Setelah update selesai, buka kembali Pertashop.bat untuk
+echo        melanjutkan ke menu seperti biasa.
+echo.
+timeout /t 3 /nobreak >nul
+start "Update Pertashop" "update.bat"
+exit /b 0
 
 :: =============================================================================
 :: [6] REPAIR DEPENDENCIES
