@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   X,
   UploadCloud,
@@ -106,6 +107,8 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
     return isNaN(num) ? 0 : Math.abs(num);
   };
 
+  // Lihat catatan Rules-of-Hooks di SalesEntryModal.tsx - hook ini wajib sebelum early return.
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   const defaultProduct = products[0] || {
@@ -963,6 +966,11 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
         id="import-sales-modal"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
       >
         {/* Modal Header */}
@@ -972,7 +980,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
               <FileSpreadsheet className="w-6 h-6 text-emerald-300" />
             </div>
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
+              <h2 id={titleId} className="text-lg font-bold flex items-center gap-2">
                 <span>Import Batch 1 Bulan & DO Pertamina</span>
                 <span className="text-[10px] bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full font-medium">
                   Multi-Sheet Excel / CSV

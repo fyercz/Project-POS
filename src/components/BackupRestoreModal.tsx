@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   X,
   Database,
@@ -57,6 +58,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   const [showRawInput, setShowRawInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Lihat catatan Rules-of-Hooks di SalesEntryModal.tsx - hook ini wajib sebelum early return.
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   const handleDownloadBackup = () => {
@@ -142,6 +145,11 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
         id="backup-restore-modal-container"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Modal Header */}
@@ -152,7 +160,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white tracking-tight">
+                <h2 id={titleId} className="text-base font-bold text-white tracking-tight">
                   Pusat Backup & Restore Database
                 </h2>
                 <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-[10px] font-bold">

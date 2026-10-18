@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   X,
   Building2,
@@ -46,6 +47,8 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
     errorMsg?: string;
   }>({ status: 'IDLE' });
 
+  // Lihat catatan Rules-of-Hooks di SalesEntryModal.tsx - hook ini wajib sebelum early return.
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   const handleCheckGitHubUpdate = async () => {
@@ -90,6 +93,11 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
         id="profile-modal-container"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
@@ -98,7 +106,7 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold">Profil Pertashop & Pengaturan Tangki</h2>
+              <h2 id={titleId} className="text-base font-bold">Profil Pertashop & Pengaturan Tangki</h2>
               <p className="text-xs text-slate-400">Identitas SPBU Modular Pertamina & Kapasitas</p>
             </div>
           </div>

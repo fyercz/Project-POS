@@ -1,6 +1,7 @@
 import React from 'react';
 import { Fuel, Truck, Gauge, TrendingUp, Settings, FileText, X, Receipt, CalendarDays, Users, Database } from 'lucide-react';
 import { PertashopProfile, TankConfig } from '../types';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 interface SidebarProps {
   profile: PertashopProfile;
@@ -41,7 +42,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       subtitle: 'Pecahan 1, 2, 3 KL',
       icon: Truck,
       badge: isCritical ? 'KRITIS' : isWarning ? 'SIAGA' : undefined,
-      badgeColor: isCritical ? 'bg-red-500' : 'bg-amber-500',
+      // Kontras WCAG AA (diaudit): red-500 dgn teks putih cuma 3.76:1 -> red-600 (4.83:1).
+      // amber-500 dgn teks putih cuma 2.15:1 -> tetap pakai amber-500 (branding "siaga"
+      // tetap cerah) tapi teksnya digelapkan jadi slate-900 (8.31:1), diatur lewat badgeTextColor.
+      badgeColor: isCritical ? 'bg-red-600' : 'bg-amber-500',
+      badgeTextColor: isCritical ? 'text-white' : 'text-slate-900',
     },
     {
       id: 'soundings' as const,
@@ -55,7 +60,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       subtitle: 'Presensi, Shift & Slip Gaji',
       icon: Users,
       badge: 'NEW',
-      badgeColor: 'bg-indigo-500',
+      badgeColor: 'bg-indigo-600', // indigo-500 cuma 4.47:1 dgn teks putih, sedikit di bawah ambang WCAG AA
+      badgeTextColor: 'text-white',
     },
     {
       id: 'expenses' as const,
@@ -79,6 +85,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 
 
+  // Audit aksesibilitas: drawer navigasi mobile ini menutupi konten di belakangnya tapi tidak
+  // bisa ditutup dengan Escape dan fokus keyboard bisa "bocor" ke konten tersembunyi di
+  // belakangnya. Hook ini hanya aktif saat isOpenMobile true (drawer mode) - di desktop,
+  // sidebar selalu statis/terlihat (lg:static), jadi tidak relevan menjebak fokus di sana.
+  const { containerRef: sidebarRef } = useModalA11y(isOpenMobile, onCloseMobile);
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -91,7 +103,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
+        ref={sidebarRef}
         id="pertashop-sidebar"
+        aria-label="Menu Navigasi Pertashop"
         className={`fixed lg:static top-0 bottom-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 flex flex-col justify-between border-r border-slate-800/90 shadow-2xl lg:shadow-none transform transition-transform duration-200 ease-in-out font-sans ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
@@ -165,7 +179,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     />
                     <div className="text-left">
                       <div className="text-sm font-semibold leading-tight">{item.label}</div>
-                      <div className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
+                      {/* text-blue-100 diganti text-blue-50: 4.24:1 di atas bg-blue-600 gagal WCAG AA (butuh 4.5:1) */}
+                      <div className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-blue-50' : 'text-slate-400'}`}>
                         {item.subtitle}
                       </div>
                     </div>
@@ -173,7 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                   {item.badge && (
                     <span
-                      className={`text-[9px] font-black font-mono text-white px-2 py-0.5 rounded-full ${item.badgeColor}`}
+                      className={`text-[9px] font-black font-mono px-2 py-0.5 rounded-full ${item.badgeColor} ${item.badgeTextColor || 'text-white'}`}
                     >
                       {item.badge}
                     </span>

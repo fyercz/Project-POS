@@ -120,7 +120,9 @@ export const OrderAlertBanner: React.FC<OrderAlertBannerProps> = ({
                 }
               >
                 <span>{kl} KL</span>
-                <span className="text-[10px] font-normal opacity-90">({kl}.000 L)</span>
+                {/* opacity-90 dihapus: menurunkan kontras efektif teks ini sampai di bawah
+                    ambang WCAG AA (diukur 3.35:1, butuh 4.5:1) saat berada di atas latar biru */}
+                <span className="text-[10px] font-normal">({kl}.000 L)</span>
               </button>
             );
           })}

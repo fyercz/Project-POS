@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { X, Truck, CheckCircle2, Fuel, Gauge, AlertTriangle, ArrowRight, Zap, RefreshCw, AlertCircle, Sparkles, RotateCcw, Trash2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PurchaseOrder, TankConfig } from '../types';
@@ -38,6 +39,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
   onRevertReceiving,
   onDeleteOrder,
 }) => {
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen || !order) return null;
 
   const LITERS_PER_CM = 21;
@@ -212,6 +214,11 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
       <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
         <div
           id="receive-fuel-modal-container"
+          ref={containerRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
           className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header */}
@@ -227,7 +234,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
                 <Truck className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-bold flex items-center gap-2">
+                <h2 id={titleId} className="text-lg font-bold flex items-center gap-2">
                   {isEditingCompleted ? 'Koreksi Berita Acara Bongkar DO' : 'Penerimaan & Bongkar BBM DO'}
                   <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-mono">
                     {order.volumeKL} KL ({formatNumber(order.volumeLiters)} L)

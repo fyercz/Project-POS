@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   Truck,
   CheckCircle2,
@@ -97,6 +98,11 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
     }
   };
 
+  // Audit aksesibilitas: dua modal inline di bawah ini (Berita Acara & Kalibrasi Tangki)
+  // tidak punya Escape/focus-trap/ARIA dialog - lihat src/hooks/useModalA11y.ts.
+  const detailOrderA11y = useModalA11y(!!selectedDetailOrder, () => setSelectedDetailOrder(null));
+  const calibrateModalA11y = useModalA11y(showCalibrateModal, () => setShowCalibrateModal(false));
+
   return (
     <div className="space-y-4">
       {/* Tank Capacity Monitoring Ribbon */}
@@ -189,6 +195,7 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter berdasarkan status DO"
               className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white outline-none"
             >
               <option value="ALL">Semua Status</option>
@@ -386,10 +393,17 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
       {/* Berita Acara Detail Modal */}
       {selectedDetailOrder && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-xs animate-in zoom-in-95 duration-150">
+          <div
+            ref={detailOrderA11y.containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={detailOrderA11y.titleId}
+            tabIndex={-1}
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-xs animate-in zoom-in-95 duration-150"
+          >
             <div className="flex justify-between items-center pb-4 border-b border-slate-200">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 id={detailOrderA11y.titleId} className="text-base font-bold text-slate-900">
                   Berita Acara Penerimaan BBM
                 </h3>
                 <p className="text-xs text-slate-500 font-mono">{selectedDetailOrder.poNumber}</p>
@@ -577,14 +591,21 @@ export const PurchaseHistoryTable: React.FC<PurchaseHistoryTableProps> = ({
       {/* Manual Tank Calibration Modal */}
       {showCalibrateModal && onDirectAdjustTank && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div
+            ref={calibrateModalA11y.containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={calibrateModalA11y.titleId}
+            tabIndex={-1}
+            className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
             <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-blue-500/20 text-blue-400 rounded-xl">
                   <Wrench className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold">Koreksi & Kalibrasi Stok Tangki</h3>
+                  <h3 id={calibrateModalA11y.titleId} className="text-sm font-bold">Koreksi & Kalibrasi Stok Tangki</h3>
                   <p className="text-xs text-slate-400">Atur ulang volume BBM fisik tangki pendam</p>
                 </div>
               </div>

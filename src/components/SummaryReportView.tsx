@@ -611,6 +611,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                 <select
                   value={selectedMonthIndex}
                   onChange={(e) => setSelectedMonthIndex(Number(e.target.value))}
+                  aria-label="Pilih bulan rekap"
                   className="bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden cursor-pointer"
                 >
                   {MONTH_NAMES_INDO.map((m, idx) => (
@@ -622,6 +623,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  aria-label="Pilih tahun rekap"
                   className="bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden cursor-pointer"
                 >
                   {availableYears.map((yr) => (

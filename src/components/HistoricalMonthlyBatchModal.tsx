@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   X,
   Calendar,
@@ -144,6 +145,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
   const [isProcessingExcel, setIsProcessingExcel] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   const targetMonthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
@@ -583,7 +585,14 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150">
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-900 via-blue-900 to-slate-900 text-white p-5 sm:p-6 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
@@ -592,7 +601,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold">Input Rekap Bulanan Historis (Data Lampau)</h2>
+                <h2 id={titleId} className="text-lg font-bold">Input Rekap Bulanan Historis (Data Lampau)</h2>
                 <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full font-medium">
                   Pertashop Berjalan
                 </span>

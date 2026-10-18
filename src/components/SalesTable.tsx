@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   Search,
   Download,
@@ -415,6 +416,9 @@ export const SalesTable: React.FC<SalesTableProps> = ({
     }
   };
 
+  // Audit aksesibilitas: modal struk di bawah ini tidak punya Escape/focus-trap/ARIA dialog.
+  const receiptModalA11y = useModalA11y(!!selectedReceipt, () => setSelectedReceipt(null));
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Card Header & Controls Toolbar */}
@@ -613,6 +617,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
           <select
             value={selectedShift}
             onChange={(e) => setSelectedShift(e.target.value)}
+            aria-label="Filter berdasarkan shift"
             className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:bg-white outline-none"
           >
             <option value="ALL">Semua Shift</option>
@@ -1092,9 +1097,16 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       {/* Receipt Modal */}
       {selectedReceipt && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 font-mono text-xs animate-in zoom-in-95 duration-150">
+          <div
+            ref={receiptModalA11y.containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={receiptModalA11y.titleId}
+            tabIndex={-1}
+            className="bg-white rounded-xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 font-mono text-xs animate-in zoom-in-95 duration-150"
+          >
             <div className="text-center pb-4 border-b border-dashed border-slate-300">
-              <div className="font-bold text-base text-slate-900 font-sans">PERTASHOP PERTAMINA</div>
+              <div id={receiptModalA11y.titleId} className="font-bold text-base text-slate-900 font-sans">PERTASHOP PERTAMINA</div>
               <div className="text-slate-500 text-[11px]">SPBU Modular Non-Subsidi</div>
               <div className="text-slate-400 text-[10px] mt-0.5">Kode: 4P.552.09</div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { X, Gauge, Check, AlertCircle, Droplet, History, Pencil, Trash2, Zap } from 'lucide-react';
 import { TankConfig, SoundingRecord } from '../types';
 import { formatLiter, formatShortDate, getTodayDateString, getCurrentTimeString, addDays } from '../utils/formatters';
@@ -80,6 +81,8 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
     }
   }, [editingSounding, isOpen, tank.currentStockLiters]);
 
+  // Lihat catatan Rules-of-Hooks di SalesEntryModal.tsx - hook ini wajib sebelum early return.
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   const handleStickChange = (cm: number) => {
@@ -130,6 +133,11 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
         id="sounding-modal-container"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
@@ -139,7 +147,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
               <Gauge className="w-6 h-6 text-cyan-300" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Tera Sounding Tangki Modular</h2>
+              <h2 id={titleId} className="text-lg font-bold">Tera Sounding Tangki Modular</h2>
               <p className="text-xs text-blue-100 mt-0.5">
                 Pengukuran Fisik Stick Ukur & Uji Bebas Air Tangki Pendam
               </p>

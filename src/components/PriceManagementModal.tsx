@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   X,
   DollarSign,
@@ -120,6 +121,8 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
   // hook, sehingga saat selectedProduct berubah dari undefined -> ada isinya (atau sebaliknya),
   // jumlah hook yang dipanggil berbeda antar render dan React melempar error #310 ("Rendered more
   // hooks than during the previous render"), membuat modal gagal terbuka / nge-crash.
+  // Lihat catatan Rules-of-Hooks di SalesEntryModal.tsx - hook ini wajib sebelum early return.
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen || !selectedProduct) return null;
 
   const targetMonth = effectiveDate.substring(0, 7); // YYYY-MM
@@ -253,6 +256,11 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
         id="price-management-modal-container"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]"
       >
         {/* Modal Header */}
@@ -262,7 +270,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
               <DollarSign className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
+              <h2 id={titleId} className="text-lg font-bold flex items-center gap-2">
                 Dashboard Penyesuaian Harga BBM
                 <span className="text-[10px] bg-blue-500/30 text-cyan-300 px-2 py-0.5 rounded-full border border-blue-400/30 font-semibold">
                   Variabel Berkesinambungan
@@ -626,6 +634,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                   <input
                     type="date"
                     required
+                    aria-label="Tanggal Mulai Berlaku"
                     value={effectiveDate}
                     onChange={(e) => setEffectiveDate(e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-slate-300 focus:border-blue-600 rounded-xl text-xs font-semibold text-slate-900"
@@ -636,6 +645,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                   <input
                     type="time"
                     required
+                    aria-label="Jam Efektif"
                     value={effectiveTime}
                     onChange={(e) => setEffectiveTime(e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-slate-300 focus:border-blue-600 rounded-xl text-xs font-semibold text-slate-900"
@@ -679,6 +689,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     required
                     min={0}
                     step="any"
+                    aria-label="Harga Jual Baru"
                     value={newSellingPrice}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => handleSellingPriceChange(parseFloat(e.target.value) || 0)}
@@ -714,6 +725,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     required
                     min={0}
                     step="any"
+                    aria-label="Harga Tebus Pertamina"
                     value={newBuyPrice}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => handleBuyPriceChange(parseFloat(e.target.value) || 0)}
@@ -765,6 +777,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     type="number"
                     required
                     step="any"
+                    aria-label="Margin Dealer Pertashop"
                     value={isEditingMargin ? marginInput : currentMargin}
                     onFocus={(e) => {
                       setIsEditingMargin(true);
@@ -1072,10 +1085,11 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
             {/* Referensi SK & Catatan */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="price-reference-doc" className="block text-xs font-semibold text-slate-700 mb-1">
                   Surat Edaran / SK Pertamina
                 </label>
                 <input
+                  id="price-reference-doc"
                   type="text"
                   placeholder="e.g. SK No. 129/PND/VIII/2026"
                   value={referenceDoc}
@@ -1085,10 +1099,11 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="price-adjustment-notes" className="block text-xs font-semibold text-slate-700 mb-1">
                   Catatan Penyesuaian
                 </label>
                 <input
+                  id="price-adjustment-notes"
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { X, Printer, Download, Calendar, Fuel, Check, Receipt } from 'lucide-react';
 import { SaleRecord, PurchaseOrder, TankConfig, PertashopProfile, Product, ExpenseRecord } from '../types';
 import { formatRupiah, formatNumber, formatLiter, formatDateIndo, getTodayDateString } from '../utils/formatters';
@@ -26,6 +27,8 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
 
+  // Lihat catatan Rules-of-Hooks di SalesEntryModal.tsx - hook ini wajib sebelum early return.
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   // Filter sales & expenses for the selected date
@@ -57,6 +60,11 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
       <div
         id="print-report-modal-container"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-4"
       >
         {/* Modal Controls Bar (hidden during print) */}
@@ -64,7 +72,7 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
           <div className="flex items-center gap-3">
             <Printer className="w-5 h-5 text-cyan-400" />
             <div>
-              <h2 className="text-sm font-bold">Cetak Laporan Harian Pertashop (LHO)</h2>
+              <h2 id={titleId} className="text-sm font-bold">Cetak Laporan Harian Pertashop (LHO)</h2>
               <p className="text-xs text-slate-400">Format Resmi Berita Acara Harian & Rekonsiliasi Kas</p>
             </div>
           </div>

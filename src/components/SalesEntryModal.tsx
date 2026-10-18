@@ -36,6 +36,7 @@ import {
   addDays,
 } from '../utils/formatters';
 import { getEffectivePriceForDate, formatMonthYearId, getNextSalesInputDateAndShift } from '../utils/pricing';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 interface SalesEntryModalProps {
   isOpen: boolean;
@@ -499,12 +500,22 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
     onClose();
   };
 
+  // PENTING (lihat bug Rules-of-Hooks yang pernah terjadi di PriceManagementModal):
+  // hook ini HARUS dipanggil sebelum early return "if (!isOpen) return null" di bawah,
+  // supaya jumlah hook yang dipanggil selalu konsisten antar render.
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
+        ref={containerRef}
         id="sales-entry-modal-container"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Modal Header */}
@@ -514,7 +525,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               <Fuel className="w-6 h-6 text-cyan-300" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">
+              <h2 id={titleId} className="text-lg font-bold">
                 {editingSale ? 'Edit Laporan Penjualan Shift' : 'Input Laporan Penjualan & Sounding Shift'}
               </h2>
               <p className="text-xs text-blue-100 mt-0.5">
@@ -611,7 +622,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     type="button"
                     onClick={() => handleDateChange(addDays(transactionDate, -1))}
                     title="Mundur 1 hari"
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
+                    className="text-[10px] px-2.5 py-2 min-h-[32px] rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
                   >
                     -1 Hari
                   </button>
@@ -619,7 +630,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     type="button"
                     onClick={() => handleDateChange(addDays(transactionDate, 1))}
                     title="Maju 1 hari"
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
+                    className="text-[10px] px-2.5 py-2 min-h-[32px] rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
                   >
                     +1 Hari
                   </button>
@@ -627,7 +638,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     type="button"
                     onClick={() => handleDateChange(getTodayDateString())}
                     title="Set hari ini"
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
+                    className="text-[10px] px-2.5 py-2 min-h-[32px] rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
                   >
                     Hari Ini
                   </button>
@@ -740,7 +751,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       disabled={taken}
                       onClick={() => setOperatorName(op)}
                       title={taken ? `${op} sudah bertugas di ${opInfo?.shift} (${opInfo?.literSold} L)` : `Pilih ${op}`}
-                      className={`text-[10px] px-2 py-0.5 rounded-lg font-bold transition-all flex items-center gap-1 ${
+                      className={`text-[10px] px-3 py-2 min-h-[32px] rounded-lg font-bold transition-all flex items-center gap-1 ${
                         taken
                           ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed line-through'
                           : isSelected
@@ -925,7 +936,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                         setPaymentCash(next);
                         if (!showCashReconciliation) setActualCashInHand(next);
                       }}
-                      className="text-[10px] px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded border border-emerald-200 transition-colors"
+                      className="text-[10px] px-2.5 py-2 min-h-[32px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded border border-emerald-200 transition-colors"
                     >
                       +{formatNumber(addVal / 1000)}rb
                     </button>
@@ -936,7 +947,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       setPaymentCash(0);
                       if (!showCashReconciliation) setActualCashInHand(0);
                     }}
-                    className="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
+                    className="text-[10px] px-2.5 py-2 min-h-[32px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
                   >
                     Reset (0)
                   </button>
@@ -970,7 +981,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       key={addVal}
                       type="button"
                       onClick={() => setPaymentQris((prev) => (prev || 0) + addVal)}
-                      className="text-[10px] px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold rounded border border-blue-200 transition-colors"
+                      className="text-[10px] px-2.5 py-2 min-h-[32px] bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold rounded border border-blue-200 transition-colors"
                     >
                       +{formatNumber(addVal / 1000)}rb
                     </button>
@@ -978,7 +989,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setPaymentQris(0)}
-                    className="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
+                    className="text-[10px] px-2.5 py-2 min-h-[32px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
                   >
                     Reset (0)
                   </button>
@@ -1012,7 +1023,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       key={addVal}
                       type="button"
                       onClick={() => setPaymentEdc((prev) => (prev || 0) + addVal)}
-                      className="text-[10px] px-1.5 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold rounded border border-purple-200 transition-colors"
+                      className="text-[10px] px-2.5 py-2 min-h-[32px] bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold rounded border border-purple-200 transition-colors"
                     >
                       +{formatNumber(addVal / 1000)}rb
                     </button>
@@ -1020,7 +1031,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setPaymentEdc(0)}
-                    className="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
+                    className="text-[10px] px-2.5 py-2 min-h-[32px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded border border-slate-200 transition-colors"
                   >
                     Reset (0)
                   </button>

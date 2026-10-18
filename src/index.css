@@ -8,6 +8,25 @@
   code, kbd, samp, pre {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
+
+  /* Temuan audit aksesibilitas: elemen yang sedang fokus (via keyboard) tidak punya
+     indikator visual sama sekali di seluruh aplikasi (outline-width: 0px di mana-mana).
+     Aturan global ini jadi jaring pengaman untuk SEMUA elemen interaktif, tanpa perlu
+     menambah class Tailwind satu-satu ke ratusan tombol/input yang sudah ada. Memakai
+     :focus-visible (bukan :focus) supaya ring HANYA muncul untuk navigasi keyboard,
+     tidak ikut muncul saat elemen diklik dengan mouse/disentuh di layar sentuh.
+     WCAG 2.4.7 Focus Visible. */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 @media print {

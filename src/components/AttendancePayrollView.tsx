@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   Users,
   Calendar,
@@ -724,6 +725,17 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
     XLSX.writeFile(wb, `Rekap_Gaji_Pertashop_${selectedMonth}.xlsx`);
   };
 
+  // Audit aksesibilitas: 7 modal inline di bawah ini tidak punya Escape/focus-trap/ARIA dialog
+  // sama sekali. Setiap modal dapat satu pemanggilan hook sendiri (wajib di level atas komponen,
+  // bukan di dalam blok kondisional render-nya) - lihat src/hooks/useModalA11y.ts.
+  const printSlipA11y = useModalA11y(!!selectedSlipForPrint, () => setSelectedSlipForPrint(null));
+  const attendanceModalA11y = useModalA11y(isAttendanceModalOpen, () => setIsAttendanceModalOpen(false));
+  const employeeModalA11y = useModalA11y(isEmployeeModalOpen, () => setIsEmployeeModalOpen(false));
+  const batchPayModalA11y = useModalA11y(isBatchPayModalOpen, () => setIsBatchPayModalOpen(false));
+  const payingPayrollA11y = useModalA11y(!!payingPayrollModal, () => setPayingPayrollModal(null));
+  const editingPayrollA11y = useModalA11y(!!editingPayroll, () => setEditingPayroll(null));
+  const eligibilityWarningA11y = useModalA11y(!!eligibilityWarningModal, () => setEligibilityWarningModal(null));
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Banner & Month Selector */}
@@ -755,6 +767,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
+              aria-label="Pilih bulan absensi & gaji"
               className="bg-transparent text-white text-xs font-bold font-mono focus:outline-none pr-2 cursor-pointer"
             >
               {monthOptions.map((m) => (
@@ -1512,11 +1525,18 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
       {/* ===================== MODAL CETAK SLIP GAJI ===================== */}
       {selectedSlipForPrint && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div
+            ref={printSlipA11y.containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={printSlipA11y.titleId}
+            tabIndex={-1}
+            className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
             <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-bold text-sm">Slip Gaji Karyawan Pertashop</h3>
+                <h3 id={printSlipA11y.titleId} className="font-bold text-sm">Slip Gaji Karyawan Pertashop</h3>
               </div>
               <button
                 type="button"
@@ -1703,14 +1723,21 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
       {/* ===================== MODAL CATAT ABSENSI ===================== */}
       {isAttendanceModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div
+            ref={attendanceModalA11y.containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={attendanceModalA11y.titleId}
+            tabIndex={-1}
+            className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
             <div className="bg-gradient-to-r from-indigo-700 to-slate-900 text-white p-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/10 rounded-xl">
                   <Calendar className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold">
+                  <h3 id={attendanceModalA11y.titleId} className="text-base font-bold">
                     {editingAttendance ? 'Edit Catatan Absensi' : 'Form Catat Absensi Harian'}
                   </h3>
                   <p className="text-xs text-indigo-100 mt-0.5">
@@ -1907,14 +1934,21 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
       {/* ===================== MODAL FORM TAMBAH KARYAWAN ===================== */}
       {isEmployeeModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div
+            ref={employeeModalA11y.containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={employeeModalA11y.titleId}
+            tabIndex={-1}
+            className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
             <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-500/20 text-indigo-300 rounded-xl">
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold">
+                  <h3 id={employeeModalA11y.titleId} className="text-base font-bold">
                     {editingEmployee ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}
                   </h3>
                   <p className="text-xs text-slate-300 mt-0.5">
@@ -2070,14 +2104,21 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
         return (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div
+              ref={batchPayModalA11y.containerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={batchPayModalA11y.titleId}
+              tabIndex={-1}
+              className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden"
+            >
               <div className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-4.5 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 bg-white/15 rounded-xl">
                     <DollarSign className="w-5 h-5 text-emerald-200" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-white">Bayar Seluruh Gaji Akhir Bulan</h3>
+                    <h3 id={batchPayModalA11y.titleId} className="font-bold text-sm text-white">Bayar Seluruh Gaji Akhir Bulan</h3>
                     <p className="text-[11px] text-emerald-100 font-mono mt-0.5">
                       Periode {formatMonthYear(selectedMonth)} • {unpaidDrafts.length} Karyawan
                     </p>
@@ -2222,7 +2263,14 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
         const targetEmp = employees.find((e) => e.id === payingPayrollModal.employeeId);
         return (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div
+              ref={payingPayrollA11y.containerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={payingPayrollA11y.titleId}
+              tabIndex={-1}
+              className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
+            >
               {/* Header */}
               <div className="bg-gradient-to-r from-emerald-700 to-teal-800 text-white p-4.5 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -2230,7 +2278,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                     <DollarSign className="w-5 h-5 text-emerald-200" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-white">Konfirmasi Pembayaran Gaji</h3>
+                    <h3 id={payingPayrollA11y.titleId} className="font-bold text-sm text-white">Konfirmasi Pembayaran Gaji</h3>
                     <p className="text-[11px] text-emerald-100 font-mono mt-0.5">
                       {payingPayrollModal.payrollNumber} • {formatMonthYear(payingPayrollModal.month)}
                     </p>
@@ -2451,7 +2499,14 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div
+              ref={editingPayrollA11y.containerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={editingPayrollA11y.titleId}
+              tabIndex={-1}
+              className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]"
+            >
               {/* Header */}
               <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-amber-50/80">
                 <div className="flex items-center gap-2.5">
@@ -2459,7 +2514,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                     <Edit2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 text-base">
+                    <h3 id={editingPayrollA11y.titleId} className="font-bold text-slate-800 text-base">
                       Edit Rincian & Nominal Gaji
                     </h3>
                     <p className="text-xs text-slate-600">
@@ -2706,11 +2761,18 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
       {/* ===================== MODAL JADWAL HITUNG GAJI (2 HARI TERAKHIR BULAN) ===================== */}
       {eligibilityWarningModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+          <div
+            ref={eligibilityWarningA11y.containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={eligibilityWarningA11y.titleId}
+            tabIndex={-1}
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200"
+          >
             <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-4">
               <Clock className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-1">
+            <h3 id={eligibilityWarningA11y.titleId} className="text-lg font-bold text-slate-900 mb-1">
               Jadwal Hitung Gaji Belum Dibuka
             </h3>
             <p className="text-xs text-slate-500 mb-4 leading-relaxed">

@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 export interface ConfirmModalProps {
   isOpen: boolean;
@@ -22,15 +23,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   onClose,
 }) => {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -41,7 +34,12 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       onClick={onClose}
     >
       <div
+        ref={containerRef}
         id="confirm-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -55,7 +53,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               {isDestructive ? <Trash2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-800 leading-snug">{title}</h3>
+              <h3 id={titleId} className="text-base font-bold text-slate-800 leading-snug">{title}</h3>
               <p className="text-xs text-slate-500 mt-0.5">Tindakan ini memerlukan konfirmasi Anda</p>
             </div>
           </div>

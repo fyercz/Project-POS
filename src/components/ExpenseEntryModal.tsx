@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   X,
   Plus,
@@ -223,11 +224,19 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
     onClose();
   };
 
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden my-6">
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden my-6"
+      >
         {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -235,7 +244,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
               <Receipt className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold">
+              <h2 id={titleId} className="text-base font-bold">
                 {editingExpense ? 'Edit Pengeluaran Operasional' : 'Catat Pengeluaran Operasional'}
               </h2>
               <p className="text-xs text-slate-300">

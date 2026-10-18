@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import {
   X,
   Printer,
@@ -56,6 +57,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
   const [selectedMonth, setSelectedMonth] = useState<string>(initialMonth);
   const [selectedYear, setSelectedYear] = useState<number>(initialYear);
 
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   // Available unique years from sales
@@ -209,7 +211,14 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
       id="print-summary-report-modal"
       className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white"
     >
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:rounded-none print:w-full">
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:rounded-none print:w-full"
+      >
         {/* Modal Controls (Hidden in Print) */}
         <div className="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3 print:hidden border-b border-slate-800">
           <div className="flex items-center space-x-3">
@@ -217,7 +226,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
               <FileSpreadsheet className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">
+              <h2 id={titleId} className="text-base font-bold text-white">
                 Cetak Laporan Keuangan & Rekap Eksekutif
               </h2>
               <p className="text-xs text-slate-400">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { X, ShoppingCart, Truck, AlertCircle, Check, Fuel, Building2, Calendar, FileCheck, Layers, History, CheckCircle2, Zap } from 'lucide-react';
 import { Product, PurchaseOrder, TankConfig, OrderVolumePecahan, PriceHistory, SaleRecord } from '../types';
 import { formatRupiah, formatNumber, formatLiter, formatShortDate, getTodayDateString, addDays } from '../utils/formatters';
@@ -123,6 +124,8 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   };
 
 
+  // Lihat catatan Rules-of-Hooks di SalesEntryModal.tsx - hook ini wajib sebelum early return.
+  const { containerRef, titleId } = useModalA11y(isOpen, onClose);
   if (!isOpen) return null;
 
   const effectivePriceForDate = getEffectivePriceForDate(selectedProductId, orderDate, products, priceHistory, sales);
@@ -185,6 +188,11 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
         id="purchase-order-modal-container"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
@@ -194,7 +202,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
               <Truck className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
+              <h2 id={titleId} className="text-lg font-bold flex items-center gap-2">
                 {editingOrder ? 'Edit Pemesanan DO Pertamina' : 'Pemesanan DO Pertamax ke Pertamina'}
                 <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">
                   {editingOrder ? editingOrder.poNumber : 'Penebusan BBM'}
