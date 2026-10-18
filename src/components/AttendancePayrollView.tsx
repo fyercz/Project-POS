@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { PrintSalarySlipModal } from './PrintSalarySlipModal';
+import { PayrollEligibilityWarningModal } from './PayrollEligibilityWarningModal';
 import {
   Users,
   Calendar,
@@ -733,7 +734,6 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   const batchPayModalA11y = useModalA11y(isBatchPayModalOpen, () => setIsBatchPayModalOpen(false));
   const payingPayrollA11y = useModalA11y(!!payingPayrollModal, () => setPayingPayrollModal(null));
   const editingPayrollA11y = useModalA11y(!!editingPayroll, () => setEditingPayroll(null));
-  const eligibilityWarningA11y = useModalA11y(!!eligibilityWarningModal, () => setEligibilityWarningModal(null));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -2567,60 +2567,11 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
         );
       })()}
 
-      {/* ===================== MODAL JADWAL HITUNG GAJI (2 HARI TERAKHIR BULAN) ===================== */}
-      {eligibilityWarningModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div
-            ref={eligibilityWarningA11y.containerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={eligibilityWarningA11y.titleId}
-            tabIndex={-1}
-            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200"
-          >
-            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-4">
-              <Clock className="w-6 h-6" />
-            </div>
-            <h3 id={eligibilityWarningA11y.titleId} className="text-lg font-bold text-slate-900 mb-1">
-              Jadwal Hitung Gaji Belum Dibuka
-            </h3>
-            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-              Sesuai ketentuan sistem Pertashop, perhitungan gaji otomatis hanya dapat dilakukan pada <strong>2 hari terakhir bulan tersebut</strong>.
-            </p>
-
-            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 mb-5 space-y-2.5 text-xs">
-              <div className="flex justify-between items-center text-slate-700">
-                <span className="text-slate-500">Bulan Penggajian:</span>
-                <span className="font-bold font-mono">{formatMonthYear(selectedMonth)}</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-700">
-                <span className="text-slate-500">Jadwal Dibuka:</span>
-                <span className="font-bold text-amber-900">
-                  Tanggal {eligibilityWarningModal.startEligibilityDay} s/d {eligibilityWarningModal.daysInMonth} {formatMonthYear(selectedMonth)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-slate-700">
-                <span className="text-slate-500">Ketentuan Periode:</span>
-                <span className="font-semibold text-emerald-800 text-right">
-                  2 Hari Terakhir Bulan
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 mb-5 leading-normal">
-              💡 <em>Tujuan:</em> Mencegah slip gaji tercetak tidak lengkap karena shift harian dan absensi operator masih berjalan hingga akhir bulan.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => setEligibilityWarningModal(null)}
-              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
-            >
-              Saya Mengerti
-            </button>
-          </div>
-        </div>
-      )}
+      <PayrollEligibilityWarningModal
+        eligibility={eligibilityWarningModal}
+        onClose={() => setEligibilityWarningModal(null)}
+        selectedMonth={selectedMonth}
+      />
 
       {/* ===================== IN-APP TOAST NOTIFICATION ===================== */}
       {toastMessage && (
