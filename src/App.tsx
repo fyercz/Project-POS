@@ -27,7 +27,9 @@ import { StorageService, STORAGE_ERROR_EVENT } from './utils/storage';
 import { syncSalesToAttendance, recalculateMonthlyPayrolls, findEmployeeByOperatorName, isPayrollLocked } from './utils/attendanceSync';
 import { useAttendancePayrollLogic } from './hooks/useAttendancePayrollLogic';
 import { useExpenseLogic } from './hooks/useExpenseLogic';
+import { useSoundingLogic } from './hooks/useSoundingLogic';
 import { recalculateSaleWithPrice, recalculatePurchaseWithPrice, formatMonthYearId, getEffectivePriceForDate } from './utils/pricing';
+import { syncFuelVarianceToExpenses } from './utils/fuelVarianceSync';
 import {
   Product,
   PurchaseOrder,
@@ -438,7 +440,7 @@ export default function App() {
           notes: `Sounding closing saat ${saleData.shift} (${saleData.operatorName}). ${saleData.notes || ''}`.trim(),
         };
         setSoundings((prev) => (prev.some((r) => r.id === sndId) ? prev.map((r) => (r.id === sndId ? rec : r)) : [rec, ...prev]));
-        syncFuelVarianceToExpenses(
+        syncFuelVarianceToExpenses(fuelVarianceDeps, 
           sndId,
           'CLOSING_SHIFT',
           saleData.transactionDate,
@@ -548,7 +550,7 @@ export default function App() {
         soundingRecordId = sndId;
 
         // Otomatis catat selisih loss atau gain BBM ke dalam pembukuan keuangan
-        syncFuelVarianceToExpenses(
+        syncFuelVarianceToExpenses(fuelVarianceDeps, 
           sndId,
           'CLOSING_SHIFT',
           saleData.transactionDate,
@@ -1459,69 +1461,10 @@ export default function App() {
   };
 
   // Helper fungsi untuk mencatat selisih loss atau gain BBM secara otomatis ke dalam pembukuan keuangan
-  const syncFuelVarianceToExpenses = (
-    sourceId: string,
-    sourceType: 'SOUNDING_TANGKI' | 'PENERIMAAN_DO' | 'CLOSING_SHIFT',
-    date: string,
-    time: string,
-    varianceLiters: number,
-    operatorOrVendor: string,
-    notes?: string,
-    explicitBuyPrice?: number
-  ) => {
-    // Jika selisih 0 L (presisi), bersihkan entri pembukuan terkait jika sebelumnya ada
-    if (Math.abs(varianceLiters) < 0.001) {
-      setExpenses((prev) => prev.filter((e) => e.sourceReferenceId !== sourceId));
-      return;
-    }
-
-    const absVariance = Math.abs(varianceLiters);
-    const eff = getEffectivePriceForDate('prod-pertamax-92', date, products, priceHistory, sales);
-    const buyPrice = explicitBuyPrice || eff.buyPrice || primaryProduct.buyPrice || 12100;
-    const totalAmount = Math.round(absVariance * buyPrice);
-    const isLoss = varianceLiters < 0;
-
-    const category: ExpenseCategoryType = isLoss ? 'LOSSES_MINYAK' : 'GAIN_MINYAK';
-    const title =
-      sourceType === 'PENERIMAAN_DO'
-        ? isLoss
-          ? `Beban Susut Bongkar DO Pertamina (${formatNumber(absVariance, 1)} L)`
-          : `Surplus Penerimaan DO Pertamina (+${formatNumber(absVariance, 1)} L)`
-        : isLoss
-        ? `Beban Losses Minyak Tangki (${formatNumber(absVariance, 1)} L)`
-        : `Surplus / Gain Stok BBM Tangki (+${formatNumber(absVariance, 1)} L)`;
-
-    setExpenses((prev) => {
-      const existingIndex = prev.findIndex((e) => e.sourceReferenceId === sourceId);
-      const expenseItem: ExpenseRecord = {
-        id: existingIndex >= 0 ? prev[existingIndex].id : `exp-fuel-${sourceId}`,
-        date,
-        time,
-        category,
-        title,
-        amount: totalAmount,
-        quantity: absVariance,
-        unitRate: buyPrice,
-        fuelLossLiters: absVariance,
-        fuelLossBuyPriceSnapshot: buyPrice,
-        personOrVendor: operatorOrVendor,
-        paymentSource: 'KAS_HARIAN',
-        notes: notes || `Otomatis dari selisih BBM (${varianceLiters > 0 ? `+${varianceLiters}` : varianceLiters} L)`,
-        createdAt: `${date} ${time}`,
-        sourceReferenceId: sourceId,
-        sourceType,
-        varianceType: isLoss ? 'LOSS' : 'GAIN',
-      };
-
-      if (existingIndex >= 0) {
-        const copy = [...prev];
-        copy[existingIndex] = expenseItem;
-        return copy;
-      } else {
-        return [expenseItem, ...prev];
-      }
-    });
-  };
+  // Diekstrak ke src/utils/fuelVarianceSync.ts - dipakai bersama oleh 3 domain (Penjualan, DO,
+  // Sounding), bukan khusus satu domain. deps dikumpulkan sekali di sini, dioper eksplisit di
+  // setiap pemanggilan supaya tidak ada closure tersembunyi atas state App.tsx.
+  const fuelVarianceDeps = { products, priceHistory, sales, setExpenses };
 
   const handleEditOrder = (order: PurchaseOrder) => {
     setEditingOrder(order);
@@ -1549,7 +1492,7 @@ export default function App() {
 
       // Sinkronisasi ulang beban selisih BBM jika DO yang diedit sudah SELESAI
       if (editingOrder.status === 'SELESAI' && editingOrder.varianceLiters !== undefined) {
-        syncFuelVarianceToExpenses(
+        syncFuelVarianceToExpenses(fuelVarianceDeps, 
           editingOrder.id,
           'PENERIMAAN_DO',
           editingOrder.actualDeliveryDate || poData.orderDate,
@@ -1646,7 +1589,7 @@ export default function App() {
     }));
 
     // Otomatis sinkronisasi selisih volume DO (Loss / Gain) ke pembukuan beban operasional
-    syncFuelVarianceToExpenses(
+    syncFuelVarianceToExpenses(fuelVarianceDeps, 
       orderId,
       'PENERIMAAN_DO',
       receivingData.actualDeliveryDate,
@@ -1743,119 +1686,28 @@ export default function App() {
     });
   };
 
-  const handleEditSounding = (sounding: SoundingRecord) => {
-    setEditingSounding(sounding);
-    setIsSoundingModalOpen(true);
-  };
-
-  const handleSaveSounding = (recordData: Omit<SoundingRecord, 'id'>, newStockLiters: number, editingId?: string) => {
-    const idToUpdate = editingId || editingSounding?.id;
-    const finalRecordId = idToUpdate || `snd-${Date.now()}`;
-    const soundKey = (r: Pick<SoundingRecord, 'date' | 'time'>) => `${r.date}T${r.time || '00:00'}`;
-
-    // Hanya terapkan ke stok tangki SAAT INI bila record ini adalah sounding PALING BARU
-    // (berdasarkan tanggal & jam). Mengedit sounding lama (mis. koreksi typo bulan lalu) tidak
-    // boleh menimpa stok hari ini yang sudah berubah akibat penjualan/DO sesudahnya.
-    const othersForComparison = soundings.filter((s) => s.id !== idToUpdate);
-    const isLatest = !othersForComparison.some((s) => soundKey(s) > soundKey(recordData));
-
-    if (idToUpdate) {
-      // Pertahankan status "dikecualikan dari beban otomatis" bila sebelumnya sudah ditetapkan,
-      // supaya mengedit angka sounding tidak diam-diam memunculkan lagi beban yang sengaja dihapus.
-      const prevExcluded = soundings.find((s) => s.id === idToUpdate)?.varianceExpenseExcluded;
-      const updated = soundings.map((s) =>
-        s.id === idToUpdate ? { ...recordData, id: idToUpdate, varianceExpenseExcluded: prevExcluded } : s
-      );
-      setSoundings(updated);
-      if (isLatest) {
-        setTank((prev) => ({
-          ...prev,
-          currentStockLiters: newStockLiters,
-          lastSoundingDate: recordData.date,
-          lastSoundingLiters: recordData.calculatedLiters,
-        }));
-      }
-      setEditingSounding(null);
-    } else {
-      const newRecord: SoundingRecord = {
-        ...recordData,
-        id: finalRecordId,
-      };
-      setSoundings([newRecord, ...soundings]);
-
-      if (isLatest) {
-        setTank((prev) => ({
-          ...prev,
-          currentStockLiters: newStockLiters,
-          lastSoundingDate: recordData.date,
-          lastSoundingLiters: recordData.calculatedLiters,
-        }));
-      }
-    }
-
-    // Otomatis catat selisih loss atau gain sounding ke dalam pembukuan keuangan
-    syncFuelVarianceToExpenses(
-      finalRecordId,
-      'SOUNDING_TANGKI',
-      recordData.date,
-      recordData.time,
-      recordData.varianceLiters,
-      `Tera Stick Ukur Tangki (Op. ${recordData.operatorName})`,
-      `Tera fisik ${recordData.calculatedLiters} L vs stok sistem ${recordData.systemStockLiters} L. ${recordData.notes || ''}`.trim()
-    );
-  };
-
-  const handleDeleteSounding = (soundingId: string) => {
-    setSoundings(soundings.filter((s) => s.id !== soundingId));
-    // Hapus juga catatan pembukuan otomatis yang terkait dengan sounding ini
-    setExpenses((prev) => prev.filter((e) => e.sourceReferenceId !== soundingId));
-  };
-
-  // Hapus semua sounding pada SATU bulan tertentu (format YYYY-MM). Dulu terkunci ke "Agustus"
-  // dan memakai includes('-08-') sehingga Agustus di semua tahun ikut terhapus.
-  const handleDeleteMonthSoundings = (targetMonth: string) => {
-    if (!/^\d{4}-\d{2}$/.test(targetMonth)) return;
-    const inMonth = (d?: string) => !!d && d.startsWith(`${targetMonth}-`);
-    const monthSoundings = soundings.filter((s) => inMonth(s.date));
-    const label = formatMonthYearId(targetMonth);
-    if (monthSoundings.length === 0) {
-      setConfirmConfig({
-        isOpen: true,
-        title: `Tidak Ada Data Sounding ${label}`,
-        message: `Tidak ditemukan catatan hasil sounding pada ${label}.`,
-        confirmLabel: 'Tutup',
-        cancelLabel: 'Kembali',
-        isDestructive: false,
-        onConfirm: () => {},
-      });
-      return;
-    }
-
-    setConfirmConfig({
-      isOpen: true,
-      title: `Hapus Semua Sounding ${label}`,
-      message: `Apakah Anda yakin ingin menghapus seluruh (${monthSoundings.length}) catatan hasil sounding pada ${label}? Data ini akan dihapus permanen beserta beban selisih BBM-nya.`,
-      confirmLabel: `Hapus Semua (${monthSoundings.length}) Sounding`,
-      cancelLabel: 'Batal',
-      isDestructive: true,
-      onConfirm: () => {
-        const removedIds = new Set(monthSoundings.map((s) => s.id));
-        setSoundings((prev) => prev.filter((s) => !removedIds.has(s.id)));
-        setExpenses((prev) => prev.filter((e) => !(e.sourceReferenceId && removedIds.has(e.sourceReferenceId))));
-        // Lepaskan tautan sounding dari penjualan terkait
-        setSales((prev) =>
-          prev.map((s) => (s.soundingRecordId && removedIds.has(s.soundingRecordId) ? { ...s, soundingRecordId: undefined } : s))
-        );
-        if (inMonth(tank.lastSoundingDate)) {
-          const remainingDates = soundings
-            .filter((s) => !removedIds.has(s.id))
-            .map((s) => s.date)
-            .sort();
-          setTank((prev) => ({ ...prev, lastSoundingDate: remainingDates[remainingDates.length - 1] || '' }));
-        }
-      },
-    });
-  };
+  // Logika Sounding diekstrak ke hook terpisah - lihat catatan lengkap di
+  // src/hooks/useSoundingLogic.ts (domain ketiga dari rekomendasi #7 untuk App.tsx).
+  const {
+    handleEditSounding,
+    handleSaveSounding,
+    handleDeleteSounding,
+    handleDeleteMonthSoundings,
+  } = useSoundingLogic({
+    soundings,
+    setSoundings,
+    tank,
+    setTank,
+    sales,
+    setSales,
+    setExpenses,
+    products,
+    priceHistory,
+    editingSounding,
+    setEditingSounding,
+    setIsSoundingModalOpen,
+    setConfirmConfig,
+  });
 
   const handleQuickOrder = (kl: OrderVolumePecahan = 2) => {
     setEditingOrder(null);
