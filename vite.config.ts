@@ -9,17 +9,22 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        // import.meta.dirname (bukan __dirname): Vite 8 memperingatkan __dirname akan tidak
+        // didukung lagi di configLoader 'native' yang rencananya jadi default di versi depan.
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     build: {
       rollupOptions: {
         output: {
-          // Pisahkan library besar agar bundle utama lebih kecil & cache lebih efektif
-          manualChunks: {
-            charts: ['recharts'],
-            xlsx: ['xlsx'],
-            icons: ['lucide-react'],
+          // Pisahkan library besar agar bundle utama lebih kecil & cache lebih efektif.
+          // Bentuk objek {nama: [paket]} yang dipakai sebelumnya ditolak tipe Rollup versi
+          // baru (ikut naik lewat update Vite 6->8) - manualChunks sekarang wajib berbentuk
+          // fungsi. Hasil akhirnya (pengelompokan chunk) persis sama seperti sebelumnya.
+          manualChunks: (id) => {
+            if (id.includes('node_modules/recharts')) return 'charts';
+            if (id.includes('node_modules/xlsx') || id.includes('node_modules/@e965/xlsx')) return 'xlsx';
+            if (id.includes('node_modules/lucide-react')) return 'icons';
           },
         },
       },
