@@ -3,6 +3,9 @@ import { useModalA11y } from '../hooks/useModalA11y';
 import { PrintSalarySlipModal } from './PrintSalarySlipModal';
 import { PayrollEligibilityWarningModal } from './PayrollEligibilityWarningModal';
 import { AttendanceFormModal } from './AttendanceFormModal';
+import { EmployeeFormModal } from './EmployeeFormModal';
+import { BatchPaySalaryModal } from './BatchPaySalaryModal';
+import { PaySalaryModal } from './PaySalaryModal';
 import {
   Users,
   Calendar,
@@ -139,15 +142,11 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
   // Salary Payment Modal State
   const [payingPayrollModal, setPayingPayrollModal] = useState<PayrollRecord | null>(null);
-  const [paySource, setPaySource] = useState<'REKENING_BANK' | 'KAS_HARIAN'>('REKENING_BANK');
-  const [payDate, setPayDate] = useState<string>('');
-  const [payTime, setPayTime] = useState<string>('20:00');
-  const [payNotes, setPayNotes] = useState<string>('');
+
 
   // Batch Pay Modal State (Bayar Semua Gaji Akhir Bulan Maks. 20:00)
   const [isBatchPayModalOpen, setIsBatchPayModalOpen] = useState<boolean>(false);
-  const [batchPaySource, setBatchPaySource] = useState<'REKENING_BANK' | 'KAS_HARIAN'>('REKENING_BANK');
-  const [batchPayTime, setBatchPayTime] = useState<string>('20:00');
+
 
   // Toast Notification state
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -169,16 +168,6 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   // Form states for attendance
 
   // Form states for employee
-  const [empName, setEmpName] = useState<string>('');
-  const [empNik, setEmpNik] = useState<string>('');
-  const [empRole, setEmpRole] = useState<Employee['role']>('OPERATOR_DISPENSER');
-  const [empPhone, setEmpPhone] = useState<string>('');
-  const [empBankName, setEmpBankName] = useState<string>('BRI');
-  const [empBankAcc, setEmpBankAcc] = useState<string>('');
-  const [empDailyRate, setEmpDailyRate] = useState<number>(40000);
-  const [empOvertimeRate, setEmpOvertimeRate] = useState<number>(30000);
-  const [empJoinDate, setEmpJoinDate] = useState<string>(getTodayDateString());
-  const [empNotes, setEmpNotes] = useState<string>('');
 
   // Modal Edit Nominal Gaji states
   const [editingPayroll, setEditingPayroll] = useState<PayrollRecord | null>(null);
@@ -211,81 +200,11 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   const mismatchedMonthAttendance = monthAttendance.filter(isAttendanceHoursMismatch);
   const totalMismatchedAttendance = attendance.filter(isAttendanceHoursMismatch);
 
-  // Handlers for Salary Payment
+  // Handlers for Salary Payment - logika perhitungan "akhir bulan" dan penyimpanan sekarang
+  // ada di PaySalaryModal/BatchPaySalaryModal (lihat pemanggilan onConfirm di JSX bawah);
+  // fungsi ini cukup membuka modalnya saja.
   const handleOpenPaySalaryModal = (payroll: PayrollRecord) => {
-    // Sesuai aturan: pengeluaran untuk gaji pasti dilakukan pada akhir bulan, maksimal jam 20.00
-    const [yearStr, monthStr] = payroll.month.split('-');
-    const lastDay = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10), 0).getDate();
-    const endOfMonth = `${yearStr}-${monthStr.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-
     setPayingPayrollModal(payroll);
-    setPaySource(payroll.paymentSource || 'REKENING_BANK');
-    setPayDate(endOfMonth);
-    setPayTime('20:00');
-    setPayNotes(payroll.notes || '');
-  };
-
-  const handleConfirmPaySalary = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!payingPayrollModal) return;
-
-    // Sesuai aturan: pengeluaran untuk gaji pasti dilakukan pada akhir bulan, maksimal jam 20.00
-    let finalTime = payTime || '20:00';
-    if (finalTime > '20:00') {
-      finalTime = '20:00';
-    }
-
-    onPaySalary(payingPayrollModal, paySource, payDate, payNotes, finalTime);
-
-    // If slip preview modal is currently open for this slip, update its status live
-    if (selectedSlipForPrint && selectedSlipForPrint.id === payingPayrollModal.id) {
-      setSelectedSlipForPrint({
-        ...selectedSlipForPrint,
-        paymentStatus: 'DIBAYAR',
-        paymentDate: payDate,
-        paymentSource: paySource,
-      });
-    }
-
-    setToastMessage({
-      text: `Gaji untuk ${payingPayrollModal.employeeName} (${formatRupiah(payingPayrollModal.netSalary)}) berhasil dibayarkan pada akhir bulan (${formatDateIndo(payDate)} pukul ${finalTime} WIB) via ${paySource === 'KAS_HARIAN' ? 'Kas Harian Tunai' : 'Transfer Bank'}!`,
-      type: 'success',
-    });
-
-    setPayingPayrollModal(null);
-  };
-
-  const handleConfirmBatchPayAll = (e: React.FormEvent) => {
-    e.preventDefault();
-    const unpaidDrafts = monthPayrolls.filter((p) => p.paymentStatus !== 'DIBAYAR');
-    if (unpaidDrafts.length === 0) {
-      setIsBatchPayModalOpen(false);
-      return;
-    }
-
-    const [yearStr, monthStr] = selectedMonth.split('-');
-    const lastDay = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10), 0).getDate();
-    const endOfMonth = `${yearStr}-${monthStr.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    let finalTime = batchPayTime || '20:00';
-    if (finalTime > '20:00') {
-      finalTime = '20:00';
-    }
-
-    unpaidDrafts.forEach((p) => {
-      onPaySalary(
-        p,
-        batchPaySource,
-        endOfMonth,
-        `Pembayaran serentak gaji akhir bulan ${formatMonthYear(selectedMonth)} (Cut-off maks. ${finalTime} WIB)`,
-        finalTime
-      );
-    });
-
-    setToastMessage({
-      text: `Berhasil membayarkan seluruh gaji (${unpaidDrafts.length} karyawan) pada akhir bulan (${formatDateIndo(endOfMonth)} pukul ${finalTime} WIB) via ${batchPaySource === 'KAS_HARIAN' ? 'Kas Harian' : 'Transfer Bank'}!`,
-      type: 'success',
-    });
-    setIsBatchPayModalOpen(false);
   };
 
   const handleRevertPayment = (payroll: PayrollRecord) => {
@@ -496,58 +415,17 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   };
 
   // Open Employee Modal
+  // Pengisian form (tambah baru vs edit) sekarang jadi tanggung jawab EmployeeFormModal
+  // sendiri (useEffect di dalamnya, dipicu oleh editingEmployee) - lihat catatan serupa di
+  // handleOpenAddAttendance/handleEditAttendance.
   const handleOpenAddEmployee = () => {
     setEditingEmployee(null);
-    setEmpName('');
-    setEmpNik('');
-    setEmpRole('OPERATOR_DISPENSER');
-    setEmpPhone('0812-');
-    setEmpBankName('BRI');
-    setEmpBankAcc('');
-    setEmpDailyRate(40000);
-    setEmpOvertimeRate(30000);
-    setEmpJoinDate(getTodayDateString());
-    setEmpNotes('');
     setIsEmployeeModalOpen(true);
   };
 
   const handleEditEmployee = (emp: Employee) => {
     setEditingEmployee(emp);
-    setEmpName(emp.name);
-    setEmpNik(emp.nik || '');
-    setEmpRole(emp.role);
-    setEmpPhone(emp.phone);
-    setEmpBankName(emp.bankName || 'BRI');
-    setEmpBankAcc(emp.bankAccountNumber || '');
-    setEmpDailyRate(emp.dailyRate);
-    setEmpOvertimeRate(emp.overtimeRate);
-    setEmpJoinDate(emp.joinDate);
-    setEmpNotes(emp.notes || '');
     setIsEmployeeModalOpen(true);
-  };
-
-  const handleSaveEmployeeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!empName.trim()) return;
-
-    const emp: Employee = {
-      id: editingEmployee ? editingEmployee.id : `emp-${Date.now()}`,
-      nik: empNik.trim(),
-      name: empName.trim(),
-      role: empRole,
-      phone: empPhone.trim(),
-      bankName: empBankName.trim(),
-      bankAccountNumber: empBankAcc.trim(),
-      dailyRate: empDailyRate,
-      overtimeRate: empOvertimeRate,
-      mealAllowanceDaily: 0,
-      isActive: true,
-      joinDate: empJoinDate,
-      notes: empNotes.trim(),
-    };
-
-    onSaveEmployee(emp);
-    setIsEmployeeModalOpen(false);
   };
 
   // Sync all attendance from shift sales
@@ -675,9 +553,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
   // Audit aksesibilitas: 7 modal inline di bawah ini tidak punya Escape/focus-trap/ARIA dialog
   // sama sekali. Setiap modal dapat satu pemanggilan hook sendiri (wajib di level atas komponen,
   // bukan di dalam blok kondisional render-nya) - lihat src/hooks/useModalA11y.ts.
-  const employeeModalA11y = useModalA11y(isEmployeeModalOpen, () => setIsEmployeeModalOpen(false));
-  const batchPayModalA11y = useModalA11y(isBatchPayModalOpen, () => setIsBatchPayModalOpen(false));
-  const payingPayrollA11y = useModalA11y(!!payingPayrollModal, () => setPayingPayrollModal(null));
+
   const editingPayrollA11y = useModalA11y(!!editingPayroll, () => setEditingPayroll(null));
 
   return (
@@ -726,11 +602,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           {monthPayrolls.some((p) => p.paymentStatus !== 'DIBAYAR') && (
             <button
               type="button"
-              onClick={() => {
-                setBatchPaySource('REKENING_BANK');
-                setBatchPayTime('20:00');
-                setIsBatchPayModalOpen(true);
-              }}
+              onClick={() => setIsBatchPayModalOpen(true)}
               className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/40 ring-1 ring-white/20 flex items-center gap-1.5 cursor-pointer transition-all"
               title={`Bayar seluruh slip gaji yang belum lunas pada akhir bulan (${formatMonthYear(selectedMonth)}) maksimal pukul 20:00 WIB`}
             >
@@ -1485,563 +1357,64 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
         }}
       />
 
-      {/* ===================== MODAL FORM TAMBAH KARYAWAN ===================== */}
-      {isEmployeeModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div
-            ref={employeeModalA11y.containerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={employeeModalA11y.titleId}
-            tabIndex={-1}
-            className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-          >
-            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/20 text-indigo-300 rounded-xl">
-                  <Users className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 id={employeeModalA11y.titleId} className="text-base font-bold">
-                    {editingEmployee ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}
-                  </h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    Pengaturan gaji harian, uang lembur, dan rekening transfer
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEmployeeModalOpen(false)}
-                className="text-slate-500 hover:text-white p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <EmployeeFormModal
+        isOpen={isEmployeeModalOpen}
+        editingEmployee={editingEmployee}
+        onClose={() => setIsEmployeeModalOpen(false)}
+        onSave={(emp) => {
+          onSaveEmployee(emp);
+          setIsEmployeeModalOpen(false);
+        }}
+      />
 
-            <form onSubmit={handleSaveEmployeeSubmit} className="p-5 sm:p-6 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Nama Lengkap</label>
-                  <input
-                    type="text"
-                    required
-                    value={empName}
-                    onChange={(e) => setEmpName(e.target.value)}
-                    placeholder="Contoh: Daslam"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Jabatan / Role</label>
-                  <select
-                    value={empRole}
-                    onChange={(e) => setEmpRole(e.target.value as Employee['role'])}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-semibold text-slate-800"
-                  >
-                    <option value="OPERATOR_DISPENSER">Operator Dispenser</option>
-                    <option value="KEPALA_REGU">Kepala Regu / Shift</option>
-                    <option value="ADMINISTRASI">Admin Kasir / Pembukuan</option>
-                    <option value="TEKNISI_KEBERSIHAN">Teknisi & Kebersihan</option>
-                  </select>
-                </div>
-              </div>
+      <BatchPaySalaryModal
+        isOpen={isBatchPayModalOpen}
+        monthPayrolls={monthPayrolls}
+        selectedMonth={selectedMonth}
+        onClose={() => setIsBatchPayModalOpen(false)}
+        onConfirm={(unpaidDrafts, source, endOfMonth, time) => {
+          unpaidDrafts.forEach((p) => {
+            onPaySalary(
+              p,
+              source,
+              endOfMonth,
+              `Pembayaran serentak gaji akhir bulan ${formatMonthYear(selectedMonth)} (Cut-off maks. ${time} WIB)`,
+              time
+            );
+          });
+          setToastMessage({
+            text: `Berhasil membayarkan seluruh gaji (${unpaidDrafts.length} karyawan) pada akhir bulan (${formatDateIndo(endOfMonth)} pukul ${time} WIB) via ${source === 'KAS_HARIAN' ? 'Kas Harian' : 'Transfer Bank'}!`,
+            type: 'success',
+          });
+          setIsBatchPayModalOpen(false);
+        }}
+      />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-600 mb-1">Nomor WhatsApp / HP</label>
-                  <input
-                    type="text"
-                    value={empPhone}
-                    onChange={(e) => setEmpPhone(e.target.value)}
-                    placeholder="0812-3456-7890"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-600 mb-1">NIK KTP (Opsional)</label>
-                  <input
-                    type="text"
-                    value={empNik}
-                    onChange={(e) => setEmpNik(e.target.value)}
-                    placeholder="352008..."
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-mono"
-                  />
-                </div>
-              </div>
+      <PaySalaryModal
+        payroll={payingPayrollModal}
+        employees={employees}
+        onClose={() => setPayingPayrollModal(null)}
+        onEditNominal={handleOpenEditPayroll}
+        onConfirm={(payroll, source, date, notes, time) => {
+          onPaySalary(payroll, source, date, notes, time);
 
-              {/* Rates */}
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
-                <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px] block">
-                  Komponen Upah / Gaji:
-                </span>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-medium text-slate-600 mb-1 text-[11px]">Tarif Gaji Harian (Rp)</label>
-                    <input
-                      type="number"
-                      required
-                      min={0}
-                      step={5000}
-                      value={empDailyRate}
-                      onChange={(e) => setEmpDailyRate(parseFloat(e.target.value) || 0)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-medium text-slate-600 mb-1 text-[11px]">Tarif Lembur per Shift (Rp)</label>
-                    <input
-                      type="number"
-                      required
-                      min={0}
-                      step={5000}
-                      value={empOvertimeRate}
-                      onChange={(e) => setEmpOvertimeRate(parseFloat(e.target.value) || 0)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-indigo-700"
-                    />
-                  </div>
-                </div>
-              </div>
+          if (selectedSlipForPrint && selectedSlipForPrint.id === payroll.id) {
+            setSelectedSlipForPrint({
+              ...selectedSlipForPrint,
+              paymentStatus: 'DIBAYAR',
+              paymentDate: date,
+              paymentSource: source,
+            });
+          }
 
-              {/* Bank Account */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-600 mb-1">Nama Bank</label>
-                  <input
-                    type="text"
-                    value={empBankName}
-                    onChange={(e) => setEmpBankName(e.target.value)}
-                    placeholder="BRI / Mandiri / BSI"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-600 mb-1">Nomor Rekening</label>
-                  <input
-                    type="text"
-                    value={empBankAcc}
-                    onChange={(e) => setEmpBankAcc(e.target.value)}
-                    placeholder="6338-01-..."
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-mono"
-                  />
-                </div>
-              </div>
+          setToastMessage({
+            text: `Gaji untuk ${payroll.employeeName} (${formatRupiah(payroll.netSalary)}) berhasil dibayarkan pada akhir bulan (${formatDateIndo(date)} pukul ${time} WIB) via ${source === 'KAS_HARIAN' ? 'Kas Harian Tunai' : 'Transfer Bank'}!`,
+            type: 'success',
+          });
 
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEmployeeModalOpen(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md flex items-center gap-1.5"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Simpan Data Karyawan</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===================== MODAL KONFIRMASI PEMBAYARAN BATCH SEMUA GAJI ===================== */}
-      {isBatchPayModalOpen && (() => {
-        const unpaidDrafts = monthPayrolls.filter((p) => p.paymentStatus !== 'DIBAYAR');
-        const [yearStr, monthStr] = selectedMonth.split('-');
-        const lastDay = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10), 0).getDate();
-        const endOfMonth = `${yearStr}-${monthStr.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-        const totalBatchNet = unpaidDrafts.reduce((sum, p) => sum + p.netSalary, 0);
-
-        return (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-            <div
-              ref={batchPayModalA11y.containerRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={batchPayModalA11y.titleId}
-              tabIndex={-1}
-              className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden"
-            >
-              <div className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-4.5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-white/15 rounded-xl">
-                    <DollarSign className="w-5 h-5 text-emerald-200" />
-                  </div>
-                  <div>
-                    <h3 id={batchPayModalA11y.titleId} className="font-bold text-sm text-white">Bayar Seluruh Gaji Akhir Bulan</h3>
-                    <p className="text-[11px] text-emerald-100 font-mono mt-0.5">
-                      Periode {formatMonthYear(selectedMonth)} • {unpaidDrafts.length} Karyawan
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsBatchPayModalOpen(false)}
-                  className="text-emerald-200 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleConfirmBatchPayAll} className="p-5 space-y-4 text-xs font-sans">
-                {/* Summary Card */}
-                <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 font-semibold">Total Slip yang Dibayarkan:</span>
-                    <span className="font-bold text-emerald-900 font-mono text-sm">{unpaidDrafts.length} Orang</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 font-semibold">Total Dana Pengeluaran Gaji:</span>
-                    <span className="text-base font-black font-mono text-emerald-700">{formatRupiah(totalBatchNet)}</span>
-                  </div>
-                  <div className="pt-2 border-t border-emerald-200/60 flex justify-between items-center text-[11px] text-emerald-800">
-                    <span>Pasti Tanggal Akhir Bulan:</span>
-                    <span className="font-bold font-mono">{endOfMonth} ({formatDateIndo(endOfMonth)})</span>
-                  </div>
-                </div>
-
-                {/* List Karyawan */}
-                <div className="border border-slate-200 rounded-xl overflow-hidden max-h-36 overflow-y-auto">
-                  <table className="w-full text-left text-[11px]">
-                    <thead className="bg-slate-100 text-slate-600 font-bold sticky top-0">
-                      <tr>
-                        <th className="py-1.5 px-3">Nama</th>
-                        <th className="py-1.5 px-3 text-center">Hadir</th>
-                        <th className="py-1.5 px-3 text-right">Net Gaji</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {unpaidDrafts.map((p) => (
-                        <tr key={p.id}>
-                          <td className="py-1.5 px-3 font-medium text-slate-800">{p.employeeName}</td>
-                          <td className="py-1.5 px-3 text-center text-slate-600">{p.totalHadir} Hari</td>
-                          <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-700">{formatRupiah(p.netSalary)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Source Selection */}
-                <div>
-                  <label className="block font-bold text-slate-700 mb-2">
-                    Pilih Sumber Dana Pengeluaran Gaji:
-                  </label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <label
-                      className={`flex items-start gap-2 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                        batchPaySource === 'REKENING_BANK'
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-950 shadow-xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="batchPaySource"
-                        value="REKENING_BANK"
-                        checked={batchPaySource === 'REKENING_BANK'}
-                        onChange={() => setBatchPaySource('REKENING_BANK')}
-                        className="mt-0.5 text-emerald-600"
-                      />
-                      <span className="font-bold text-xs">Transfer Bank</span>
-                    </label>
-
-                    <label
-                      className={`flex items-start gap-2 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                        batchPaySource === 'KAS_HARIAN'
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-950 shadow-xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="batchPaySource"
-                        value="KAS_HARIAN"
-                        checked={batchPaySource === 'KAS_HARIAN'}
-                        onChange={() => setBatchPaySource('KAS_HARIAN')}
-                        className="mt-0.5 text-emerald-600"
-                      />
-                      <span className="font-bold text-xs">Kas Harian (Tunai)</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Jam Pembayaran Maksimal 20:00 */}
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Jam Pengeluaran Gaji (Maksimal 20:00 WIB):
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    max="20:00"
-                    value={batchPayTime}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setBatchPayTime(val > '20:00' ? '20:00' : val);
-                    }}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                  <span className="text-[10px] text-slate-500 mt-1 block">
-                    Sesuai SOP Pertashop: Pengeluaran gaji pasti dilakukan pada akhir bulan ({endOfMonth}), maksimal pukul 20:00 WIB.
-                  </span>
-                </div>
-
-                {/* Footer Buttons */}
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsBatchPayModalOpen(false)}
-                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Lunasi {unpaidDrafts.length} Slip ({formatRupiah(totalBatchNet)})</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        );
-      })()}
-      {payingPayrollModal && (() => {
-        const targetEmp = employees.find((e) => e.id === payingPayrollModal.employeeId);
-        return (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-            <div
-              ref={payingPayrollA11y.containerRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={payingPayrollA11y.titleId}
-              tabIndex={-1}
-              className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
-            >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-emerald-700 to-teal-800 text-white p-4.5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-white/15 rounded-xl">
-                    <DollarSign className="w-5 h-5 text-emerald-200" />
-                  </div>
-                  <div>
-                    <h3 id={payingPayrollA11y.titleId} className="font-bold text-sm text-white">Konfirmasi Pembayaran Gaji</h3>
-                    <p className="text-[11px] text-emerald-100 font-mono mt-0.5">
-                      {payingPayrollModal.payrollNumber} • {formatMonthYear(payingPayrollModal.month)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPayingPayrollModal(null)}
-                  className="text-emerald-200 hover:text-white p-1 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Form */}
-              <form onSubmit={handleConfirmPaySalary} className="p-5 space-y-4 text-xs font-sans">
-                {/* Employee Summary Card */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Penerima Gaji:</span>
-                      <strong className="text-slate-900 text-sm">{payingPayrollModal.employeeName}</strong>
-                      <span className="text-[11px] text-slate-500 block">
-                        {payingPayrollModal.employeeRole === 'OPERATOR_DISPENSER' ? 'Operator Dispenser' : payingPayrollModal.employeeRole}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Rekap Kehadiran:</span>
-                      <span className="font-bold text-emerald-800 text-xs">
-                        {payingPayrollModal.totalHadir} Hari
-                      </span>
-                      {payingPayrollModal.totalLemburShifts > 0 && (
-                        <span className="text-indigo-700 text-[11px] block">
-                          +{payingPayrollModal.totalLemburShifts} Shift Lembur
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                    <span className="text-slate-600 font-medium">Gaji Bersih / Take Home Pay:</span>
-                    <div className="text-right">
-                      <span className="text-base font-black font-mono text-emerald-700 block">
-                        {formatRupiah(payingPayrollModal.netSalary)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const target = payingPayrollModal;
-                          setPayingPayrollModal(null);
-                          handleOpenEditPayroll(target);
-                        }}
-                        className="text-[11px] text-amber-700 hover:text-amber-800 font-semibold underline cursor-pointer"
-                      >
-                        Edit Rincian Nominal
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Source Selection */}
-                <div>
-                  <label className="block font-bold text-slate-700 mb-2">
-                    Pilih Sumber Dana / Metode Pembayaran:
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {/* Bank Transfer */}
-                    <label
-                      className={`flex items-start gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                        paySource === 'REKENING_BANK'
-                          ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 shadow-xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paySource"
-                        value="REKENING_BANK"
-                        checked={paySource === 'REKENING_BANK'}
-                        onChange={() => setPaySource('REKENING_BANK')}
-                        className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <div className="space-y-0.5">
-                        <span className="font-bold block text-xs">Transfer Bank</span>
-                        <span className="text-[10px] text-slate-500 block leading-tight">
-                          Rek. {targetEmp?.bankName || 'Bank'}: {targetEmp?.bankAccountNumber || 'Belum diisi'}
-                        </span>
-                      </div>
-                    </label>
-
-                    {/* Kas Harian */}
-                    <label
-                      className={`flex items-start gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                        paySource === 'KAS_HARIAN'
-                          ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 shadow-xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paySource"
-                        value="KAS_HARIAN"
-                        checked={paySource === 'KAS_HARIAN'}
-                        onChange={() => setPaySource('KAS_HARIAN')}
-                        className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <div className="space-y-0.5">
-                        <span className="font-bold block text-xs">Kas Harian (Tunai)</span>
-                        <span className="text-[10px] text-slate-500 block leading-tight">
-                          Diambil dari laci uang kasir shift
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Payment Date & Time (Sesuai Aturan SOP: Pasti Akhir Bulan, Maksimal Jam 20:00 WIB) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Tanggal Pengeluaran Gaji:
-                    </label>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-slate-800 font-mono text-xs">
-                      <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="font-bold">{payDate}</span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.5 rounded ml-auto">
-                        Pasti Akhir Bulan
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 mt-1 block">
-                      {formatDateIndo(payDate)}
-                    </span>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Jam Pembayaran (Maks. 20:00 WIB):
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="time"
-                        required
-                        max="20:00"
-                        value={payTime}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setPayTime(val > '20:00' ? '20:00' : val);
-                        }}
-                        className={`w-full px-3 py-2 bg-white border rounded-xl text-slate-800 font-mono text-xs focus:ring-2 focus:outline-none ${
-                          payTime > '20:00'
-                            ? 'border-rose-400 focus:ring-rose-500'
-                            : 'border-slate-300 focus:ring-emerald-500'
-                        }`}
-                      />
-                      <Clock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-                    </div>
-                    <span className="text-[10px] text-slate-500 mt-1 block">
-                      Cut-off SOP operasional maks. pukul 20:00 WIB
-                    </span>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Catatan / Nomor Referensi (Opsional):
-                  </label>
-                  <input
-                    type="text"
-                    value={payNotes}
-                    onChange={(e) => setPayNotes(e.target.value)}
-                    placeholder="Contoh: Transfer via BRI Mobile Ref #893021"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                {/* Notice SOP */}
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-[11px] text-emerald-900 space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold text-emerald-950">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Ketentuan SOP Pengeluaran Gaji Pertashop</span>
-                  </div>
-                  <p className="text-[10px] text-emerald-800 leading-relaxed">
-                    Pengeluaran untuk gaji pasti dilakukan pada <strong>akhir bulan ({formatDateIndo(payDate)})</strong>, dengan batas waktu <strong>maksimal pukul 20:00 WIB</strong>. Slip gaji akan diubah statusnya menjadi LUNAS dan dicatat otomatis ke pembukuan Beban Operasional (OpEx).
-                  </p>
-                </div>
-
-                {/* Buttons */}
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPayingPayrollModal(null)}
-                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Konfirmasi Bayar {formatRupiah(payingPayrollModal.netSalary)}</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        );
-      })()}
+          setPayingPayrollModal(null);
+        }}
+      />
 
       {/* ===================== MODAL: EDIT NOMINAL GAJI ===================== */}
       {(() => {
