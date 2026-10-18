@@ -52,6 +52,7 @@ import {
   isAttendanceHoursMismatch,
   synchronizeAllAttendanceHours,
   isPayrollCalculationAllowed,
+  isPayrollLocked,
   PayrollEligibility,
 } from '../utils/attendanceSync';
 import { ConfirmModal } from './ConfirmModal';
@@ -350,10 +351,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
       const existingSlip = payrolls.find((p) => p.month === selectedMonth && p.employeeId === emp.id);
 
-      // KUNCI: slip yang sudah DIBAYAR tidak lagi dihitung ulang di sini juga (lihat catatan yang
-      // sama di recalculateMonthlyPayrolls, utils/attendanceSync.ts). Tanpa ini, tombol di layar ini
-      // bisa diam-diam menimpa nominal gaji yang sudah lunas dibayarkan ke karyawan.
-      if (existingSlip && existingSlip.paymentStatus === 'DIBAYAR') {
+      if (isPayrollLocked(existingSlip)) {
         skippedPaidCount++;
         return;
       }

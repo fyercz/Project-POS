@@ -24,7 +24,7 @@ import { AttendancePayrollView } from './components/AttendancePayrollView';
 import { ConfirmModal } from './components/ConfirmModal';
 import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { StorageService, STORAGE_ERROR_EVENT } from './utils/storage';
-import { syncSalesToAttendance, recalculateMonthlyPayrolls, findEmployeeByOperatorName } from './utils/attendanceSync';
+import { syncSalesToAttendance, recalculateMonthlyPayrolls, findEmployeeByOperatorName, isPayrollLocked } from './utils/attendanceSync';
 import { recalculateSaleWithPrice, recalculatePurchaseWithPrice, formatMonthYearId, getEffectivePriceForDate } from './utils/pricing';
 import {
   Product,
@@ -850,7 +850,9 @@ export default function App() {
           (p) => !(p.orderDate.startsWith(targetMonth) || (p.actualDeliveryDate && p.actualDeliveryDate.startsWith(targetMonth)))
         );
         allExpenses = allExpenses.filter((e) => !e.date.startsWith(targetMonth));
-        allPayrolls = allPayrolls.filter((p) => p.month !== targetMonth);
+        // Slip gaji yang sudah DIBAYAR tetap dipertahankan meski "ganti data bulan ini" dicentang -
+        // nominal yang sudah lunas dibayarkan ke karyawan adalah fakta final (lihat isPayrollLocked).
+        allPayrolls = allPayrolls.filter((p) => p.month !== targetMonth || isPayrollLocked(p));
         allAttendance = allAttendance.filter((a) => !a.date.startsWith(targetMonth));
       }
 
@@ -1137,6 +1139,11 @@ export default function App() {
         const splitAmount = Math.round(exp.gajiOperator / (activeEmps.length || 1));
 
         activeEmps.forEach((emp, idx) => {
+          // Jangan timpa slip yang sudah DIBAYAR untuk karyawan & bulan ini (lihat isPayrollLocked).
+          // Tanpa pengecekan ini, dua objek dengan id yang sama bisa berakhir di array yang sama.
+          if (allPayrolls.some((p) => p.month === targetMonth && p.employeeId === emp.id && isPayrollLocked(p))) {
+            return;
+          }
           allPayrolls.unshift({
             id: `pay-hist-${targetMonth}-${emp.id}`,
             payrollNumber: `SLIP-${targetMonth.replace('-', '')}-${String(idx + 1).padStart(3, '0')}`,

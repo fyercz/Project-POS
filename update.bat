@@ -56,7 +56,11 @@ echo       Mengekstrak pembaruan ke folder sementara...
 powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; Expand-Archive -Path '%ZIP_TEMP%' -DestinationPath '%EXTRACT_TEMP%' -Force"
 if errorlevel 1 goto GAGAL
 echo       Menyalin file terbaru ke folder aplikasi...
-for /d %%D in ("%EXTRACT_TEMP%\*") do xcopy /s /e /y /q "%%D\*" ".\" >nul
+rem robocopy /MIR membuat folder aplikasi jadi cerminan PERSIS isi ZIP (termasuk menghapus
+rem file yang sudah dihapus dari repo GitHub) - menyamai perilaku "git reset --hard" yang
+rem dipakai jalur Git. Folder build/cache/konfigurasi lokal dikecualikan agar TIDAK ikut
+rem terhapus (xcopy sebelumnya tidak pernah menghapus apa pun, hanya menambah/menimpa).
+for /d %%D in ("%EXTRACT_TEMP%\*") do robocopy "%%D" "." /MIR /XD .git node_modules dist coverage /XF .env *.log >nul
 del /f /q "%ZIP_TEMP%" >nul 2>nul
 rmdir /s /q "%EXTRACT_TEMP%" >nul 2>nul
 

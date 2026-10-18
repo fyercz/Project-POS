@@ -241,6 +241,21 @@ function isCurrentOrFutureMonth(targetMonth: string, referenceDate: Date = new D
   return targetVal >= currentVal;
 }
 
+/**
+ * Slip gaji yang sudah berstatus DIBAYAR tidak boleh lagi dihitung ulang otomatis di mana pun.
+ * Nominal yang sudah dibayarkan ke karyawan adalah fakta final; absensi yang berubah belakangan
+ * (koreksi, impor ulang, dsb.) tidak boleh diam-diam mengubah nominal slip yang sudah lunas.
+ * Untuk mengoreksi slip yang sudah dibayar, batalkan status bayar (Unpay) terlebih dahulu.
+ *
+ * Dipakai oleh recalculateMonthlyPayrolls (di sini) DAN oleh tombol "Hitung Ulang Gaji" di
+ * AttendancePayrollView.tsx - diekstrak jadi satu fungsi supaya kedua tempat selalu konsisten
+ * (sebelumnya pernah hanya salah satu yang terkunci, menyebabkan slip gaji yang sudah dibayar
+ * bisa tertimpa lewat tombol yang satunya).
+ */
+export function isPayrollLocked(slip: PayrollRecord | null | undefined): boolean {
+  return !!slip && slip.paymentStatus === 'DIBAYAR';
+}
+
 export function isPayrollCalculationAllowed(
   targetMonth: string,
   referenceDate: Date = new Date()
@@ -342,11 +357,7 @@ export function recalculateMonthlyPayrolls(
 
     const existingSlip = existingIndex >= 0 ? updatedPayrolls[existingIndex] : null;
 
-    // KUNCI: slip yang sudah berstatus DIBAYAR tidak lagi dihitung ulang otomatis. Nominal yang
-    // sudah dibayarkan ke karyawan adalah fakta final; absensi yang berubah belakangan (koreksi,
-    // impor ulang, dsb.) tidak boleh diam-diam mengubah nominal slip yang sudah lunas. Untuk
-    // mengoreksi slip yang sudah dibayar, batalkan status bayar (Unpay) terlebih dahulu.
-    if (existingSlip && existingSlip.paymentStatus === 'DIBAYAR') {
+    if (isPayrollLocked(existingSlip)) {
       return;
     }
 
