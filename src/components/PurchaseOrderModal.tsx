@@ -218,6 +218,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Tutup"
             className="text-red-200 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -287,7 +288,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                           </span>
                         )}
                       </div>
-                      <span className="text-xs font-semibold text-slate-500 block mt-0.5">
+                      <span className="text-xs font-semibold text-slate-600 block mt-0.5">
                         {formatNumber(klLiters)} Liter
                       </span>
                     </div>
@@ -416,7 +417,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
               )}
 
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">Rp</span>
+                <span className="absolute left-3 top-2 text-xs font-bold text-slate-500">Rp</span>
                 <input
                   type="number"
                   required

@@ -284,7 +284,8 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            aria-label="Tutup"
+            className="text-slate-500 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -526,7 +527,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     <span>Input Bebas (Default)</span>
                     <Unlock className={`w-4 h-4 ${linkMode === 'FREE' ? 'text-blue-600' : 'text-slate-400'}`} />
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                  <p className="text-[10px] text-slate-600 mt-1 leading-tight">
                     Tidak terkunci. Bebas isi jual, tebus, atau margin (angka ganjil & desimal).
                   </p>
                 </button>
@@ -544,7 +545,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     <span>Kunci Margin</span>
                     <ShieldCheck className={`w-4 h-4 ${linkMode === 'LOCK_MARGIN' ? 'text-emerald-600' : 'text-slate-400'}`} />
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                  <p className="text-[10px] text-slate-600 mt-1 leading-tight">
                     Margin ({formatRupiah(currentMargin)}/L) tetap. Jual & Tebus naik/turun bersamaan.
                   </p>
                 </button>
@@ -562,7 +563,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     <span>Kunci Tebus DO</span>
                     <Lock className={`w-4 h-4 ${linkMode === 'LOCK_BUY_PRICE' ? 'text-amber-600' : 'text-slate-400'}`} />
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                  <p className="text-[10px] text-slate-600 mt-1 leading-tight">
                     Harga beli DO tetap. Ubah harga jual otomatis menggeser margin.
                   </p>
                 </button>
@@ -580,7 +581,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     <span>Kunci Harga Jual</span>
                     <Lock className={`w-4 h-4 ${linkMode === 'LOCK_SELLING_PRICE' ? 'text-indigo-600' : 'text-slate-400'}`} />
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1 leading-tight">
+                  <p className="text-[10px] text-slate-600 mt-1 leading-tight">
                     Harga jual tetap. Kenaikan harga tebus menyerap/mengurangi margin.
                   </p>
                 </button>
@@ -683,7 +684,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                   </span>
                 </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                  <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-500">Rp</span>
                   <input
                     type="number"
                     required
@@ -703,7 +704,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                       {diffSelling > 0 ? `+${formatRupiah(diffSelling)}` : formatRupiah(diffSelling)}
                     </span>
                   ) : (
-                    <span className="text-slate-400">Sama</span>
+                    <span className="text-slate-500">Sama</span>
                   )}
                 </div>
               </div>
@@ -719,7 +720,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                   </span>
                 </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                  <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-500">Rp</span>
                   <input
                     type="number"
                     required
@@ -739,7 +740,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                       {diffBuy > 0 ? `+${formatRupiah(diffBuy)}` : formatRupiah(diffBuy)}
                     </span>
                   ) : (
-                    <span className="text-slate-400">Sama</span>
+                    <span className="text-slate-500">Sama</span>
                   )}
                 </div>
               </div>
@@ -915,7 +916,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                       onClick={() => handleApplyPresetMargin(pm.value)}
                       className={`px-2 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                         Math.round(currentMargin) === pm.value
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                          ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
                           : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                       }`}
                       title={pm.desc}
@@ -1158,7 +1159,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                       ({projectedRevenueDelta >= 0 ? `+${formatRupiah(projectedRevenueDelta)}` : formatRupiah(projectedRevenueDelta)})
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 block mt-1">
+                  <span className="text-[10px] text-slate-500 block mt-1">
                     Sebelumnya: {formatRupiah(totalMatchingRevenue)}
                   </span>
                 </div>
@@ -1173,7 +1174,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                       ({projectedGrossProfitDelta >= 0 ? `+${formatRupiah(projectedGrossProfitDelta)}` : formatRupiah(projectedGrossProfitDelta)})
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 block mt-1">
+                  <span className="text-[10px] text-slate-500 block mt-1">
                     Sebelumnya: {formatRupiah(totalMatchingProfit)}
                   </span>
                 </div>
@@ -1188,7 +1189,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                       ({projectedDoAmountDelta >= 0 ? `+${formatRupiah(projectedDoAmountDelta)}` : formatRupiah(projectedDoAmountDelta)})
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 block mt-1">
+                  <span className="text-[10px] text-slate-500 block mt-1">
                     {matchingPurchases.length} PO / DO BBM ({totalMatchingDoLiters.toLocaleString('id-ID')} L)
                   </span>
                 </div>
@@ -1231,7 +1232,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
         {activeTab === 'history' && (
           <div className="p-6 pt-3 space-y-3 overflow-y-auto flex-1">
             {filteredHistory.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-xs">
+              <div className="text-center py-8 text-slate-500 text-xs">
                 Belum ada riwayat penyesuaian harga tercatat untuk produk ini.
               </div>
             ) : (
@@ -1257,7 +1258,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                             Awal Bulan
                           </span>
                         )}
-                        <span className="text-slate-400">•</span>
+                        <span className="text-slate-500">•</span>
                         <span className="text-slate-600 font-mono text-[11px]">{item.effectiveDate}</span>
                       </div>
                       {item.referenceDoc && (
@@ -1271,7 +1272,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
 
                     <div className="text-right sm:border-l sm:border-slate-200 sm:pl-4">
                       <div className="flex items-baseline gap-1 justify-end font-mono">
-                        <span className="text-slate-400 line-through">
+                        <span className="text-slate-500 line-through">
                           {formatRupiah(item.oldPrice)}
                         </span>
                         <span className="font-bold text-slate-900 text-sm">

@@ -508,7 +508,7 @@ export const DailySalesTrendChart: React.FC<DailySalesTrendChartProps> = ({
       {/* 4. Chart Canvas Area */}
       <div className="pt-2">
         {chartData.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200">
+          <div className="text-center py-12 text-slate-500 text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200">
             Belum ada data transaksi penjualan untuk shift ini.
           </div>
         ) : (
@@ -633,7 +633,7 @@ export const DailySalesTrendChart: React.FC<DailySalesTrendChartProps> = ({
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />
           <span>Garis Putus-Putus: Rata-Rata Penjualan Shift</span>
         </div>
-        <div className="text-[11px] text-slate-400">
+        <div className="text-[11px] text-slate-500">
           * Menampilkan data 30 hari kalender berkelanjutan
         </div>
       </div>
@@ -708,7 +708,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, activeSh
 
         {data.operators && data.operators.length > 0 && (
           <div className="flex items-center justify-between gap-3 text-slate-300 pt-1 border-t border-slate-800 text-[11px]">
-            <span className="flex items-center gap-1 text-slate-400">
+            <span className="flex items-center gap-1 text-slate-500">
               <User className="w-3 h-3" />
               Operator:
             </span>
@@ -719,7 +719,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, activeSh
         )}
 
         {typeof data.movingAverage7d === 'number' && (
-          <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800 text-[11px] text-slate-400">
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800 text-[11px] text-slate-500">
             <span>Rata-rata 7 Hari:</span>
             <span className="font-mono text-amber-400 font-semibold">
               {formatNumber(data.movingAverage7d, 1)} L

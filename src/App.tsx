@@ -2283,7 +2283,7 @@ export default function App() {
             <div className="space-y-4">
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest block">
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest block">
                     Pemeriksaan Fisik Tangki Pendam
                   </span>
                   <h3 className="text-base font-bold text-slate-800 tracking-tight mt-0.5">
@@ -2338,7 +2338,7 @@ export default function App() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
                         <th className="py-3 px-5">Tanggal & Waktu</th>
                         <th className="py-3 px-4">Operator</th>
                         <th className="py-3 px-4 text-right">Tinggi Stick (cm)</th>
@@ -2353,10 +2353,10 @@ export default function App() {
                     <tbody className="divide-y divide-slate-100 font-medium">
                       {soundings.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="py-12 text-center text-slate-400">
+                          <td colSpan={9} className="py-12 text-center text-slate-500">
                             <Gauge className="w-9 h-9 mx-auto mb-2 text-slate-300 stroke-1" />
                             <div className="font-semibold text-slate-700 text-sm">Tidak Ada Catatan Sounding</div>
-                            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
                               Semua hasil sounding pada bulan Agustus telah berhasil dihapus. Klik tombol "+ Input Sounding Baru" untuk mencatat pemeriksaan fisik stok tangki pendam.
                             </p>
                           </td>
@@ -2415,7 +2415,7 @@ export default function App() {
                                       onConfirm: () => handleDeleteSounding(s.id),
                                     });
                                   }}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                   title="Hapus Catatan"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />

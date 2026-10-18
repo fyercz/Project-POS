@@ -749,7 +749,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               <span className="text-[10px] uppercase font-bold tracking-widest bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-400/30">
                 SDM & Payroll Operator
               </span>
-              <span className="text-xs text-slate-400">• Pertashop Krajan</span>
+              <span className="text-xs text-slate-500">• Pertashop Krajan</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight mt-0.5">
               Absensi Bulanan & Penggajian Karyawan
@@ -787,7 +787,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                 setBatchPayTime('20:00');
                 setIsBatchPayModalOpen(true);
               }}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/40 ring-1 ring-white/20 flex items-center gap-1.5 cursor-pointer transition-all"
+              className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/40 ring-1 ring-white/20 flex items-center gap-1.5 cursor-pointer transition-all"
               title={`Bayar seluruh slip gaji yang belum lunas pada akhir bulan (${formatMonthYear(selectedMonth)}) maksimal pukul 20:00 WIB`}
             >
               <CheckCircle2 className="w-4 h-4 text-emerald-200" />
@@ -840,7 +840,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           <div className="text-2xl font-black text-slate-900 font-mono">
             {totalEmployees} <span className="text-xs font-normal text-slate-500">Orang</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Operator shift 1 & 2 dispenser</p>
+          <p className="text-[11px] text-slate-500 mt-1">Operator shift 1 & 2 dispenser</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
@@ -851,7 +851,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           <div className="text-2xl font-black text-emerald-700 font-mono">
             {totalHadirAll} <span className="text-xs font-normal text-slate-500">Hari Kerja</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Termasuk {totalLemburShiftsAll} shift lembur</p>
+          <p className="text-[11px] text-slate-500 mt-1">Termasuk {totalLemburShiftsAll} shift lembur</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
@@ -862,7 +862,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           <div className="text-2xl font-black text-indigo-900 font-mono">
             {formatRupiah(totalSalaryPayout)}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Akumulasi gaji pokok + lemburan</p>
+          <p className="text-[11px] text-slate-500 mt-1">Akumulasi gaji pokok + lemburan</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
@@ -877,7 +877,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               <span className="text-amber-700 font-bold">{formatRupiah(totalUnpaidSalary)} <span className="text-xs font-normal text-slate-500">(Draft)</span></span>
             )}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-[11px] text-slate-500 mt-1">
             Terbayar: {formatRupiah(totalPaidSalary)}
           </p>
         </div>
@@ -932,7 +932,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
             <button
               type="button"
               onClick={handleExportPayrollExcel}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm shadow-emerald-200"
+              className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm shadow-emerald-200"
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span>Export Excel Gaji</span>
@@ -980,7 +980,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                 Bulan: {formatMonthYear(selectedMonth)}
               </span>
               <h3 className="text-base font-bold text-slate-800">
@@ -1059,7 +1059,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {monthPayrolls.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-500">
                       <DollarSign className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                       <p className="font-semibold text-slate-600">Belum ada rekap gaji untuk bulan {formatMonthYear(selectedMonth)}.</p>
                       {payrollEligibility.allowed ? (
@@ -1088,7 +1088,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                         <td className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
                           <div className="font-bold text-slate-900 text-sm">{p.employeeName}</div>
                           <div className="text-[11px] text-indigo-600 font-mono mt-0.5">{p.payrollNumber}</div>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-slate-500">
                             {p.employeeRole === 'OPERATOR_DISPENSER' ? 'Operator Dispenser' : p.employeeRole}
                           </span>
                         </td>
@@ -1105,13 +1105,13 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                               {p.totalLemburShifts} Shift
                             </span>
                           ) : (
-                            <span className="text-slate-400">-</span>
+                            <span className="text-slate-500">-</span>
                           )}
                         </td>
 
                         <td className="py-3.5 px-3 text-right font-mono text-slate-700 whitespace-nowrap">
                           <div>{formatRupiah(p.basicSalary)}</div>
-                          <span className="text-[10px] text-slate-400">@{formatRupiah(p.dailyRate)}</span>
+                          <span className="text-[10px] text-slate-500">@{formatRupiah(p.dailyRate)}</span>
                         </td>
 
                         <td className="py-3.5 px-3 text-right font-mono text-indigo-700 whitespace-nowrap">
@@ -1180,7 +1180,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleOpenPaySalaryModal(p)}
-                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
                                 title="Bayar Gaji Karyawan Ini"
                               >
                                 <DollarSign className="w-3.5 h-3.5" />
@@ -1190,7 +1190,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleRevertPayment(p)}
-                                className="px-2 py-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-[10px] font-medium"
+                                className="px-2 py-1 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-[10px] font-medium"
                                 title="Kembalikan status ke Draft (Belum Bayar)"
                               >
                                 Batal
@@ -1232,7 +1232,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                   Buku Absensi & Shift Kerja
                 </span>
                 <h3 className="text-base font-bold text-slate-800">
@@ -1318,7 +1318,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {monthAttendance.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
+                    <td colSpan={8} className="py-12 text-center text-slate-500">
                       <Calendar className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                       <p className="font-semibold text-slate-600">Belum ada absensi tercatat pada bulan {formatMonthYear(selectedMonth)}.</p>
                     </td>
@@ -1332,7 +1332,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                       <tr key={rec.id} className={`transition-colors ${isMismatched ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-slate-50/70'}`}>
                         <td className="py-3 px-4 font-medium text-slate-900 whitespace-nowrap">
                           <div className="font-semibold">{formatDateIndo(rec.date)}</div>
-                          <span className="text-[10px] text-slate-400 font-mono">{rec.date}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">{rec.date}</span>
                         </td>
 
                         <td className="py-3 px-4 font-bold text-slate-800 whitespace-nowrap">
@@ -1384,7 +1384,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                               +{rec.overtimeShifts} Shift
                             </span>
                           ) : (
-                            <span className="text-slate-400">-</span>
+                            <span className="text-slate-500">-</span>
                           )}
                         </td>
 
@@ -1415,7 +1415,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                             <button
                               type="button"
                               onClick={() => setAttendanceToDelete(rec)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Hapus Absensi"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1438,7 +1438,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                 Data Kepegawaian
               </span>
               <h3 className="text-base font-bold text-slate-800">
@@ -1466,7 +1466,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                       <span className="text-xs text-indigo-700 font-semibold block">
                         {emp.role === 'OPERATOR_DISPENSER' ? 'Operator Dispenser BBM' : emp.role}
                       </span>
-                      <span className="text-[11px] text-slate-400 font-mono">
+                      <span className="text-[11px] text-slate-500 font-mono">
                         NIK: {emp.nik || '-'} • HP: {emp.phone}
                       </span>
                     </div>
@@ -1485,7 +1485,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setEmployeeToDelete(emp)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
                         title="Hapus Karyawan"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1496,11 +1496,11 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
 
                 <div className="mt-4 pt-3 border-t border-slate-200/80 grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold">Gaji Harian / Shift</span>
+                    <span className="text-[10px] text-slate-500 block font-semibold">Gaji Harian / Shift</span>
                     <span className="font-bold text-slate-800 font-mono">{formatRupiah(emp.dailyRate)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold">Tarif Lembur per Shift</span>
+                    <span className="text-[10px] text-slate-500 block font-semibold">Tarif Lembur per Shift</span>
                     <span className="font-bold text-indigo-700 font-mono">{formatRupiah(emp.overtimeRate)}</span>
                   </div>
                 </div>
@@ -1541,7 +1541,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedSlipForPrint(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-500 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1560,19 +1560,19 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               {/* Employee Details */}
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-[11px]">
                 <div>
-                  <span className="text-slate-400 block">Nama Karyawan:</span>
+                  <span className="text-slate-500 block">Nama Karyawan:</span>
                   <strong className="text-slate-800 text-xs">{selectedSlipForPrint.employeeName}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">No. Slip Gaji:</span>
+                  <span className="text-slate-500 block">No. Slip Gaji:</span>
                   <strong className="font-mono text-slate-800">{selectedSlipForPrint.payrollNumber}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Jabatan:</span>
+                  <span className="text-slate-500 block">Jabatan:</span>
                   <span className="text-slate-700">{selectedSlipForPrint.employeeRole}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Total Kehadiran:</span>
+                  <span className="text-slate-500 block">Total Kehadiran:</span>
                   <strong className="text-emerald-800">{selectedSlipForPrint.totalHadir} Hari ({selectedSlipForPrint.totalLemburShifts} Lembur)</strong>
                 </div>
               </div>
@@ -1647,7 +1647,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenPaySalaryModal(selectedSlipForPrint)}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
                   >
                     <DollarSign className="w-3.5 h-3.5" />
                     <span>Bayar Sekarang</span>
@@ -1658,7 +1658,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               {/* Total Net Salary */}
               <div className="bg-slate-900 text-white p-3.5 rounded-xl flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold block">
                     Total Diterima (Take Home Pay):
                   </span>
                   <span className="text-[10px] text-emerald-400 font-semibold">
@@ -1699,7 +1699,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenPaySalaryModal(selectedSlipForPrint)}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
                   >
                     <DollarSign className="w-4 h-4" />
                     <span>Bayar Gaji Ini</span>
@@ -1959,7 +1959,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsEmployeeModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-500 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2248,7 +2248,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
                     <span>Lunasi {unpaidDrafts.length} Slip ({formatRupiah(totalBatchNet)})</span>
@@ -2299,14 +2299,14 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Penerima Gaji:</span>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Penerima Gaji:</span>
                       <strong className="text-slate-900 text-sm">{payingPayrollModal.employeeName}</strong>
                       <span className="text-[11px] text-slate-500 block">
                         {payingPayrollModal.employeeRole === 'OPERATOR_DISPENSER' ? 'Operator Dispenser' : payingPayrollModal.employeeRole}
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Rekap Kehadiran:</span>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Rekap Kehadiran:</span>
                       <span className="font-bold text-emerald-800 text-xs">
                         {payingPayrollModal.totalHadir} Hari
                       </span>
@@ -2477,7 +2477,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
                     <span>Konfirmasi Bayar {formatRupiah(payingPayrollModal.netSalary)}</span>
@@ -2525,7 +2525,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingPayroll(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-white rounded-xl transition-colors cursor-pointer"
+                  className="p-1.5 text-slate-500 hover:text-slate-600 hover:bg-white rounded-xl transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2546,7 +2546,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                 {/* Kehadiran & Rekap Dasar */}
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rekap Kehadiran Bulan Ini</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Rekap Kehadiran Bulan Ini</span>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="font-bold text-slate-800 font-mono text-xs">
                         {editTotalHadir} Hari Kerja
@@ -2580,7 +2580,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                         Gaji Pokok Kehadiran (Rp)
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <span className="absolute left-3 top-2 text-slate-500 font-mono text-xs">Rp</span>
                         <input
                           type="number"
                           required
@@ -2591,7 +2591,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                           className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                         />
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      <span className="text-[10px] text-slate-500 mt-0.5 block">
                         Tarif: {editTotalHadir} hari × {formatRupiah(editDailyRate)}
                       </span>
                     </div>
@@ -2601,7 +2601,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                         Upah Lembur (Rp)
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <span className="absolute left-3 top-2 text-slate-500 font-mono text-xs">Rp</span>
                         <input
                           type="number"
                           required
@@ -2612,7 +2612,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                           className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-indigo-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                         />
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      <span className="text-[10px] text-slate-500 mt-0.5 block">
                         Tarif: {editTotalLemburShifts} shift × {formatRupiah(editOvertimeRate)}
                       </span>
                     </div>
@@ -2623,7 +2623,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                       Bonus / Insentif / Tunjangan Tambahan (Rp)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                      <span className="absolute left-3 top-2 text-slate-500 font-mono text-xs">Rp</span>
                       <input
                         type="number"
                         min={0}
@@ -2634,7 +2634,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                         className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">
                       Tambahan nominal di luar gaji pokok & lembur (misal: reward omset, insentif kehadiran)
                     </span>
                   </div>
@@ -2652,7 +2652,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                         Potongan Kasbon (Rp)
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <span className="absolute left-3 top-2 text-slate-500 font-mono text-xs">Rp</span>
                         <input
                           type="number"
                           min={0}
@@ -2669,7 +2669,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                         Denda / Terlambat (Rp)
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <span className="absolute left-3 top-2 text-slate-500 font-mono text-xs">Rp</span>
                         <input
                           type="number"
                           min={0}
@@ -2686,7 +2686,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                         Potongan Lain (Rp)
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-2 text-slate-400 font-mono text-xs">Rp</span>
+                        <span className="absolute left-3 top-2 text-slate-500 font-mono text-xs">Rp</span>
                         <input
                           type="number"
                           min={0}
@@ -2713,7 +2713,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
                   <div className="flex items-center justify-between pt-1">
                     <div>
                       <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">Gaji Bersih Diterima (THP):</span>
-                      <span className="text-[10px] text-slate-400">Nominal yang akan dibayarkan ke karyawan</span>
+                      <span className="text-[10px] text-slate-500">Nominal yang akan dibayarkan ke karyawan</span>
                     </div>
                     <span className="text-xl font-black font-mono text-emerald-400">
                       {formatRupiah(calculatedNet)}
@@ -2798,7 +2798,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-400 mb-5 leading-normal">
+            <p className="text-[11px] text-slate-500 mb-5 leading-normal">
               💡 <em>Tujuan:</em> Mencegah slip gaji tercetak tidak lengkap karena shift harian dan absensi operator masih berjalan hingga akhir bulan.
             </p>
 
@@ -2831,7 +2831,7 @@ export const AttendancePayrollView: React.FC<AttendancePayrollViewProps> = ({
           <button
             type="button"
             onClick={() => setToastMessage(null)}
-            className="text-slate-400 hover:text-white p-1 rounded-lg"
+            className="text-slate-500 hover:text-white p-1 rounded-lg"
           >
             <X className="w-4 h-4" />
           </button>

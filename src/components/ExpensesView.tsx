@@ -244,7 +244,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
                 Gaji & Lembur
               </span>
               <div className="mt-1.5">
@@ -267,7 +267,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         <div className="bg-white rounded-2xl p-4 border border-rose-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest block">
                 {totalGainMinyak > 0 ? 'Losses / Gain Minyak' : 'Losses Minyak'}
               </span>
               <div className="mt-1.5">
@@ -298,7 +298,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
                 Listrik PLN
               </span>
               <div className="mt-1.5">
@@ -321,7 +321,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
                 PDAM Air
               </span>
               <div className="mt-1.5">
@@ -367,7 +367,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
                 Maintenance
               </span>
               <div className="mt-1.5">
@@ -390,7 +390,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         <div className="bg-white rounded-2xl p-4 border border-emerald-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest block">
                 Dividen Owner
               </span>
               <div className="mt-1.5">
@@ -433,7 +433,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
           <button
             onClick={() => onOpenAddExpense('LEMBURAN')}
-            className="px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            className="px-3 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
           >
             <Clock className="w-3.5 h-3.5" />
             + Lembur (Rp 30k)
@@ -449,7 +449,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
           <button
             onClick={() => onOpenAddExpense('TOKEN_LISTRIK')}
-            className="px-3 py-2 rounded-xl bg-yellow-600 hover:bg-yellow-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            className="px-3 py-2 rounded-xl bg-yellow-700 hover:bg-yellow-800 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
           >
             <Zap className="w-3.5 h-3.5" />
             + Token Listrik
@@ -457,7 +457,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
           <button
             onClick={() => onOpenAddExpense('PDAM')}
-            className="px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            className="px-3 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
           >
             <Droplets className="w-3.5 h-3.5" />
             + PDAM
@@ -481,7 +481,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
           <button
             onClick={() => onOpenAddExpense('DIVIDEN_OWNER')}
-            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            className="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
           >
             <Landmark className="w-3.5 h-3.5" />
             + Dividen Owner
@@ -608,7 +608,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400">
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
                     <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     Belum ada catatan pengeluaran yang sesuai kriteria filter.
                   </td>
@@ -669,7 +669,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                           +{exp.fuelLossLiters || exp.quantity || 0} L × {formatRupiah(exp.fuelLossBuyPriceSnapshot || exp.unitRate || 0)}
                         </span>
                       ) : (
-                        <span className="text-slate-400">Fixed Rate</span>
+                        <span className="text-slate-500">Fixed Rate</span>
                       )}
                     </td>
 

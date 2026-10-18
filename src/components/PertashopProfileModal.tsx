@@ -113,7 +113,8 @@ export const PertashopProfileModal: React.FC<PertashopProfileModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+            aria-label="Tutup"
+            className="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-white/10"
           >
             <X className="w-5 h-5" />
           </button>

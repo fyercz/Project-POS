@@ -73,7 +73,7 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
             <Printer className="w-5 h-5 text-cyan-400" />
             <div>
               <h2 id={titleId} className="text-sm font-bold">Cetak Laporan Harian Pertashop (LHO)</h2>
-              <p className="text-xs text-slate-400">Format Resmi Berita Acara Harian & Rekonsiliasi Kas</p>
+              <p className="text-xs text-slate-500">Format Resmi Berita Acara Harian & Rekonsiliasi Kas</p>
             </div>
           </div>
 
@@ -101,7 +101,8 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10"
+              aria-label="Tutup"
+              className="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-white/10"
             >
               <X className="w-5 h-5" />
             </button>
@@ -162,7 +163,7 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
               <tbody>
                 {daySales.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-4 text-center text-slate-400 italic">
+                    <td colSpan={8} className="p-4 text-center text-slate-500 italic">
                       Tidak ada transaksi penjualan yang tercatat pada tanggal {selectedDate}.
                     </td>
                   </tr>
@@ -337,7 +338,7 @@ export const PrintDailyReportModal: React.FC<PrintDailyReportModalProps> = ({
             </h3>
 
             {dayExpenses.length === 0 ? (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-slate-400 italic">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-slate-500 italic">
                 Tidak ada catatan pengeluaran operasional pada tanggal {selectedDate}.
               </div>
             ) : (

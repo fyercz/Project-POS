@@ -156,6 +156,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Tutup"
             className="text-blue-200 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -289,7 +290,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     onChange={(e) => handleStickChange(parseFloat(e.target.value) || 0)}
                     className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl text-base font-mono font-bold text-slate-900"
                   />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">cm</span>
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-500 font-bold">cm</span>
                 </div>
                 <span className="text-[10px] text-blue-600 font-semibold mt-1 block">
                   Tabel tera tangki: 1 cm = 21 Liter
@@ -314,7 +315,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     }}
                     className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl text-base font-mono font-bold text-blue-700"
                   />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">Liter</span>
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-500 font-bold">Liter</span>
                 </div>
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   Volume fisik cairan Pertamax
@@ -354,7 +355,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                   onChange={(e) => setWaterBottomCm(parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900"
                 />
-                <span className="text-[10px] text-slate-400">Harus 0 cm (Bebas Air)</span>
+                <span className="text-[10px] text-slate-500">Harus 0 cm (Bebas Air)</span>
               </div>
             </div>
 
@@ -466,10 +467,10 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
             )}
 
             {soundings.length === 0 ? (
-              <div className="text-center py-10 text-slate-400 text-xs">
+              <div className="text-center py-10 text-slate-500 text-xs">
                 <Gauge className="w-8 h-8 mx-auto mb-2 text-slate-300 stroke-1" />
                 <div className="font-semibold text-slate-600 text-sm">Belum Ada Riwayat Sounding</div>
-                <p className="mt-1 text-slate-400">Semua catatan sounding pada bulan Agustus telah dihapus.</p>
+                <p className="mt-1 text-slate-500">Semua catatan sounding pada bulan Agustus telah dihapus.</p>
               </div>
             ) : (
               soundings.map((s) => (
@@ -484,7 +485,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                     <div className="text-slate-500 mt-0.5">
                       Operator: {s.operatorName} • Stick: {s.stickDipCm} cm
                     </div>
-                    {s.notes && <div className="text-[11px] text-slate-400 italic mt-0.5">{s.notes}</div>}
+                    {s.notes && <div className="text-[11px] text-slate-500 italic mt-0.5">{s.notes}</div>}
                   </div>
                   <div className="text-right font-mono flex-shrink-0">
                     <div className="font-bold text-blue-700 text-sm">{formatLiter(s.calculatedLiters)}</div>
@@ -512,7 +513,7 @@ export const SoundingLogModal: React.FC<SoundingLogModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(s)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
                         title="Hapus Sounding"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

@@ -254,7 +254,8 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
+            aria-label="Tutup"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700/50 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -644,7 +645,7 @@ export const ExpenseEntryModal: React.FC<ExpenseEntryModalProps> = ({
                 Nominal Pengeluaran (Rp)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 font-mono font-bold text-slate-400">
+                <span className="absolute left-3 top-2.5 font-mono font-bold text-slate-500">
                   Rp
                 </span>
                 <input

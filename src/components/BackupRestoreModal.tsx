@@ -175,7 +175,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="Tutup"
+            className="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -281,12 +282,12 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
 
               {/* Data Summary Grid */}
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2.5">
                   Rekap Data Siap Di-Backup ({profile.pertashopName})
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <div className="flex items-center justify-between text-slate-500 mb-1">
                       <span className="text-[10px] font-semibold">Penjualan Shift</span>
                       <Fuel className="w-3.5 h-3.5 text-blue-500" />
                     </div>
@@ -296,7 +297,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <div className="flex items-center justify-between text-slate-500 mb-1">
                       <span className="text-[10px] font-semibold">Pemesanan DO</span>
                       <Truck className="w-3.5 h-3.5 text-amber-500" />
                     </div>
@@ -306,7 +307,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <div className="flex items-center justify-between text-slate-500 mb-1">
                       <span className="text-[10px] font-semibold">Sounding Tangki</span>
                       <Gauge className="w-3.5 h-3.5 text-emerald-500" />
                     </div>
@@ -316,7 +317,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <div className="flex items-center justify-between text-slate-500 mb-1">
                       <span className="text-[10px] font-semibold">Pengeluaran</span>
                       <Receipt className="w-3.5 h-3.5 text-rose-500" />
                     </div>
@@ -326,7 +327,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <div className="flex items-center justify-between text-slate-500 mb-1">
                       <span className="text-[10px] font-semibold">Karyawan</span>
                       <Users className="w-3.5 h-3.5 text-indigo-500" />
                     </div>
@@ -336,7 +337,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <div className="flex items-center justify-between text-slate-500 mb-1">
                       <span className="text-[10px] font-semibold">Log Presensi</span>
                       <Users className="w-3.5 h-3.5 text-teal-500" />
                     </div>
@@ -346,7 +347,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   </div>
 
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 col-span-2">
-                    <div className="flex items-center justify-between text-slate-400 mb-1">
+                    <div className="flex items-center justify-between text-slate-500 mb-1">
                       <span className="text-[10px] font-semibold">Slip Penggajian Bulanan</span>
                       <FileSpreadsheet className="w-3.5 h-3.5 text-violet-500" />
                     </div>
@@ -501,7 +502,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     <button
                       type="button"
                       onClick={handleConfirmRestore}
-                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                      className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
                     >
                       <RefreshCw className="w-4 h-4" />
                       <span>Terapkan & Pulihkan Data Ini Sekarang</span>
@@ -581,7 +582,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                 <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl">
                   <Database className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                   <p className="font-semibold text-slate-700">Tidak ada arsip data lain di memori browser ini</p>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-[11px] text-slate-500 mt-1">
                     Jika Anda memiliki berkas cadangan di komputer, gunakan tab <strong>"2. Restore / Muat Data"</strong> untuk mengunggah file <code>.json</code>.
                   </p>
                 </div>
@@ -601,7 +602,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                         </div>
                         <p className="text-slate-800 font-semibold text-xs">{item.description}</p>
                         {item.sampleDate && (
-                          <span className="text-[10px] text-slate-400 block">Waktu Terakhir: {item.sampleDate}</span>
+                          <span className="text-[10px] text-slate-500 block">Waktu Terakhir: {item.sampleDate}</span>
                         )}
                       </div>
 

@@ -614,6 +614,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
           <button
             type="button"
             onClick={onClose}
+            aria-label="Tutup"
             className="p-1.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -803,7 +804,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
                         onChange={(e) => handleLitersChange(parseFloat(e.target.value) || 0)}
                         className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-xl font-mono font-black text-emerald-700 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                       />
-                      <span className="absolute right-3 top-2.5 font-bold text-slate-400">Liter</span>
+                      <span className="absolute right-3 top-2.5 font-bold text-slate-500">Liter</span>
                     </div>
                   </div>
 
@@ -974,7 +975,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
                         onChange={(e) => handleLossesLitersChange(parseFloat(e.target.value) || 0)}
                         className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl font-mono font-bold text-rose-700 focus:ring-2 focus:ring-rose-500 focus:outline-none"
                       />
-                      <span className="absolute right-3 top-2.5 font-bold text-slate-400">Liter</span>
+                      <span className="absolute right-3 top-2.5 font-bold text-slate-500">Liter</span>
                     </div>
                     <span className="text-[9px] text-rose-600 font-semibold mt-0.5 block">
                       *Otomatis memotong stok tangki
@@ -1428,7 +1429,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
                                 {batch.expenses.lossesLiters > 0 ? (
                                   <span>-{formatNumber(batch.expenses.lossesLiters, 1)} L</span>
                                 ) : (
-                                  <span className="text-slate-400 font-normal">-</span>
+                                  <span className="text-slate-500 font-normal">-</span>
                                 )}
                               </td>
                               <td className="py-2 px-3 text-right font-mono text-slate-700">

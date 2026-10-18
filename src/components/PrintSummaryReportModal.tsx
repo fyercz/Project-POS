@@ -229,7 +229,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
               <h2 id={titleId} className="text-base font-bold text-white">
                 Cetak Laporan Keuangan & Rekap Eksekutif
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Format resmi dealer Pertashop untuk pelaporan bulanan & tahunan
               </p>
             </div>
@@ -287,7 +287,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
             <button
               type="button"
               onClick={handlePrint}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center space-x-1.5 shadow-sm transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg flex items-center space-x-1.5 shadow-sm transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Cetak / PDF</span>
@@ -296,7 +296,8 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              aria-label="Tutup"
+              className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -332,7 +333,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
               <p className="font-mono text-[11px] font-bold text-slate-800">
                 Periode: {reportType === 'MONTHLY' ? formatMonthYear(selectedMonth) : `Tahun Buku ${selectedYear}`}
               </p>
-              <p className="text-[9px] text-slate-400">
+              <p className="text-[9px] text-slate-500">
                 Dicetak: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
@@ -636,7 +637,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
                       <tr
                         key={item.monthKey}
                         className={`border-b border-slate-200 ${
-                          !item.hasData ? 'text-slate-400 bg-slate-50/40' : 'hover:bg-slate-50'
+                          !item.hasData ? 'text-slate-500 bg-slate-50/40' : 'hover:bg-slate-50'
                         }`}
                       >
                         <td className="p-1.5 border-r border-slate-200 font-medium">
@@ -741,7 +742,7 @@ export const PrintSummaryReportModal: React.FC<PrintSummaryReportModalProps> = (
                       <tr
                         key={`print-losses-${item.monthKey}`}
                         className={`border-b border-slate-200 ${
-                          !item.hasData ? 'text-slate-400 bg-slate-50/40' : ''
+                          !item.hasData ? 'text-slate-500 bg-slate-50/40' : ''
                         }`}
                       >
                         <td className="p-1.5 border-r border-slate-200 font-medium">

@@ -699,7 +699,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
             <button
               type="button"
               onClick={() => onOpenPrintModal(activeSubTab, selectedMonthStr, selectedYear)}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Cetak Laporan Resmi</span>
@@ -931,7 +931,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                 </div>
 
                 {/* X-Axis labels */}
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono pt-1.5">
+                <div className="flex justify-between text-[10px] text-slate-500 font-mono pt-1.5">
                   <span>Tgl 1</span>
                   <span>Tgl 5</span>
                   <span>Tgl 10</span>
@@ -1178,7 +1178,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                   Detail per tanggal transaksi penjualan bahan bakar dan setoran kasir
                 </p>
               </div>
-              <span className="text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg font-mono">
+              <span className="text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg font-mono">
                 {activeOperatingDays} Hari Aktif Penjualan
               </span>
             </div>
@@ -1199,7 +1199,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                 <tbody className="divide-y divide-slate-100 font-sans">
                   {dailyBreakdown.filter((d) => d.liters > 0).length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400 italic">
+                      <td colSpan={7} className="py-8 text-center text-slate-500 italic">
                         Belum ada catatan penjualan pada bulan {formatMonthYear(selectedMonthStr)}.
                       </td>
                     </tr>
@@ -1311,7 +1311,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                   <div className="text-xl font-black text-rose-950 font-mono mt-1">
                     {formatNumber(monthLossesLiters, 1)} Liter
                   </div>
-                  <div className="text-[11px] text-rose-600 mt-0.5">
+                  <div className="text-[11px] text-rose-700 mt-0.5">
                     Dari total {formatLiter(monthTotalLiters)} terjual
                   </div>
                 </div>
@@ -1365,7 +1365,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                 </div>
 
                 {monthLossesRecords.length === 0 ? (
-                  <div className="p-6 text-center text-slate-400 italic text-xs">
+                  <div className="p-6 text-center text-slate-500 italic text-xs">
                     Tidak ada catatan transaksi losses minyak khusus pada bulan {formatMonthYear(selectedMonthStr)}. Stok tangki tercatat seimbang.
                   </div>
                 ) : (
@@ -1722,7 +1722,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                     <tr
                       key={m.monthKey}
                       className={`hover:bg-slate-50/80 transition-colors ${
-                        !m.hasData ? 'text-slate-400 bg-slate-50/30' : ''
+                        !m.hasData ? 'text-slate-500 bg-slate-50/30' : ''
                       }`}
                     >
                       <td className="py-3 px-4 font-semibold text-slate-900">
@@ -1752,7 +1752,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-slate-500">-</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-slate-600">
@@ -1880,7 +1880,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                   <div className="text-xl font-black text-rose-950 font-mono mt-1">
                     {formatNumber(yearLossesLiters, 1)} Liter
                   </div>
-                  <div className="text-[11px] text-rose-600 mt-0.5">
+                  <div className="text-[11px] text-rose-700 mt-0.5">
                     Setara {formatNumber(yearLossesLiters / 1000, 2)} KiloLiter (KL)
                   </div>
                 </div>
@@ -1951,7 +1951,7 @@ export const SummaryReportView: React.FC<SummaryReportViewProps> = ({
                         <tr
                           key={`losses-${m.monthKey}`}
                           className={`hover:bg-slate-50 transition-colors ${
-                            !m.hasData ? 'text-slate-400 bg-slate-50/30' : ''
+                            !m.hasData ? 'text-slate-500 bg-slate-50/30' : ''
                           }`}
                         >
                           <td className="py-2.5 px-4 font-semibold text-slate-900">

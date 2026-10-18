@@ -538,6 +538,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Tutup"
             className="text-blue-200 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -717,7 +718,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     Shift tersedia.
                   </span>
                 )}
-                <span className="text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                <span className="text-slate-600 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
                   Jam Kerja: <strong className="text-slate-700 font-mono">{getShiftHoursInfo(shift).displayHours}</strong>
                 </span>
               </div>
@@ -753,7 +754,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       title={taken ? `${op} sudah bertugas di ${opInfo?.shift} (${opInfo?.literSold} L)` : `Pilih ${op}`}
                       className={`text-[10px] px-3 py-2 min-h-[32px] rounded-lg font-bold transition-all flex items-center gap-1 ${
                         taken
-                          ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed line-through'
+                          ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed line-through'
                           : isSelected
                           ? 'bg-blue-600 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
@@ -831,7 +832,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               <span className="font-mono font-bold text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
                 Rp {formatRupiah(unitPrice)}/L
               </span>
-              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+              <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
                 ({effectivePriceForDate.sourceDesc || `Tarif ${formatMonthYearId(transactionDate.substring(0, 7))}`})
               </span>
             </div>
@@ -848,7 +849,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 <div>
                   <h3 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
                     <span>Metode Pembayaran Shift</span>
-                    <span className="text-[10px] bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] bg-emerald-700 text-white font-bold px-1.5 py-0.5 rounded">
                       Diisi Dahulu
                     </span>
                   </h3>
@@ -865,7 +866,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   onClick={() => setInputMode('payment')}
                   className={`px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 ${
                     inputMode === 'payment'
-                      ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                      ? 'bg-emerald-700 text-white shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -876,7 +877,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   onClick={() => setInputMode('meter')}
                   className={`px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 ${
                     inputMode === 'meter'
-                      ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                      ? 'bg-emerald-700 text-white shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -887,7 +888,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   onClick={() => setInputMode('direct')}
                   className={`px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 ${
                     inputMode === 'direct'
-                      ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                      ? 'bg-emerald-700 text-white shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -907,7 +908,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   </span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">Rp</span>
+                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-500">Rp</span>
                   <input
                     type="number"
                     min={0}
@@ -963,7 +964,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   </span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">Rp</span>
+                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-500">Rp</span>
                   <input
                     type="number"
                     min={0}
@@ -1005,7 +1006,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                   </span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">Rp</span>
+                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-500">Rp</span>
                   <input
                     type="number"
                     min={0}
@@ -1123,7 +1124,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                     Rp {formatRupiah(totalPayment)} ÷ Rp {formatRupiah(unitPrice)}/L = <strong>{calculatedLiters} L (Bulat)</strong>
                   </span>
                 </p>
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-slate-500 mt-1 block">
                   Sisa stok tangki teoritis:{' '}
                   <strong className="text-white">
                     {formatNumber(theoreticalRemainingStock)} L
@@ -1255,7 +1256,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                         onChange={(e) => handleSoundingStickChange(parseFloat(e.target.value) || 0)}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-hidden"
                       />
-                      <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
+                      <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500">
                         cm
                       </span>
                     </div>
@@ -1275,7 +1276,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                         onChange={(e) => handleSoundingLitersChange(parseFloat(e.target.value) || 0)}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-hidden"
                       />
-                      <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
+                      <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500">
                         Liter
                       </span>
                     </div>

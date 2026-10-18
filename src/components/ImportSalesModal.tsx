@@ -994,6 +994,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Tutup"
             className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -1160,7 +1161,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
                   type="button"
                   onClick={handleParsePastedText}
                   disabled={!pastedText.trim() || isProcessing}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
                   <span>Proses Teks Tabel {pasteType === 'sales' ? 'Penjualan' : 'DO'}</span>
@@ -1319,7 +1320,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
                     <tbody className="divide-y divide-slate-100">
                       {parsedRows.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="py-8 text-center text-slate-400">
+                          <td colSpan={9} className="py-8 text-center text-slate-500">
                             Belum ada baris data penjualan yang terdeteksi dalam file atau teks.
                           </td>
                         </tr>
@@ -1399,7 +1400,7 @@ export const ImportSalesModal: React.FC<ImportSalesModalProps> = ({
                     <tbody className="divide-y divide-slate-100">
                       {parsedDoRows.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-8 text-center text-slate-400">
+                          <td colSpan={8} className="py-8 text-center text-slate-500">
                             Belum ada baris data Delivery Order (DO) yang terdeteksi. Gunakan Sheet 2 "Data_DO_Pertamina" pada template untuk mengimpor DO sekaligus.
                           </td>
                         </tr>

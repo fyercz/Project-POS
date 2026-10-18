@@ -111,7 +111,11 @@ export const OrderAlertBanner: React.FC<OrderAlertBannerProps> = ({
                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
                     : fitsInTank
                     ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
-                    : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60'
+                    // opacity-60 dihapus: backdrop di belakang tombol ini putih, sehingga opacity
+                    // apa pun pada seluruh tombol (teks+latar sama-sama memudar ke putih) membuat
+                    // KONTRAS TIDAK MUNGKIN LOLOS WCAG AA berapa pun warna teksnya (sudah dihitung:
+                    // bahkan teks nyaris hitam pun gagal setelah opacity-60). Diganti warna solid.
+                    : 'bg-slate-100 text-slate-600 border border-slate-200 cursor-not-allowed'
                 }`}
                 title={
                   fitsInTank

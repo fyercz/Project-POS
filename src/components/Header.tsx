@@ -86,12 +86,12 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Active Price Box */}
           <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                 Harga Pertamax Hari Ini
               </span>
               <span className="text-base font-bold text-blue-600 font-mono">
                 {formatRupiah(pertamax?.currentPrice || 12950)}{' '}
-                <span className="text-[11px] font-normal text-slate-400">/ Liter</span>
+                <span className="text-[11px] font-normal text-slate-500">/ Liter</span>
               </span>
             </div>
 

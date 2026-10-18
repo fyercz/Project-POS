@@ -482,7 +482,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
             * Estimasi laba bersih tahunan mencapai: <strong className="text-slate-700 font-mono font-bold">{formatRupiah(simNetYearlyProfit)}</strong>
           </div>
         </div>

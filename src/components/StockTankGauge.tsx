@@ -206,10 +206,16 @@ export const StockTankGauge: React.FC<StockTankGaugeProps> = ({
                     : `Volume ${kl} KL melebihi ruang kosong saat ini`
                 }
               >
-                <span className="text-sm font-extrabold font-mono leading-none">
+                {/* Sama seperti span di bawahnya: beri warna eksplisit, jangan mewarisi warna
+                    kondisional induk (yang jadi slate-500 + opacity-60 saat "tidak muat" -
+                    gagal kontras 2.15:1, terukur langsung). */}
+                <span className={`text-sm font-extrabold font-mono leading-none ${fits ? '' : 'text-slate-300'}`}>
                   {kl} KL
                 </span>
-                <span className="text-[10px] text-slate-400 font-normal mt-0.5">
+                {/* text-slate-300 (bukan slate-400): tombol ini TIDAK benar-benar disabled (tanpa
+                    atribut disabled, masih bisa diklik) jadi kontrasnya wajib WCAG AA. Saat
+                    "tidak muat" (opacity-60 + bg gelap), slate-400 gagal setelah opacity dihitung. */}
+                <span className="text-[10px] text-slate-300 font-normal mt-0.5">
                   ({kl}.000 L)
                 </span>
               </button>

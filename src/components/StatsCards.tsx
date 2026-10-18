@@ -137,7 +137,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
         >
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
                 Volume Terjual Hari Ini
               </span>
               <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -167,7 +167,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
         >
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
                 Total Omzet Penjualan
               </span>
               <div className="mt-1.5">
@@ -198,7 +198,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
         >
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
                 Estimasi Margin Dealer
               </span>
               <div className="mt-1.5">
@@ -227,14 +227,14 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
         >
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
                 Tarif Pertamax Aktif
               </span>
               <div className="flex items-baseline gap-1 mt-1.5">
                 <span className="text-xl sm:text-2xl font-extrabold text-blue-600 font-mono tracking-tight">
                   {formatRupiah(currentUnitPrice)}
                 </span>
-                <span className="text-xs text-slate-400 font-normal">/ L</span>
+                <span className="text-xs text-slate-500 font-normal">/ L</span>
               </div>
             </div>
             <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100/80">
@@ -300,7 +300,9 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                 title={`Lihat data historis terakhir: ${formatShortDate(latestActiveDate)}`}
               >
                 <span>Aktif Terakhir</span>
-                <span className="text-[10px] opacity-75">({formatShortDate(latestActiveDate)})</span>
+                {/* opacity-75 dihapus: warna slate-600 yang diwarisi sudah lolas AA (6.92:1),
+                    reduksi opacity menurunkannya jadi 3.81:1 (gagal) */}
+                <span className="text-[10px]">({formatShortDate(latestActiveDate)})</span>
               </button>
             </div>
           )}
@@ -357,7 +359,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                 <span className="text-base font-extrabold font-mono text-slate-900">
                   {formatRupiah(fullDayRevenue)}
                 </span>
-                <span className="text-[10px] text-slate-400 block mt-0.5">
+                <span className="text-[10px] text-slate-500 block mt-0.5">
                   Tunai: {formatRupiah(fullDayCash)}
                 </span>
               </div>
@@ -406,7 +408,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                       Terekap
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                       Menunggu Data
                     </span>
                   )}
@@ -426,7 +428,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                       {formatNumber(shift1Liters, 1)} L
                     </span>
                     {dayTotalLiters > 0 && shift1HasData && (
-                      <span className="text-[10px] text-slate-400 block">
+                      <span className="text-[10px] text-slate-500 block">
                         ({shift1LiterPercent.toFixed(1)}% harian)
                       </span>
                     )}
@@ -444,7 +446,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                       {formatRupiah(shift1Revenue)}
                     </span>
                     {shift1HasData && (
-                      <span className="text-[10px] text-slate-400 block font-mono">
+                      <span className="text-[10px] text-slate-500 block font-mono">
                         Tunai: {formatRupiah(shift1Cash)} | QRIS: {formatRupiah(shift1NonCash)}
                       </span>
                     )}
@@ -461,7 +463,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                     <span className="text-sm font-extrabold font-mono text-emerald-700">
                       {formatRupiah(shift1Profit)}
                     </span>
-                    <span className="text-[10px] text-emerald-600/90 block">
+                    <span className="text-[10px] text-emerald-700 block">
                       Margin: Rp {formatNumber(shift1MarginRate, 0)}/L
                     </span>
                   </div>
@@ -520,7 +522,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                       Terekap
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                       Menunggu Data
                     </span>
                   )}
@@ -540,7 +542,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                       {formatNumber(shift2Liters, 1)} L
                     </span>
                     {dayTotalLiters > 0 && shift2HasData && (
-                      <span className="text-[10px] text-slate-400 block">
+                      <span className="text-[10px] text-slate-500 block">
                         ({shift2LiterPercent.toFixed(1)}% harian)
                       </span>
                     )}
@@ -558,7 +560,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                       {formatRupiah(shift2Revenue)}
                     </span>
                     {shift2HasData && (
-                      <span className="text-[10px] text-slate-400 block font-mono">
+                      <span className="text-[10px] text-slate-500 block font-mono">
                         Tunai: {formatRupiah(shift2Cash)} | QRIS: {formatRupiah(shift2NonCash)}
                       </span>
                     )}
@@ -575,7 +577,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
                     <span className="text-sm font-extrabold font-mono text-emerald-700">
                       {formatRupiah(shift2Profit)}
                     </span>
-                    <span className="text-[10px] text-emerald-600/90 block">
+                    <span className="text-[10px] text-emerald-700 block">
                       Margin: Rp {formatNumber(shift2MarginRate, 0)}/L
                     </span>
                   </div>
@@ -651,7 +653,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
             </span>
           </div>
 
-          <div className="text-[11px] text-slate-400">
+          <div className="text-[11px] text-slate-500">
             {isViewingToday
               ? '* Data diperbarui otomatis setiap pergantian shift'
               : `* Arsip operasional ${formatShortDate(activeDate)}`}

@@ -424,7 +424,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       {/* Card Header & Controls Toolbar */}
       <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/60 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
         <div>
-          <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest block">
+          <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest block">
             Pencatatan Penjualan Nozzle
           </span>
           <h2 className="text-base font-bold text-slate-800 tracking-tight mt-0.5">
@@ -465,7 +465,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowColumnMenu(false)}
-                    className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                    className="p-1 rounded-md text-slate-500 hover:text-slate-600 hover:bg-slate-100"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -510,18 +510,18 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                             <span className={`text-xs font-medium ${isChecked ? 'text-slate-900 font-semibold' : 'text-slate-600'}`}>
                               {col.label}
                             </span>
-                            <span className="text-[9px] text-slate-400 px-1 py-0.2 rounded bg-slate-100">
+                            <span className="text-[9px] text-slate-500 px-1 py-0.2 rounded bg-slate-100">
                               {col.category}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-400 truncate mt-0.5">{col.desc}</p>
+                          <p className="text-[10px] text-slate-500 truncate mt-0.5">{col.desc}</p>
                         </div>
                       </label>
                     );
                   })}
                 </div>
 
-                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
                   <span>Pilihan tersimpan otomatis</span>
                   <button
                     type="button"
@@ -660,7 +660,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {(showCustomDateInputs || datePreset === 'CUSTOM' || startDate || endDate) && (
             <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Dari</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Dari</span>
               <input
                 type="date"
                 value={startDate}
@@ -740,7 +740,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
               {/* Column 1: Waktu & Shift */}
               {visibleColumns.waktuShift && (
                 <th className="py-3 px-5">
@@ -799,7 +799,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
           <tbody className="divide-y divide-slate-100">
             {filteredSales.length === 0 ? (
               <tr>
-                <td colSpan={activeColumnsCount || 1} className="py-12 text-center text-slate-400">
+                <td colSpan={activeColumnsCount || 1} className="py-12 text-center text-slate-500">
                   <Fuel className="w-9 h-9 mx-auto text-slate-300 mb-2.5" />
                   {sales.length > 0 ? (
                     <div className="max-w-md mx-auto space-y-2">
@@ -829,7 +829,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                   ) : (
                     <div className="max-w-md mx-auto space-y-2">
                       <p className="font-bold text-slate-700 text-sm">Belum ada catatan penjualan di layar ini.</p>
-                      <p className="text-xs text-slate-400 leading-relaxed">
+                      <p className="text-xs text-slate-500 leading-relaxed">
                         Klik <strong>"+ Catat Shift"</strong> untuk membuat input baru, atau lakukan pemindaian jika data transaksi sebelumnya tersimpan di sesi peramban lain.
                       </p>
                       {onOpenBackupModal && (
@@ -855,7 +855,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                   {visibleColumns.waktuShift && (
                     <td className="py-3.5 px-5 font-medium text-slate-900 whitespace-nowrap">
                       <div>{formatShortDate(sale.transactionDate)}</div>
-                      <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
+                      <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
                         <Clock className="w-3 h-3 text-slate-400" />
                         <span>{sale.time}</span>
                         <span>•</span>
@@ -900,7 +900,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                         </div>
                       ) : (
                         <div>
-                          <span className="text-slate-400">-</span>
+                          <span className="text-slate-500">-</span>
                           {sale.soundingStickCm !== undefined && !visibleColumns.sounding && (
                             <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-700 font-sans font-semibold mt-0.5">
                               <Gauge className="w-3 h-3 text-emerald-600" />
@@ -925,7 +925,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                           </div>
                         </div>
                       ) : (
-                        <span className="text-slate-400">-</span>
+                        <span className="text-slate-500">-</span>
                       )}
                     </td>
                   )}
@@ -1017,7 +1017,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                         <button
                           type="button"
                           onClick={() => setSaleToDelete(sale)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Hapus"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1049,7 +1049,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 
                 {/* Harga Satuan - empty */}
                 {visibleColumns.harga && (
-                  <td className="py-3.5 px-4 text-right text-slate-400">-</td>
+                  <td className="py-3.5 px-4 text-right text-slate-500">-</td>
                 )}
 
                 {/* Total Omzet */}
@@ -1108,7 +1108,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             <div className="text-center pb-4 border-b border-dashed border-slate-300">
               <div id={receiptModalA11y.titleId} className="font-bold text-base text-slate-900 font-sans">PERTASHOP PERTAMINA</div>
               <div className="text-slate-500 text-[11px]">SPBU Modular Non-Subsidi</div>
-              <div className="text-slate-400 text-[10px] mt-0.5">Kode: 4P.552.09</div>
+              <div className="text-slate-500 text-[10px] mt-0.5">Kode: 4P.552.09</div>
             </div>
 
             <div className="py-3 border-b border-dashed border-slate-300 space-y-1.5">
@@ -1205,7 +1205,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
               </div>
             )}
 
-            <div className="text-center pt-4 text-[10px] text-slate-400">
+            <div className="text-center pt-4 text-[10px] text-slate-500">
               Pertamina Patra Niaga • Terima Kasih
             </div>
 

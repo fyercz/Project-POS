@@ -250,6 +250,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Tutup"
               className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -531,7 +532,7 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
                   onChange={(e) => setDensity(parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900"
                 />
-                <span className="text-[10px] text-slate-400">Standar Pertamax: 0.715 - 0.770</span>
+                <span className="text-[10px] text-slate-500">Standar Pertamax: 0.715 - 0.770</span>
               </div>
 
               <div>
