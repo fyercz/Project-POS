@@ -408,9 +408,9 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                   <div>
                     <span className="font-bold">Penyesuaian Tarif DO Pertamina di Pertengahan Bulan:</span>
                     <span className="block text-blue-800">
-                      Berlaku mulai <strong>{formatShortDate(midMonthChanges[0].effectiveDate.substring(0, 10))}</strong> (Rp {formatRupiah(midMonthChanges[0].newBuyPrice)}/L).
+                      Berlaku mulai <strong>{formatShortDate(midMonthChanges[0].effectiveDate.substring(0, 10))}</strong> ({formatRupiah(midMonthChanges[0].newBuyPrice)}/L).
                       Tarif per tgl DO ({formatShortDate(orderDate)}):{' '}
-                      <strong className="font-mono text-blue-950">Rp {formatRupiah(effectivePriceForDate.buyPrice)}/L</strong>.
+                      <strong className="font-mono text-blue-950">{formatRupiah(effectivePriceForDate.buyPrice)}/L</strong>.
                     </span>
                   </div>
                 </div>
@@ -441,7 +441,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                       onClick={() => setBuyPricePerLiter(effectivePriceForDate.buyPrice)}
                       className="text-blue-700 hover:text-blue-950 font-bold underline cursor-pointer"
                     >
-                      Gunakan Rp {formatRupiah(effectivePriceForDate.buyPrice)}
+                      Gunakan {formatRupiah(effectivePriceForDate.buyPrice)}
                     </button>
                   </div>
                 )}

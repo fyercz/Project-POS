@@ -661,7 +661,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 )}
                 {effectivePriceForDate && (
                   <p className="text-[11px] text-slate-600 font-semibold flex items-center gap-1">
-                    <span>Tarif Jual: <strong>Rp {formatRupiah(effectivePriceForDate.sellingPrice)}</strong></span>
+                    <span>Tarif Jual: <strong>{formatRupiah(effectivePriceForDate.sellingPrice)}</strong></span>
                   </p>
                 )}
               </div>
@@ -830,7 +830,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
             <div className="flex items-center gap-2 text-xs">
               <span className="text-slate-500 font-medium">Tarif Resmi:</span>
               <span className="font-mono font-bold text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
-                Rp {formatRupiah(unitPrice)}/L
+                {formatRupiah(unitPrice)}/L
               </span>
               <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
                 ({effectivePriceForDate.sourceDesc || `Tarif ${formatMonthYearId(transactionDate.substring(0, 7))}`})
@@ -1045,7 +1045,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-slate-700">Total Setoran Diterima:</span>
                 <span className="font-mono font-black text-sm text-emerald-700">
-                  Rp {formatRupiah(totalPayment)}
+                  {formatRupiah(totalPayment)}
                 </span>
                 <span className="text-[10px] text-slate-500 hidden sm:inline">
                   (Tunai: {formatRupiah(paymentCash)} + QRIS: {formatRupiah(paymentQris)} + EDC: {formatRupiah(paymentEdc)})
@@ -1088,9 +1088,9 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                       {actualCashInHand === paymentCash ? (
                         <span className="text-emerald-700">Kas Sesuai (Rp 0)</span>
                       ) : actualCashInHand > paymentCash ? (
-                        <span className="text-blue-700">Lebih Kas: +Rp {formatRupiah(actualCashInHand - paymentCash)}</span>
+                        <span className="text-blue-700">Lebih Kas: +{formatRupiah(actualCashInHand - paymentCash)}</span>
                       ) : (
-                        <span className="text-rose-700">Kurang Kas: -Rp {formatRupiah(paymentCash - actualCashInHand)}</span>
+                        <span className="text-rose-700">Kurang Kas: -{formatRupiah(paymentCash - actualCashInHand)}</span>
                       )}
                     </div>
                   </div>
@@ -1121,7 +1121,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 <p className="text-[11px] text-slate-300 mt-1.5 flex items-center gap-1 font-medium">
                   <span>Rumus:</span>
                   <span className="font-mono text-cyan-200">
-                    Rp {formatRupiah(totalPayment)} ÷ Rp {formatRupiah(unitPrice)}/L = <strong>{calculatedLiters} L (Bulat)</strong>
+                    {formatRupiah(totalPayment)} ÷ {formatRupiah(unitPrice)}/L = <strong>{calculatedLiters} L (Bulat)</strong>
                   </span>
                 </p>
                 <span className="text-[11px] text-slate-500 mt-1 block">
@@ -1139,13 +1139,13 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 </span>
                 <div className="mt-1.5">
                   <span className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">
-                    Rp {formatRupiah(totalRevenue)}
+                    {formatRupiah(totalRevenue)}
                   </span>
                 </div>
                 {inputMode === 'payment' && paymentDifference !== 0 && (
                   <div className="mt-1.5 text-[11px]">
                     <span className="text-amber-300 font-mono">
-                      Pembulatan Kas (sudah termasuk omset): {paymentDifference > 0 ? `+Rp ${formatRupiah(paymentDifference)}` : `-Rp ${formatRupiah(Math.abs(paymentDifference))}`}
+                      Pembulatan Kas (sudah termasuk omset): {paymentDifference > 0 ? `+${formatRupiah(paymentDifference)}` : `-${formatRupiah(Math.abs(paymentDifference))}`}
                     </span>
                   </div>
                 )}
@@ -1421,7 +1421,7 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 </span>
               ) : (
                 <span className="text-xs text-slate-500">
-                  Volume: <strong className="text-slate-800">{calculatedLiters} L (Bulat)</strong> | Total: <strong className="text-emerald-700">Rp {formatRupiah(totalRevenue)}</strong>
+                  Volume: <strong className="text-slate-800">{calculatedLiters} L (Bulat)</strong> | Total: <strong className="text-emerald-700">{formatRupiah(totalRevenue)}</strong>
                 </span>
               )}
             </div>

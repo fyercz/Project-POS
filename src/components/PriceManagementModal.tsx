@@ -834,7 +834,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                         onChange={() => setMarginAdjustTarget('ADJUST_BUY')}
                         className="text-emerald-600"
                       />
-                      <span>Harga Tebus (Jual Rp {formatRupiah(newSellingPrice)} tetap)</span>
+                      <span>Harga Tebus (Jual {formatRupiah(newSellingPrice)} tetap)</span>
                     </label>
                     <label className="flex items-center gap-1.5 cursor-pointer bg-white/80 px-2 py-1 rounded border border-slate-200 hover:bg-white">
                       <input
@@ -844,7 +844,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                         onChange={() => setMarginAdjustTarget('ADJUST_SELLING')}
                         className="text-emerald-600"
                       />
-                      <span>Harga Jual (Tebus Rp {formatRupiah(newBuyPrice)} tetap)</span>
+                      <span>Harga Jual (Tebus {formatRupiah(newBuyPrice)} tetap)</span>
                     </label>
                   </div>
                 </div>
@@ -1200,7 +1200,7 @@ export const PriceManagementModal: React.FC<PriceManagementModalProps> = ({
                     {marginPercent.toFixed(2)}% dari Omzet
                   </div>
                   <span className="text-[10px] text-slate-500 block mt-1">
-                    Rp {formatRupiah(currentMargin)} per Liter bersih
+                    {formatRupiah(currentMargin)} per Liter bersih
                   </span>
                 </div>
               </div>

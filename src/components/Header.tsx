@@ -7,7 +7,7 @@ interface HeaderProps {
   profile: PertashopProfile;
   products: Product[];
   tank: TankConfig;
-  activeTab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'summary' | 'analytics';
+  activeTab: 'sales' | 'purchases' | 'soundings' | 'expenses' | 'attendance' | 'summary' | 'analytics';
   onOpenMobileSidebar: () => void;
   onOpenPriceModal: () => void;
   onOpenSalesModal: () => void;
@@ -31,6 +31,12 @@ export const Header: React.FC<HeaderProps> = ({
   const pertamax = products.find((p) => p.id === 'prod-pertamax-92') || products[0];
 
   // Dynamic Page Title
+  // PENTING: setiap tab BARU di App.tsx wajib ditambahkan eksplisit di sini. Sebelumnya tab
+  // 'attendance' tidak punya cabang sendiri (dan HeaderProps.activeTab bahkan tidak menyertakan
+  // 'attendance' sama sekali di union type-nya) sehingga diam-diam jatuh ke cabang "else" yang
+  // sebenarnya khusus untuk 'analytics' - akibatnya layar Absensi & Gaji Karyawan menampilkan
+  // judul halaman "Analisis Margin & Performa Dealer" yang salah. tsc tidak menangkap ini karena
+  // tsconfig.json proyek ini tidak mengaktifkan "strict" mode.
   const pageTitle =
     activeTab === 'sales'
       ? 'Ringkasan Penjualan Harian'
@@ -40,9 +46,13 @@ export const Header: React.FC<HeaderProps> = ({
       ? 'Log Sounding Stick Celup Tangki'
       : activeTab === 'expenses'
       ? 'Beban & Pengeluaran Operasional'
+      : activeTab === 'attendance'
+      ? 'Absensi Bulanan & Penggajian Karyawan'
       : activeTab === 'summary'
       ? 'Rekap Eksekutif Bulanan & Tahunan'
-      : 'Analisis Margin & Performa Dealer';
+      : activeTab === 'analytics'
+      ? 'Analisis Margin & Performa Dealer'
+      : 'Sistem Manajemen Pertashop';
 
 
   const todayDateFormatted = new Intl.DateTimeFormat('id-ID', {
