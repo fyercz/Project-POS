@@ -93,6 +93,27 @@ murni di atas jsdom, dan ini menghindari perlu dua config vitest terpisah).
 Install: `npm install -D @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom`
 (sudah tercakup di `package.json`, otomatis terpasang lewat `npm install`).
 
+## 5. Hook logika bisnis hasil ekstraksi dari App.tsx (`tests/unit/use*Logic.test.ts`)
+
+**Cakupan**: `useAttendancePayrollLogic.ts`, `useExpenseLogic.ts`, `useSoundingLogic.ts`, dan
+`fuelVarianceSync.ts` (lihat `docs/REKOMENDASI_ARSITEKTUR.md` soal kenapa file-file ini
+diekstrak dari `App.tsx`). Ditulis TEPAT SETELAH ekstraksinya, berdasarkan skenario yang sudah
+diverifikasi manual lewat Playwright selama proses ekstraksi - supaya verifikasi manual itu
+tidak hilang begitu sesi berakhir.
+
+**Hal penting soal cara mengujinya**: meski namanya diawali `use` (konvensi hook), keempat
+modul ini TIDAK memanggil `useState`/`useEffect` sama sekali - hanya fungsi biasa yang
+menerima dependency (state + setter) lewat parameter. Ini berarti bisa dites dengan memanggil
+fungsinya LANGSUNG di dalam test (`useSoundingLogic({ ...mockDeps })`), tanpa perlu
+`renderHook` dari React Testing Library.
+
+**Jebakan yang berulang kali ditemukan saat menulis test ini**: banyak handler memanggil
+setter dengan pola *functional update* (`setPayrolls((prev) => ...)`), bukan nilai langsung.
+Mengambil `setPayrolls.mock.calls[0][0]` saja hanya memberi FUNGSI updater-nya, bukan
+hasilnya - harus dipanggil dulu dengan state sebelumnya (`updater(prevState)`) untuk
+mendapatkan hasil akhir. Lupa langkah ini menyebabkan beberapa test gagal dengan error
+`Cannot read properties of undefined` saat pertama ditulis.
+
 ## Yang Belum Dicakup (Peluang ke Depan)
 
 - **Test komponen untuk modal lain** — baru `SalesEntryModal` yang tercakup. Kandidat
