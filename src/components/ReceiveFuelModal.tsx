@@ -40,41 +40,53 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
   onDeleteOrder,
 }) => {
   const { containerRef, titleId } = useModalA11y(isOpen, onClose);
-  if (!isOpen || !order) return null;
 
+  // PENTING (lihat bug Rules-of-Hooks yang sama persis pernah terjadi di PriceManagementModal,
+  // dan baru ditemukan lagi di sini lewat uji fungsional langsung - React error #310, modal ini
+  // CRASH TOTAL setiap kali dibuka): SEMUA hook di bawah ini harus dipanggil SEBELUM early
+  // return "if (!isOpen || !order) return null" di akhir komponen - jumlah hook yang dipanggil
+  // harus selalu sama di setiap render, tidak boleh tergantung isOpen/order. Karena itu setiap
+  // akses "order.xxx" di bawah memakai "order?.xxx" dengan nilai fallback - komponen akan
+  // langsung return null setelah hook-hook ini selesai dipanggil kalau order memang null, jadi
+  // nilai fallback di sini tidak pernah benar-benar dirender, hanya mencegah crash saat hook
+  // dipanggil.
   const LITERS_PER_CM = 21;
-  const isEditingCompleted = order.status === 'SELESAI';
+  const isEditingCompleted = order?.status === 'SELESAI';
 
   // Base stock calculation
-  const defaultBeforeLiters = isEditingCompleted
-    ? (order.soundingBeforeLiters ?? Math.max(0, Math.min(tank.totalCapacityLiters, tank.currentStockLiters - (order.effectiveStockAdded || order.actualLitersReceived || order.volumeLiters))))
-    : Math.min(tank.totalCapacityLiters, tank.currentStockLiters);
+  const defaultBeforeLiters = order
+    ? isEditingCompleted
+      ? (order.soundingBeforeLiters ?? Math.max(0, Math.min(tank.totalCapacityLiters, tank.currentStockLiters - (order.effectiveStockAdded || order.actualLitersReceived || order.volumeLiters))))
+      : Math.min(tank.totalCapacityLiters, tank.currentStockLiters)
+    : 0;
 
   const [actualDeliveryDate, setActualDeliveryDate] = useState<string>(
-    order.actualDeliveryDate || getTodayDateString()
+    order?.actualDeliveryDate || getTodayDateString()
   );
 
   const [soundingBeforeLiters, setSoundingBeforeLiters] = useState<number>(defaultBeforeLiters);
   const [soundingBeforeCm, setSoundingBeforeCm] = useState<number>(
-    order.soundingBeforeCm ?? Math.round((defaultBeforeLiters / LITERS_PER_CM) * 10) / 10
+    order?.soundingBeforeCm ?? Math.round((defaultBeforeLiters / LITERS_PER_CM) * 10) / 10
   );
 
-  const defaultReceived = order.actualLitersReceived ?? order.volumeLiters;
+  const defaultReceived = order ? (order.actualLitersReceived ?? order.volumeLiters) : 0;
   const [actualLitersReceived, setActualLitersReceived] = useState<number>(defaultReceived);
 
-  const defaultAfterLiters = isEditingCompleted
-    ? (order.soundingAfterLiters ?? (defaultBeforeLiters + defaultReceived))
-    : (defaultBeforeLiters + order.volumeLiters);
+  const defaultAfterLiters = order
+    ? isEditingCompleted
+      ? (order.soundingAfterLiters ?? (defaultBeforeLiters + defaultReceived))
+      : (defaultBeforeLiters + order.volumeLiters)
+    : 0;
 
   const [soundingAfterLiters, setSoundingAfterLiters] = useState<number>(defaultAfterLiters);
   const [soundingAfterCm, setSoundingAfterCm] = useState<number>(
-    order.soundingAfterCm ?? Math.round((defaultAfterLiters / LITERS_PER_CM) * 10) / 10
+    order?.soundingAfterCm ?? Math.round((defaultAfterLiters / LITERS_PER_CM) * 10) / 10
   );
 
-  const [density, setDensity] = useState<number>(order.density ?? 0.745);
-  const [temperature, setTemperature] = useState<number>(order.temperature ?? 29.5);
+  const [density, setDensity] = useState<number>(order?.density ?? 0.745);
+  const [temperature, setTemperature] = useState<number>(order?.temperature ?? 29.5);
   const [notes, setNotes] = useState<string>(
-    order.notes ?? (isEditingCompleted ? 'Koreksi Berita Acara Penerimaan BBM.' : 'Penerimaan BBM dan bongkar tangki modular lancar.')
+    order?.notes ?? (isEditingCompleted ? 'Koreksi Berita Acara Penerimaan BBM.' : 'Penerimaan BBM dan bongkar tangki modular lancar.')
   );
 
   const [showOverflowConfirm, setShowOverflowConfirm] = useState<boolean>(false);
@@ -106,6 +118,12 @@ export const ReceiveFuelModal: React.FC<ReceiveFuelModalProps> = ({
       );
     }
   }, [isOpen, order?.id]);
+
+  // Early return BARU boleh ditaruh di sini - setelah SEMUA hook (useState/useEffect) di atas
+  // sudah dipanggil, tidak peduli isOpen/order. Fungsi-fungsi biasa (bukan hook) di bawah ini
+  // aman memakai "order" langsung tanpa optional chaining karena baris ini menjamin order
+  // pasti tidak null kalau eksekusi sampai ke sana.
+  if (!isOpen || !order) return null;
 
   const handleSoundingBeforeCmChange = (cm: number) => {
     setSoundingBeforeCm(cm);
