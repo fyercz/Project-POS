@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 bun.lock
+
+# Output skrip dev-tools (hasil generate, bukan source)
+scripts/dev-tools/*.xlsx
