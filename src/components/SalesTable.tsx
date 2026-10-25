@@ -249,29 +249,38 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const filteredSales = sales
     .filter((s) => {
       // 1. Search filter
+      // Pengaman terhadap record yang tidak lengkap (mis. dari backup yang rusak/dimodifikasi
+      // manual) - operatorName/productName SEHARUSNYA selalu terisi lewat form aplikasi, tapi
+      // satu record rusak tidak boleh meng-crash SELURUH layar Ringkasan Penjualan (halaman
+      // utama aplikasi). Lihat pola serupa yang sudah ada untuk s.notes di bawah ini.
+      const lowerSearch = searchTerm.toLowerCase();
       const matchSearch =
-        s.operatorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (s.notes && s.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+        (s.operatorName || '').toLowerCase().includes(lowerSearch) ||
+        (s.productName || '').toLowerCase().includes(lowerSearch) ||
+        (s.notes && s.notes.toLowerCase().includes(lowerSearch));
 
       // 2. Shift filter
-      const matchShift = selectedShift === 'ALL' || s.shift.includes(selectedShift);
+      const matchShift = selectedShift === 'ALL' || (s.shift || '').includes(selectedShift);
 
       // 3. Date Range Filter
+      // Pengaman yang sama seperti operatorName/productName/shift di atas - transactionDate
+      // yang hilang dulu meng-crash .startsWith() di bawah (ditemukan lewat test regresi saat
+      // memperbaiki ExpensesView, scan ulang file ini menemukan pola yang sama persis).
+      const txDate = s.transactionDate || '';
       let matchDate = true;
       if (datePreset === 'TODAY') {
-        matchDate = s.transactionDate === todayStr;
+        matchDate = txDate === todayStr;
       } else if (datePreset === 'YESTERDAY') {
-        matchDate = s.transactionDate === yesterdayStr;
+        matchDate = txDate === yesterdayStr;
       } else if (datePreset === '7DAYS') {
-        matchDate = s.transactionDate >= sevenDaysAgoStr && s.transactionDate <= todayStr;
+        matchDate = txDate >= sevenDaysAgoStr && txDate <= todayStr;
       } else if (datePreset === 'THIS_MONTH') {
-        matchDate = s.transactionDate.startsWith(currentYearMonth);
+        matchDate = txDate.startsWith(currentYearMonth);
       } else if (datePreset === 'LAST_MONTH') {
-        matchDate = s.transactionDate.startsWith(lastYearMonth);
+        matchDate = txDate.startsWith(lastYearMonth);
       } else if (datePreset === 'CUSTOM' || startDate || endDate) {
-        if (startDate && s.transactionDate < startDate) matchDate = false;
-        if (endDate && s.transactionDate > endDate) matchDate = false;
+        if (startDate && txDate < startDate) matchDate = false;
+        if (endDate && txDate > endDate) matchDate = false;
       }
 
       return matchSearch && matchShift && matchDate;

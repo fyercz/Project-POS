@@ -115,19 +115,27 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     .reduce((acc, e) => acc + e.amount, 0);
 
   // Get list of unique months available in expenses
+  // Pengaman yang sama seperti filteredExpenses di bawah - satu record dengan date hilang
+  // tidak boleh meng-crash dropdown bulan ini.
   const availableMonths = Array.from(
-    new Set(expenses.map((e) => e.date.substring(0, 7)))
+    new Set(expenses.map((e) => (e.date || '').substring(0, 7)).filter(Boolean))
   ).sort().reverse();
 
   // Filtered List
   const filteredExpenses = expenses.filter((item) => {
+    // Pengaman terhadap record yang tidak lengkap (mis. dari backup yang rusak/dimodifikasi
+    // manual) - title/date SEHARUSNYA selalu terisi lewat form aplikasi, tapi satu record rusak
+    // tidak boleh meng-crash seluruh layar Beban & Pengeluaran. Pola sama diterapkan di
+    // SalesTable.tsx untuk operatorName/productName/shift.
+    const itemDate = item.date || '';
     const matchCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
-    const matchMonth = selectedMonth === 'ALL' || item.date.startsWith(selectedMonth);
+    const matchMonth = selectedMonth === 'ALL' || itemDate.startsWith(selectedMonth);
+    const lowerSearch = searchTerm.toLowerCase();
     const matchSearch =
-      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.personOrVendor && item.personOrVendor.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.notes && item.notes.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchDate = selectedDate === 'ALL' || item.date === selectedDate;
+      (item.title || '').toLowerCase().includes(lowerSearch) ||
+      (item.personOrVendor && item.personOrVendor.toLowerCase().includes(lowerSearch)) ||
+      (item.notes && item.notes.toLowerCase().includes(lowerSearch));
+    const matchDate = selectedDate === 'ALL' || itemDate === selectedDate;
 
     return matchCategory && matchMonth && matchSearch && matchDate;
   });

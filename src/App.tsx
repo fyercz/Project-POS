@@ -1756,18 +1756,36 @@ export default function App() {
         StorageService.setTankConfig(cleanTank);
 
         // 3. Berikan notifikasi sukses bahwa aplikasi telah bersih terformat
+        // PENTING (ditemukan lewat evaluasi fungsional langsung, bukan dugaan): halaman HARUS
+        // dimuat ulang setelah reset, tidak boleh digantungkan ke tombol "Selesai" di bawah.
+        // StorageService.resetToDefault() menulis ulang employees/profile/products/
+        // priceHistory ke localStorage memakai nilai bawaan (INITIAL_EMPLOYEES dkk), tapi
+        // state React untuk employees/profile/products/priceHistory di memori TIDAK ikut
+        // disentuh (hanya sales/purchases/expenses/soundings/attendance/payrolls/tank yang
+        // di-setState ulang di atas) - tanpa reload, layar terus menampilkan data LAMA (mis.
+        // daftar karyawan custom pengguna) walau localStorage sudah berisi data bawaan, dan
+        // risiko lebih jauh: efek simpan-otomatis di tempat lain bisa menimpa kembali seed
+        // bawaan itu dengan data lama yang masih nyangkut di memori. onClose dialog ini
+        // (dipicu tombol X, klik di luar, atau Escape) TERPISAH dari onConfirm dan TIDAK bisa
+        // diandalkan untuk memicu reload - karena itu reload dijadwalkan di sini secara
+        // tidak bersyarat, bukan digantungkan ke interaksi pengguna dengan dialog sukses.
         setTimeout(() => {
           setConfirmConfig({
             isOpen: true,
             title: 'Format Berhasil Dilakukan',
             message:
-              'Aplikasi telah berhasil diformat bersih ke kondisi baru. Seluruh data penjualan bulanan, harian, DO Pertamina, dan pembukuan lainnya telah terhapus total tanpa sisa. Sistem siap digunakan untuk pembukuan baru.',
-            confirmLabel: 'Selesai',
+              'Aplikasi telah berhasil diformat bersih ke kondisi baru. Seluruh data penjualan bulanan, harian, DO Pertamina, dan pembukuan lainnya telah terhapus total tanpa sisa. Halaman akan dimuat ulang otomatis...',
+            confirmLabel: 'Muat Ulang Sekarang',
             cancelLabel: '',
             isDestructive: false,
-            onConfirm: () => {},
+            onConfirm: () => window.location.reload(),
           });
         }, 100);
+        // Reload tidak bersyarat sebagai jaring pengaman, terlepas dari bagaimana dialog
+        // sukses di atas ditutup (tombol konfirmasi, X, klik di luar, atau Escape).
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
       },
     });
   };
