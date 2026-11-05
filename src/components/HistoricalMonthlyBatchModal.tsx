@@ -62,6 +62,12 @@ export interface MonthlyBatchPayload {
     lossesLiters: number;
     dividenOwner: number;
     lainnya: number;
+    // Pos pengeluaran yang DIKONFIRMASI nyata tapi konteks/kategorinya sudah tidak diketahui
+    // lagi (mis. hasil migrasi dari buku kas kertas/Excel lama yang keterbatasan tabelnya
+    // tidak menyimpan rincian). SENGAJA dipisah dari `lainnya` biasa, bukan digabung, supaya
+    // pos semacam ini tetap mudah dikenali di laporan nanti - bukan menyatu diam-diam dengan
+    // beban Lain-lain yang kategorinya memang sudah jelas (BPJS, Internet, dst).
+    tidakTeridentifikasi: number;
     notes?: string;
   };
   syncTankStock: boolean;
@@ -131,6 +137,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
   const [lossesMinyak, setLossesMinyak] = useState<number>(0);
   const [dividenOwner, setDividenOwner] = useState<number>(6000000);
   const [lainnya, setLainnya] = useState<number>(100000);
+  const [tidakTeridentifikasi, setTidakTeridentifikasi] = useState<number>(0);
 
   // Strategy & Sync Options
   const [distributionMode, setDistributionMode] = useState<'AUTO_DISTRIBUTE' | 'SINGLE_RECORD'>('AUTO_DISTRIBUTE');
@@ -203,7 +210,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
   const nonCashAmount = totalOmzet - cashAmount;
 
   const totalDOAmount = totalDOLiters * buyPrice;
-  const totalOpEx = gajiOperator + tokenListrik + pdam + maintenance + lossesMinyak + lainnya;
+  const totalOpEx = gajiOperator + tokenListrik + pdam + maintenance + lossesMinyak + lainnya + tidakTeridentifikasi;
   const estimatedNetProfit = totalGrossProfit - totalOpEx;
 
   // Live estimated tank stock impact
@@ -256,6 +263,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
         lossesLiters: calculatedLossLiters,
         dividenOwner,
         lainnya,
+        tidakTeridentifikasi,
         notes: `Rekap pengeluaran bulanan historis ${formatMonthYear(targetMonthStr)}`,
       },
       syncTankStock: tankSyncMode !== 'NONE',
@@ -290,6 +298,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
         'Losses Minyak (Rp)': 302500,
         'Dividen Owner (Rp)': 6000000,
         'Lain-lain (Rp)': 100000,
+        'Pos Tidak Teridentifikasi (Rp)': 0,
         'Catatan': 'Rekapitulasi pembukuan Januari 2026',
       },
       {
@@ -312,6 +321,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
         'Losses Minyak (Rp)': 242000,
         'Dividen Owner (Rp)': 5500000,
         'Lain-lain (Rp)': 80000,
+        'Pos Tidak Teridentifikasi (Rp)': 0,
         'Catatan': 'Rekapitulasi pembukuan Februari 2026',
       },
       {
@@ -334,6 +344,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
         'Losses Minyak (Rp)': 363000,
         'Dividen Owner (Rp)': 6500000,
         'Lain-lain (Rp)': 120000,
+        'Pos Tidak Teridentifikasi (Rp)': 0,
         'Catatan': 'Rekapitulasi pembukuan Maret 2026',
       },
     ];
@@ -359,6 +370,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
       { wch: 16 }, // Losses Minyak (Rp)
       { wch: 16 }, // Dividen Owner (Rp)
       { wch: 14 }, // Lain-lain (Rp)
+      { wch: 26 }, // Pos Tidak Teridentifikasi (Rp)
       { wch: 32 }, // Catatan
     ];
 
@@ -510,6 +522,16 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
 
           const prive = parseSafePositiveNumber(normalized['dividenownerrp'] || normalized['dividenowner'] || normalized['prive']) || 0;
           const lain = parseSafePositiveNumber(normalized['lainlainrp'] || normalized['lainlain'] || normalized['lainnya']) || 100000;
+          // Pos pengeluaran yang dikonfirmasi nyata tapi kategorinya sudah tidak diketahui -
+          // dipisah dari "lain" biasa supaya tetap bisa dikenali di laporan, bukan tercampur
+          // diam-diam dengan beban Lain-lain yang memang sudah jelas kategorinya.
+          const tidakTerID = parseSafePositiveNumber(
+            normalized['postidakteridentifikasirp'] ||
+            normalized['tidakteridentifikasirp'] ||
+            normalized['tidakteridentifikasi'] ||
+            normalized['tidakdiketahuirp'] ||
+            normalized['tidakdiketahui']
+          ) || 0;
           const catatan = String(normalized['catatan'] || normalized['notes'] || normalized['keterangan'] || '').trim();
 
           parsedBatches.push({
@@ -534,6 +556,7 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
               lossesLiters: parsedLossesLiters,
               dividenOwner: prive,
               lainnya: lain,
+              tidakTeridentifikasi: tidakTerID,
               notes: catatan || `Rekap bulanan historis ${formatMonthYear(monthStr)}`,
             },
             syncTankStock: excelTankSyncMode !== 'NONE',
@@ -1018,6 +1041,21 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
                   </div>
 
                   <div>
+                    <label className="block text-slate-600 font-semibold mb-1">
+                      Pos Tidak Teridentifikasi:
+                    </label>
+                    <input
+                      type="number"
+                      value={tidakTeridentifikasi}
+                      onChange={(e) => setTidakTeridentifikasi(parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-mono text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                    <span className="text-[9px] text-slate-500 mt-0.5 block">
+                      Pengeluaran yang DIKONFIRMASI nyata tapi kategorinya sudah tidak diingat/tercatat - akan dibukukan terpisah, bukan digabung ke Lain-lain
+                    </span>
+                  </div>
+
+                  <div>
                     <label className="block text-slate-600 font-semibold mb-1">Estimasi Laba Bersih:</label>
                     <div className="px-3 py-2 bg-emerald-50 border border-emerald-300 rounded-xl font-mono font-black text-emerald-800 text-xs">
                       {formatRupiah(estimatedNetProfit)}
@@ -1408,7 +1446,8 @@ export const HistoricalMonthlyBatchModal: React.FC<HistoricalMonthlyBatchModalPr
                             batch.expenses.pdam +
                             batch.expenses.maintenance +
                             batch.expenses.lossesMinyak +
-                            batch.expenses.lainnya;
+                            batch.expenses.lainnya +
+                            (batch.expenses.tidakTeridentifikasi || 0);
                           const net = gross - opex;
 
                           return (

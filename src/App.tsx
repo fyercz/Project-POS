@@ -1137,6 +1137,27 @@ export default function App() {
         });
       }
 
+      // Pos pengeluaran yang DIKONFIRMASI nyata (bukan dugaan/tebakan) tapi kategori aslinya
+      // sudah tidak diketahui lagi - mis. hasil migrasi dari buku kas lama yang keterbatasan
+      // tabelnya tidak menyimpan rincian. SENGAJA dibukukan sebagai record TERPISAH dari
+      // "Pengeluaran Operasional Lainnya" di atas (bukan digabung ke jumlahnya), supaya tetap
+      // mudah dikenali & ditelusuri di laporan nanti - judulnya eksplisit menyebut "Riwayat/
+      // Tidak Teridentifikasi" agar tidak disalahartikan sebagai beban Lain-lain biasa yang
+      // kategorinya sebenarnya sudah jelas (BPJS, Internet, dst).
+      if (exp.tidakTeridentifikasi > 0) {
+        allExpenses.unshift({
+          id: `exp-unidentified-hist-${targetMonth}`,
+          date: endOfMonthDate,
+          time: '17:30',
+          category: 'LAINNYA',
+          title: `Pengeluaran Riwayat - Kategori Tidak Teridentifikasi (${formatMonthYearId(targetMonth)})`,
+          amount: exp.tidakTeridentifikasi,
+          paymentSource: 'KAS_HARIAN',
+          notes: 'Dikonfirmasi sebagai pengeluaran nyata saat migrasi data historis, tapi kategori/konteks aslinya sudah tidak tercatat/teringat. Sengaja dipisah dari beban Lain-lain biasa agar mudah ditelusuri kembali.',
+          createdAt: `${endOfMonthDate} 17:30`,
+        });
+      }
+
       // 4. Payroll Slips
       if (exp.gajiOperator > 0) {
         const activeEmps = employees.filter((e) => e.isActive);
