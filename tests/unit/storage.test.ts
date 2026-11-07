@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { StorageService } from '../../src/utils/storage';
+import type { SaleRecord } from '../../src/types';
 
 // Bug nyata: restore backup dulu HANYA memeriksa bahwa sales/purchases/dll berupa array,
 // tanpa memeriksa isi tiap barisnya. Satu baris rusak bisa membuat layar kosong/putih
@@ -53,5 +54,48 @@ describe('StorageService.validateAndParseBackup', () => {
     expect(result.employees).toHaveLength(1);
     expect(result.expenses).toHaveLength(1);
     expect(result.validationWarnings ?? []).toHaveLength(0);
+  });
+});
+
+// Bug nyata (insiden pengguna): peringatan "PENYIMPANAN PENUH: data terbaru GAGAL disimpan"
+// muncul, pengguna disarankan unduh Backup JSON sebagai jaring pengaman - tapi createBackupData
+// SEBELUM perbaikan ini SELALU membaca ulang dari localStorage (StorageService.getSales() dkk),
+// persis sumber yang BARU SAJA gagal ditulisi karena penuh. Akibatnya file backup yang diunduh
+// tepat saat krisis tidak menyertakan data terbaru yang sedang berisiko hilang - jaring
+// pengaman yang gagal justru di saat paling dibutuhkan. Parameter `liveData` memastikan state
+// React yang sedang berjalan di memori (selalu akurat, tidak peduli localStorage berhasil
+// menulis atau tidak) dipakai sebagai gantinya.
+describe('StorageService.createBackupData - liveData override (regresi insiden PENYIMPANAN PENUH)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('TANPA liveData: mengambil dari localStorage seperti sebelumnya (kompatibilitas mundur)', () => {
+    const staleSale: SaleRecord = { id: 'stale-1', transactionDate: '2026-01-01' } as SaleRecord;
+    localStorage.setItem('pertashop_sales_v5_fresh', JSON.stringify([staleSale]));
+    const backup = StorageService.createBackupData();
+    expect(backup.sales).toHaveLength(1);
+    expect(backup.sales[0].id).toBe('stale-1');
+  });
+
+  it('DENGAN liveData: memakai data dari memori, BUKAN localStorage - walau localStorage berisi data lain/basi', () => {
+    // Simulasikan persis situasi insiden: localStorage berisi data LAMA (atau kosong, krn
+    // tulisan terakhir gagal), sementara data TERBARU hanya ada di state React (liveData).
+    const staleSaleInStorage: SaleRecord = { id: 'stale-old', transactionDate: '2026-01-01' } as SaleRecord;
+    localStorage.setItem('pertashop_sales_v5_fresh', JSON.stringify([staleSaleInStorage]));
+
+    const freshSaleInMemory: SaleRecord = { id: 'fresh-unsaved', transactionDate: '2026-10-25' } as SaleRecord;
+    const backup = StorageService.createBackupData(undefined, { sales: [freshSaleInMemory] });
+
+    expect(backup.sales).toHaveLength(1);
+    expect(backup.sales[0].id).toBe('fresh-unsaved'); // BUKAN 'stale-old' dari localStorage
+  });
+
+  it('liveData sebagian (hanya sales diisi) - field lain tetap fallback ke localStorage, tidak error', () => {
+    localStorage.setItem('pertashop_employees_v5_fresh', JSON.stringify([{ id: 'e1', name: 'Daslam' }]));
+    const freshSale: SaleRecord = { id: 'fresh-1', transactionDate: '2026-10-25' } as SaleRecord;
+    const backup = StorageService.createBackupData(undefined, { sales: [freshSale] });
+    expect(backup.sales[0].id).toBe('fresh-1');
+    expect(backup.employees).toHaveLength(1); // field yg tidak dioper via liveData tetap fallback aman
   });
 });

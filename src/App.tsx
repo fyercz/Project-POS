@@ -1961,7 +1961,20 @@ export default function App() {
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={() => StorageService.downloadBackupJSON(profile)}
+                  onClick={() =>
+                    StorageService.downloadBackupJSON(profile, {
+                      products,
+                      tank,
+                      priceHistory,
+                      sales,
+                      purchases,
+                      soundings,
+                      expenses,
+                      employees,
+                      attendance,
+                      payrolls,
+                    })
+                  }
                   className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-[11px] font-bold"
                 >
                   Unduh Backup
@@ -2417,6 +2430,18 @@ export default function App() {
           totalEmployees: employees.length,
           totalAttendance: attendance.length,
           totalPayrolls: payrolls.length,
+        }}
+        liveData={{
+          products,
+          tank,
+          priceHistory,
+          sales,
+          purchases,
+          soundings,
+          expenses,
+          employees,
+          attendance,
+          payrolls,
         }}
         onRestoreSuccess={handleRestoreSuccess}
       />

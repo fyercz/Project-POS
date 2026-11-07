@@ -22,7 +22,7 @@ import {
   Gauge
 } from 'lucide-react';
 import { PertashopProfile, PertashopBackupData } from '../types';
-import { StorageService } from '../utils/storage';
+import { StorageService, LiveAppData } from '../utils/storage';
 import { getErrorLog, clearErrorLog, formatErrorLogAsText } from '../utils/errorLog';
 
 interface BackupRestoreModalProps {
@@ -38,6 +38,14 @@ interface BackupRestoreModalProps {
     totalAttendance: number;
     totalPayrolls: number;
   };
+  // PENTING (ditemukan lewat insiden nyata: peringatan "PENYIMPANAN PENUH" muncul, pengguna
+  // disarankan unduh backup, tapi backup yang dihasilkan TERNYATA tidak menyertakan data
+  // terbaru yang justru sedang berisiko hilang - karena sebelum ini backup SELALU dibaca ulang
+  // dari localStorage, sumber yang sama yang baru saja gagal ditulisi). State React yang
+  // sedang berjalan di App.tsx (selalu akurat, tidak peduli localStorage berhasil menulis atau
+  // tidak) dioper ke sini lewat prop ini, dipakai saat membuat file backup - BUKAN dibaca
+  // ulang dari localStorage. Lihat catatan lengkap di StorageService.createBackupData.
+  liveData: LiveAppData;
   onRestoreSuccess: (restoredData: PertashopBackupData) => void;
 }
 
@@ -46,6 +54,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   onClose,
   profile,
   stats,
+  liveData,
   onRestoreSuccess,
 }) => {
   const [activeTab, setActiveTab] = useState<'backup' | 'restore' | 'rescue' | 'guide'>('backup');
@@ -65,7 +74,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   if (!isOpen) return null;
 
   const handleDownloadBackup = () => {
-    StorageService.downloadBackupJSON(profile);
+    StorageService.downloadBackupJSON(profile, liveData);
     setSuccessMsg('File backup JSON berhasil diunduh ke komputer Anda!');
     setTimeout(() => setSuccessMsg(null), 4000);
   };
@@ -85,7 +94,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
 
   const handleCopyClipboard = async () => {
     try {
-      const backup = StorageService.createBackupData(profile);
+      const backup = StorageService.createBackupData(profile, liveData);
       await navigator.clipboard.writeText(JSON.stringify(backup, null, 2));
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
@@ -688,7 +697,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                           } else {
                             const restored = StorageService.restoreSalesFromKey(item.key);
                             if (restored.length > 0) {
-                              const currentBackup = StorageService.createBackupData(profile);
+                              const currentBackup = StorageService.createBackupData(profile, liveData);
                               currentBackup.sales = restored;
                               onRestoreSuccess(currentBackup);
                               setSuccessMsg(`Berhasil memulihkan ${restored.length} transaksi penjualan!`);

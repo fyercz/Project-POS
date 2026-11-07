@@ -12,6 +12,24 @@ import {
   PayrollRecord,
   PertashopBackupData,
 } from '../types';
+
+// Tipe mandiri (bukan `Parameters<typeof StorageService.createBackupData>[1]`) - dipakai di
+// signature createBackupData/downloadBackupJSON DI DALAM StorageService sendiri, jadi referensi
+// sirkular ke `typeof StorageService` akan membuat TypeScript gagal menyimpulkan tipe
+// StorageService itu sendiri (jadi implicit `any`, lalu merembet ke banyak error lain yang
+// tidak terkait). Lihat catatan lengkap di createBackupData soal kenapa parameter ini ada.
+export interface LiveAppData {
+  products?: Product[];
+  tank?: TankConfig;
+  priceHistory?: PriceHistory[];
+  sales?: SaleRecord[];
+  purchases?: PurchaseOrder[];
+  soundings?: SoundingRecord[];
+  expenses?: ExpenseRecord[];
+  employees?: Employee[];
+  attendance?: AttendanceRecord[];
+  payrolls?: PayrollRecord[];
+}
 import {
   INITIAL_PERTASHOP_PROFILE,
   INITIAL_PRODUCTS,
@@ -763,7 +781,21 @@ export const StorageService = {
     } catch {}
   },
 
-  createBackupData: (customProfile?: PertashopProfile): PertashopBackupData => {
+  // PENTING (ditemukan lewat insiden nyata pengguna - peringatan "PENYIMPANAN PENUH: data
+  // terbaru GAGAL disimpan"): parameter `liveData` di sini BUKAN sekadar opsi tambahan, tapi
+  // JALUR PENYELAMATAN UTAMA saat localStorage penuh. Sebelum perbaikan ini, fungsi ini SELALU
+  // membaca ulang dari localStorage (StorageService.getSales() dkk) - persis sumber yang BARU
+  // SAJA gagal ditulisi. Akibatnya, tombol "Unduh Backup JSON" yang disarankan ke pengguna
+  // tepat saat krisis penyimpanan penuh justru TIDAK menyertakan data terbaru yang sedang
+  // berisiko hilang itu - jaring pengaman yang gagal justru di saat paling dibutuhkan.
+  // Sekarang App.tsx mengoper state React yang sedang berjalan di memori (selalu akurat,
+  // tidak peduli localStorage berhasil menulis atau tidak) lewat `liveData`; localStorage
+  // hanya dipakai sebagai fallback kalau BENAR-BENAR tidak ada live data yang dioper (mis.
+  // dipanggil dari luar konteks App.tsx, seperti di beberapa test).
+  createBackupData: (
+    customProfile?: PertashopProfile,
+    liveData?: LiveAppData
+  ): PertashopBackupData => {
     const prof = customProfile || StorageService.getProfile();
     const now = new Date();
     const isoString = now.toISOString();
@@ -780,16 +812,16 @@ export const StorageService = {
       sourceCode: prof.pertashopCode || '4P.633.08',
       sourcePertashopName: prof.pertashopName || 'Pertashop Pertamina',
       profile: prof,
-      products: StorageService.getProducts(),
-      tank: StorageService.getTankConfig(),
-      priceHistory: StorageService.getPriceHistory(),
-      sales: StorageService.getSales(),
-      purchases: StorageService.getPurchases(),
-      soundings: StorageService.getSoundings(),
-      expenses: StorageService.getExpenses(),
-      employees: StorageService.getEmployees(),
-      attendance: StorageService.getAttendance(),
-      payrolls: StorageService.getPayrolls(),
+      products: liveData?.products ?? StorageService.getProducts(),
+      tank: liveData?.tank ?? StorageService.getTankConfig(),
+      priceHistory: liveData?.priceHistory ?? StorageService.getPriceHistory(),
+      sales: liveData?.sales ?? StorageService.getSales(),
+      purchases: liveData?.purchases ?? StorageService.getPurchases(),
+      soundings: liveData?.soundings ?? StorageService.getSoundings(),
+      expenses: liveData?.expenses ?? StorageService.getExpenses(),
+      employees: liveData?.employees ?? StorageService.getEmployees(),
+      attendance: liveData?.attendance ?? StorageService.getAttendance(),
+      payrolls: liveData?.payrolls ?? StorageService.getPayrolls(),
       lastSalesDate: StorageService.getLastSalesDate(),
       lastPoDate: StorageService.getLastPoDate(),
     };
@@ -799,8 +831,11 @@ export const StorageService = {
     return backup;
   },
 
-  downloadBackupJSON: (customProfile?: PertashopProfile): void => {
-    const backup = StorageService.createBackupData(customProfile);
+  downloadBackupJSON: (
+    customProfile?: PertashopProfile,
+    liveData?: LiveAppData
+  ): void => {
+    const backup = StorageService.createBackupData(customProfile, liveData);
     const jsonStr = JSON.stringify(backup, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
